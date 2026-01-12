@@ -95,32 +95,51 @@ bool USuspenseCoreReloadAbility::CanActivateAbility(
     const FGameplayTagContainer* TargetTags,
     FGameplayTagContainer* OptionalRelevantTags) const
 {
+    RELOAD_LOG(Warning, TEXT("═══════════════════════════════════════════════════════════════"));
+    RELOAD_LOG(Warning, TEXT("CanActivateAbility CHECK STARTED"));
+
     if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
     {
+        RELOAD_LOG(Warning, TEXT("  ❌ FAILED: Super::CanActivateAbility returned false (check blocking tags)"));
+        if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+        {
+            FGameplayTagContainer OwnedTags;
+            ActorInfo->AbilitySystemComponent->GetOwnedGameplayTags(OwnedTags);
+            RELOAD_LOG(Warning, TEXT("  ASC Owned Tags: %s"), *OwnedTags.ToString());
+        }
         return false;
     }
+    RELOAD_LOG(Warning, TEXT("  ✓ Super::CanActivateAbility passed"));
 
     // Check if already reloading
     if (bIsReloading)
     {
+        RELOAD_LOG(Warning, TEXT("  ❌ FAILED: Already reloading (bIsReloading=true)"));
         return false;
     }
+    RELOAD_LOG(Warning, TEXT("  ✓ Not currently reloading"));
 
     // Get magazine provider interface
     ISuspenseCoreMagazineProvider* MagProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineProvider();
     if (!MagProvider)
     {
-        RELOAD_LOG(Verbose, TEXT("CanActivateAbility: No MagazineProvider found"));
+        RELOAD_LOG(Warning, TEXT("  ❌ FAILED: No MagazineProvider found!"));
+        RELOAD_LOG(Warning, TEXT("    Avatar: %s"), *GetNameSafe(GetAvatarActorFromActorInfo()));
+        RELOAD_LOG(Warning, TEXT("    Owner: %s"), *GetNameSafe(GetOwningActorFromActorInfo()));
         return false;
     }
+    RELOAD_LOG(Warning, TEXT("  ✓ MagazineProvider found: %s"), *GetNameSafe(Cast<UObject>(MagProvider)));
 
     // Determine what kind of reload is possible
     ESuspenseCoreReloadType PossibleReload = DetermineReloadType();
     if (PossibleReload == ESuspenseCoreReloadType::None)
     {
-        RELOAD_LOG(Verbose, TEXT("CanActivateAbility: No valid reload type available"));
+        RELOAD_LOG(Warning, TEXT("  ❌ FAILED: No valid reload type available"));
         return false;
     }
+    RELOAD_LOG(Warning, TEXT("  ✓ Reload type determined: %d"), static_cast<int32>(PossibleReload));
+    RELOAD_LOG(Warning, TEXT("CanActivateAbility CHECK PASSED"));
+    RELOAD_LOG(Warning, TEXT("═══════════════════════════════════════════════════════════════"));
 
     return true;
 }
@@ -218,18 +237,29 @@ void USuspenseCoreReloadAbility::EndAbility(
 
 ESuspenseCoreReloadType USuspenseCoreReloadAbility::DetermineReloadType() const
 {
+    RELOAD_LOG(Warning, TEXT("  [DetermineReloadType] Analyzing weapon state..."));
+
     ISuspenseCoreMagazineProvider* MagProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineProvider();
     if (!MagProvider)
     {
+        RELOAD_LOG(Warning, TEXT("    ❌ No MagazineProvider - returning None"));
         return ESuspenseCoreReloadType::None;
     }
 
     // Get current weapon state via interface
     FSuspenseCoreWeaponAmmoState AmmoState = ISuspenseCoreMagazineProvider::Execute_GetAmmoState(Cast<UObject>(MagProvider));
 
+    RELOAD_LOG(Warning, TEXT("    AmmoState:"));
+    RELOAD_LOG(Warning, TEXT("      bHasMagazine: %s"), AmmoState.bHasMagazine ? TEXT("YES") : TEXT("NO"));
+    RELOAD_LOG(Warning, TEXT("      bChambered: %s"), AmmoState.bChambered ? TEXT("YES") : TEXT("NO"));
+    RELOAD_LOG(Warning, TEXT("      IsReadyToFire: %s"), AmmoState.IsReadyToFire() ? TEXT("YES") : TEXT("NO"));
+    RELOAD_LOG(Warning, TEXT("      IsMagazineEmpty: %s"), AmmoState.IsMagazineEmpty() ? TEXT("YES") : TEXT("NO"));
+    RELOAD_LOG(Warning, TEXT("      Magazine Ammo: %d / %d"), AmmoState.InsertedMagazine.CurrentRoundCount, AmmoState.InsertedMagazine.MaxCapacity);
+
     // Check if we need to chamber only
     if (!AmmoState.IsReadyToFire() && AmmoState.bHasMagazine && !AmmoState.IsMagazineEmpty())
     {
+        RELOAD_LOG(Warning, TEXT("    → Result: ChamberOnly (mag has ammo but not chambered)"));
         return ESuspenseCoreReloadType::ChamberOnly;
     }
 
@@ -240,9 +270,11 @@ ESuspenseCoreReloadType USuspenseCoreReloadAbility::DetermineReloadType() const
         // Only allow if magazine is not full
         if (AmmoState.InsertedMagazine.IsFull())
         {
+            RELOAD_LOG(Warning, TEXT("    → Result: None (magazine is FULL - no reload needed)"));
             return ESuspenseCoreReloadType::None;
         }
 
+        RELOAD_LOG(Warning, TEXT("    → Result: Tactical (mag has ammo but not full)"));
         return ESuspenseCoreReloadType::Tactical;
     }
 
@@ -250,11 +282,13 @@ ESuspenseCoreReloadType USuspenseCoreReloadAbility::DetermineReloadType() const
     if (AmmoState.IsReadyToFire())
     {
         // Round in chamber, tactical reload
+        RELOAD_LOG(Warning, TEXT("    → Result: Tactical (empty mag but round chambered)"));
         return ESuspenseCoreReloadType::Tactical;
     }
     else
     {
         // No round in chamber, full reload
+        RELOAD_LOG(Warning, TEXT("    → Result: Empty (no mag/empty + not chambered)"));
         return ESuspenseCoreReloadType::Empty;
     }
 }
@@ -600,42 +634,83 @@ void USuspenseCoreReloadAbility::OnMontageBlendOut(UAnimMontage* Montage, bool b
 
 ISuspenseCoreMagazineProvider* USuspenseCoreReloadAbility::GetMagazineProvider() const
 {
+    RELOAD_LOG(Warning, TEXT("  [GetMagazineProvider] Searching for ISuspenseCoreMagazineProvider..."));
+
     AActor* AvatarActor = GetAvatarActorFromActorInfo();
+    RELOAD_LOG(Warning, TEXT("    AvatarActor: %s"), *GetNameSafe(AvatarActor));
+
     if (AvatarActor)
     {
         // Check if avatar implements interface
         if (AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreMagazineProvider::StaticClass()))
         {
+            RELOAD_LOG(Warning, TEXT("    ✓ Found on AvatarActor directly"));
             return Cast<ISuspenseCoreMagazineProvider>(AvatarActor);
         }
 
         // Check components
         TArray<UActorComponent*> Components;
         AvatarActor->GetComponents(Components);
+        RELOAD_LOG(Warning, TEXT("    Searching %d components on Avatar..."), Components.Num());
         for (UActorComponent* Comp : Components)
         {
             if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreMagazineProvider::StaticClass()))
             {
+                RELOAD_LOG(Warning, TEXT("    ✓ Found on Avatar component: %s"), *Comp->GetName());
                 return Cast<ISuspenseCoreMagazineProvider>(Comp);
+            }
+        }
+
+        // Check attached actors (weapons!)
+        TArray<AActor*> AttachedActors;
+        AvatarActor->GetAttachedActors(AttachedActors);
+        RELOAD_LOG(Warning, TEXT("    Searching %d attached actors on Avatar..."), AttachedActors.Num());
+        for (AActor* Attached : AttachedActors)
+        {
+            if (Attached)
+            {
+                RELOAD_LOG(Warning, TEXT("      Checking attached: %s"), *Attached->GetName());
+                // Check actor itself
+                if (Attached->GetClass()->ImplementsInterface(USuspenseCoreMagazineProvider::StaticClass()))
+                {
+                    RELOAD_LOG(Warning, TEXT("    ✓ Found on attached actor: %s"), *Attached->GetName());
+                    return Cast<ISuspenseCoreMagazineProvider>(Attached);
+                }
+                // Check its components
+                TArray<UActorComponent*> AttachedComps;
+                Attached->GetComponents(AttachedComps);
+                for (UActorComponent* Comp : AttachedComps)
+                {
+                    if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreMagazineProvider::StaticClass()))
+                    {
+                        RELOAD_LOG(Warning, TEXT("    ✓ Found on attached actor component: %s.%s"), *Attached->GetName(), *Comp->GetName());
+                        return Cast<ISuspenseCoreMagazineProvider>(Comp);
+                    }
+                }
             }
         }
     }
 
     // Check owner actor
     AActor* OwnerActor = GetOwningActorFromActorInfo();
+    RELOAD_LOG(Warning, TEXT("    OwnerActor: %s"), *GetNameSafe(OwnerActor));
+
     if (OwnerActor && OwnerActor != AvatarActor)
     {
         TArray<UActorComponent*> Components;
         OwnerActor->GetComponents(Components);
+        RELOAD_LOG(Warning, TEXT("    Searching %d components on Owner..."), Components.Num());
         for (UActorComponent* Comp : Components)
         {
             if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreMagazineProvider::StaticClass()))
             {
+                RELOAD_LOG(Warning, TEXT("    ✓ Found on Owner component: %s"), *Comp->GetName());
                 return Cast<ISuspenseCoreMagazineProvider>(Comp);
             }
         }
     }
 
+    RELOAD_LOG(Warning, TEXT("    ❌ MagazineProvider NOT FOUND anywhere!"));
     return nullptr;
 }
 

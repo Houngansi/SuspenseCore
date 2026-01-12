@@ -45,9 +45,9 @@ namespace SuspenseCoreCollision
 	// Check if collision profile exists in UE5
 	inline bool DoesProfileExist(const FName& ProfileName)
 	{
-		// Get collision response params for the profile - returns false if not found
-		FCollisionResponseParams ResponseParams;
-		return UCollisionProfile::Get()->GetProfileTemplate(ProfileName, ResponseParams);
+		// Get collision response template for the profile - returns false if not found
+		FCollisionResponseTemplate ProfileTemplate;
+		return UCollisionProfile::Get()->GetProfileTemplate(ProfileName, ProfileTemplate);
 	}
 
 	// Get weapon trace profile with fallback

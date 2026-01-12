@@ -27,8 +27,8 @@
 #include "TimerManager.h"
 
 USuspenseCoreBaseFireAbility::USuspenseCoreBaseFireAbility()
-	: ConsecutiveShotsCount(0)
-	, bDebugTraces(false)
+	: bDebugTraces(false)
+	, ConsecutiveShotsCount(0)
 	, LastShotTime(0.0f)
 {
 	// Network configuration

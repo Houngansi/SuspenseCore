@@ -616,21 +616,25 @@ bool USuspenseCoreBaseFireAbility::ConsumeAmmo(int32 Amount)
 		return false;
 	}
 
-	// Get current ammo
+	// Get current ammo to verify we have enough
 	float CurrentAmmo = Weapon->Execute_GetCurrentAmmo(Cast<UObject>(Weapon));
 	if (CurrentAmmo < Amount)
 	{
 		return false;
 	}
 
-	// Consume via weapon interface
-	// The actual implementation depends on the weapon component
-	// For now, we rely on the weapon handling this
+	// Actually consume ammo via weapon interface
+	// This calls WeaponActor::Fire_Implementation() which calls AmmoComponent::ConsumeAmmo()
+	FWeaponFireParams FireParams;
+	bool bConsumed = Weapon->Execute_Fire(Cast<UObject>(Weapon), FireParams);
 
-	// Publish ammo changed event
-	PublishAmmoChangedEvent();
+	if (bConsumed)
+	{
+		// Publish ammo changed event for UI
+		PublishAmmoChangedEvent();
+	}
 
-	return true;
+	return bConsumed;
 }
 
 bool USuspenseCoreBaseFireAbility::HasAmmo() const

@@ -12,6 +12,7 @@
 // Forward declarations - use interfaces instead of concrete types
 class ISuspenseCoreMagazineProvider;
 class ISuspenseCoreQuickSlotProvider;
+class ISuspenseCoreInventory;
 class UAnimMontage;
 
 /**
@@ -212,6 +213,9 @@ private:
     /** Get QuickSlotProvider interface from owner */
     ISuspenseCoreQuickSlotProvider* GetQuickSlotProvider() const;
 
+    /** Get Inventory interface from owner (for magazine search) */
+    ISuspenseCoreInventory* GetInventoryProvider() const;
+
     /** Apply reload effects (speed debuff, etc.) */
     void ApplyReloadEffects(const FGameplayAbilityActorInfo* ActorInfo);
 
@@ -260,6 +264,10 @@ private:
     /** QuickSlot index of new magazine (-1 if from inventory) */
     UPROPERTY()
     int32 NewMagazineQuickSlotIndex;
+
+    /** Inventory item instance ID (valid when NewMagazineQuickSlotIndex == -1) */
+    UPROPERTY()
+    FGuid NewMagazineInventoryInstanceID;
 
     /** Ejected magazine (to be stored or dropped) */
     UPROPERTY()

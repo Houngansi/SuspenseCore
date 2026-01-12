@@ -27,17 +27,20 @@
 #include "TimerManager.h"
 
 USuspenseCoreBaseFireAbility::USuspenseCoreBaseFireAbility()
-	: ConsecutiveShotsCount(0)
+	: bDebugTraces(false)
+	, ConsecutiveShotsCount(0)
 	, LastShotTime(0.0f)
-	, bDebugTraces(false)
 {
 	// Network configuration
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 
-	// Tag configuration
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::Weapon::Fire);
+	// Tag configuration - use SetAssetTags() instead of deprecated AbilityTags.AddTag()
+	FGameplayTagContainer AssetTags;
+	AssetTags.AddTag(SuspenseCoreTags::Ability::Weapon::Fire);
+	SetAssetTags(AssetTags);
+
 	ActivationOwnedTags.AddTag(SuspenseCoreTags::State::Firing);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);

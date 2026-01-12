@@ -550,11 +550,6 @@ void USuspenseCoreBaseFireAbility::SpawnTracer(const FVector& Start, const FVect
 
 void USuspenseCoreBaseFireAbility::ApplyRecoil()
 {
-	// TEMPORARILY DISABLED - debugging character jerk issue
-	// If character still jerks with this disabled, problem is elsewhere
-	return;
-
-	/*
 	APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
 	if (!AvatarPawn)
 	{
@@ -567,56 +562,72 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 		return;
 	}
 
-	// Get weapon and ammo attributes for full recoil calculation
+	// Get weapon and ammo attributes
 	const USuspenseCoreWeaponAttributeSet* WeaponAttrs = GetWeaponAttributes();
 	const USuspenseCoreAmmoAttributeSet* AmmoAttrs = nullptr;
 
-	// Try to get ammo attributes from ASC
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
 		AmmoAttrs = ActorInfo->AbilitySystemComponent->GetSet<USuspenseCoreAmmoAttributeSet>();
 	}
 
-	// Check ADS for reduction
+	// Get recoil values from attributes (SSOT)
+	// Fallback to minimal values if no attributes
+	float VerticalRecoil = 0.3f;   // Default: 0.3 degrees per shot
+	float HorizontalRecoil = 0.1f; // Default: 0.1 degrees per shot
+	float AmmoRecoilMod = 1.0f;    // Ammo modifier (1.0 = no change)
+
+	if (WeaponAttrs)
+	{
+		VerticalRecoil = WeaponAttrs->GetVerticalRecoil();
+		HorizontalRecoil = WeaponAttrs->GetHorizontalRecoil();
+	}
+
+	if (AmmoAttrs)
+	{
+		AmmoRecoilMod = AmmoAttrs->GetRecoilModifier();
+		// Clamp to reasonable values
+		AmmoRecoilMod = FMath::Clamp(AmmoRecoilMod, 0.5f, 2.0f);
+	}
+
+	// Apply ammo modifier
+	VerticalRecoil *= AmmoRecoilMod;
+	HorizontalRecoil *= AmmoRecoilMod;
+
+	// Check ADS - reduces recoil significantly
 	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
 	const bool bIsAiming = CombatState ? CombatState->IsAiming() : false;
 
-	// Calculate base recoil from weapon and ammo attributes
-	// Returns 1.0 as default if no attributes (minimal recoil)
-	float BaseRecoil = USuspenseCoreSpreadCalculator::CalculateRecoil(
-		WeaponAttrs,
-		AmmoAttrs,
-		bIsAiming,
-		RecoilConfig.ADSMultiplier
-	);
+	if (bIsAiming)
+	{
+		VerticalRecoil *= RecoilConfig.ADSMultiplier;   // Default 0.5
+		HorizontalRecoil *= RecoilConfig.ADSMultiplier;
+	}
 
-	// Apply progressive recoil multiplier (increases with consecutive shots)
+	// Progressive recoil - increases with consecutive shots
 	float RecoilMult = GetCurrentRecoilMultiplier();
+	VerticalRecoil *= RecoilMult;
+	HorizontalRecoil *= RecoilMult;
 
-	// Calculate vertical recoil (pitch up)
-	// Range: BaseRecoil * 0.8 to BaseRecoil * 1.2 for natural variance
-	const float PitchRecoil = FMath::RandRange(BaseRecoil * 0.8f, BaseRecoil * 1.2f) * RecoilMult;
+	// Add natural variance (±20% vertical, random horizontal direction)
+	const float FinalPitch = VerticalRecoil * FMath::RandRange(0.8f, 1.2f);
+	const float FinalYaw = FMath::RandRange(-HorizontalRecoil, HorizontalRecoil);
 
-	// Horizontal recoil is minimal - only 10% of vertical
-	// This prevents the "jerk" feeling while maintaining some randomness
-	const float YawRecoil = FMath::RandRange(-BaseRecoil * 0.1f, BaseRecoil * 0.1f) * RecoilMult;
+	// Apply to camera rotation
+	FRotator CurrentRotation = PC->GetControlRotation();
+	CurrentRotation.Pitch += FinalPitch;
+	CurrentRotation.Yaw += FinalYaw;
+	PC->SetControlRotation(CurrentRotation);
 
-	// Apply recoil to camera
-	FRotator NewRotation = PC->GetControlRotation();
-	NewRotation.Pitch += PitchRecoil;
-	NewRotation.Yaw += YawRecoil;
-	PC->SetControlRotation(NewRotation);
-
-	// Play camera shake if configured
+	// Camera shake (optional - only if configured in Blueprint)
 	if (RecoilCameraShake)
 	{
-		PC->ClientStartCameraShake(RecoilCameraShake, RecoilMult);
+		PC->ClientStartCameraShake(RecoilCameraShake, RecoilMult * 0.5f);
 	}
 
 	// Start recovery timer
 	StartRecoilRecovery();
-	*/
 }
 
 float USuspenseCoreBaseFireAbility::GetCurrentRecoilMultiplier() const

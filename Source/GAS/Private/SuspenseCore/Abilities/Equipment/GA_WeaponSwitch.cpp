@@ -25,19 +25,18 @@
 DEFINE_LOG_CATEGORY_STATIC(LogWeaponSwitch, Log, All);
 
 //==================================================================
-// Helper: Add ability tag with deprecation pragma suppression
-// UE5.5+ deprecated direct AbilityTags access, but this is still
-// the correct way to set tags in constructor for C++ abilities.
+// Helper: Set ability asset tags properly (UE5.5+ compliant)
+// Uses SetAssetTags() instead of deprecated AbilityTags.AddTag()
 //==================================================================
 namespace
 {
-	void AddAbilityTagSafe(UGameplayAbility* Ability, const FGameplayTag& Tag)
+	void SetAbilityAssetTag(UGameplayAbility* Ability, const FGameplayTag& Tag)
 	{
 		if (Ability && Tag.IsValid())
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			Ability->AbilityTags.AddTag(Tag);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FGameplayTagContainer AssetTags;
+			AssetTags.AddTag(Tag);
+			Ability->SetAssetTags(AssetTags);
 		}
 	}
 }
@@ -254,7 +253,7 @@ UGA_WeaponSwitch_Primary::UGA_WeaponSwitch_Primary()
 
 	// Set ability tag for input binding via TryActivateAbilitiesByTag
 	// Using helper to suppress UE5.5+ deprecation warnings cleanly
-	AddAbilityTagSafe(this, SuspenseCoreTags::Ability::WeaponSlot::Primary);
+	SetAbilityAssetTag(this, SuspenseCoreTags::Ability::WeaponSlot::Primary);
 }
 
 UGA_WeaponSwitch_Secondary::UGA_WeaponSwitch_Secondary()
@@ -262,7 +261,7 @@ UGA_WeaponSwitch_Secondary::UGA_WeaponSwitch_Secondary()
 	TargetSlotIndex = 1;
 	AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot2;
 
-	AddAbilityTagSafe(this, SuspenseCoreTags::Ability::WeaponSlot::Secondary);
+	SetAbilityAssetTag(this, SuspenseCoreTags::Ability::WeaponSlot::Secondary);
 }
 
 UGA_WeaponSwitch_Sidearm::UGA_WeaponSwitch_Sidearm()
@@ -270,7 +269,7 @@ UGA_WeaponSwitch_Sidearm::UGA_WeaponSwitch_Sidearm()
 	TargetSlotIndex = 2;
 	AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot3;
 
-	AddAbilityTagSafe(this, SuspenseCoreTags::Ability::WeaponSlot::Sidearm);
+	SetAbilityAssetTag(this, SuspenseCoreTags::Ability::WeaponSlot::Sidearm);
 }
 
 UGA_WeaponSwitch_Melee::UGA_WeaponSwitch_Melee()
@@ -278,5 +277,5 @@ UGA_WeaponSwitch_Melee::UGA_WeaponSwitch_Melee()
 	TargetSlotIndex = 3;
 	AbilityInputID = ESuspenseCoreAbilityInputID::MeleeWeapon;
 
-	AddAbilityTagSafe(this, SuspenseCoreTags::Ability::WeaponSlot::Melee);
+	SetAbilityAssetTag(this, SuspenseCoreTags::Ability::WeaponSlot::Melee);
 }

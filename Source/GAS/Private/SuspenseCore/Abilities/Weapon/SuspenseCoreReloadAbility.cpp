@@ -3,6 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Abilities/Weapon/SuspenseCoreReloadAbility.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
@@ -30,7 +31,7 @@ USuspenseCoreReloadAbility::USuspenseCoreReloadAbility()
     // CRITICAL: AbilityTags for activation via TryActivateAbilitiesByTag()
     // Use SetAssetTags() instead of deprecated AbilityTags.AddTag()
     FGameplayTagContainer AssetTags;
-    AssetTags.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Reload")));
+    AssetTags.AddTag(SuspenseCoreTags::Ability::Weapon::Reload);
     SetAssetTags(AssetTags);
 
     // Default timing
@@ -50,19 +51,19 @@ USuspenseCoreReloadAbility::USuspenseCoreReloadAbility()
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     bRetriggerInstancedAbility = false;
 
-    // Blocking tags - can't reload while doing these
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Sprinting")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Firing")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Stunned")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Disabled")));
+    // Blocking tags - can't reload while doing these (using native tags for performance)
+    ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Sprinting);
+    ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Firing);
+    ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
+    ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
+    ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
 
     // Tags applied while reloading
-    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Reloading")));
+    ActivationOwnedTags.AddTag(SuspenseCoreTags::State::Reloading);
 
     // Cancel these abilities when reloading
-    CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Sprint")));
-    CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Aim")));
+    CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Sprint);
+    CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::AimDownSight);
 
     // EventBus configuration
     bPublishAbilityEvents = true;
@@ -773,8 +774,8 @@ void USuspenseCoreReloadAbility::BroadcastReloadStarted()
             Cast<UObject>(MagProvider), true, CurrentReloadType, ReloadDuration);
     }
 
-    // EventBus broadcast
-    PublishSimpleEvent(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Equipment.Reload")));
+    // EventBus broadcast (using native tags)
+    PublishSimpleEvent(SuspenseCoreTags::Event::Weapon::ReloadStarted);
 }
 
 void USuspenseCoreReloadAbility::BroadcastReloadCompleted()

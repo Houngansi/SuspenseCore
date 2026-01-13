@@ -350,23 +350,43 @@ float USuspenseCoreReloadAbility::CalculateReloadDuration(ESuspenseCoreReloadTyp
 
 UAnimMontage* USuspenseCoreReloadAbility::GetMontageForReloadType(ESuspenseCoreReloadType ReloadType) const
 {
+    UAnimMontage* Montage = nullptr;
+    const TCHAR* MontageName = TEXT("Unknown");
+
     switch (ReloadType)
     {
         case ESuspenseCoreReloadType::Tactical:
-            return TacticalReloadMontage.Get();
+            Montage = TacticalReloadMontage.Get();
+            MontageName = TEXT("TacticalReloadMontage");
+            break;
 
         case ESuspenseCoreReloadType::Empty:
-            return EmptyReloadMontage.Get();
+            Montage = EmptyReloadMontage.Get();
+            MontageName = TEXT("EmptyReloadMontage");
+            break;
 
         case ESuspenseCoreReloadType::Emergency:
-            return EmergencyReloadMontage.Get();
+            Montage = EmergencyReloadMontage.Get();
+            MontageName = TEXT("EmergencyReloadMontage");
+            break;
 
         case ESuspenseCoreReloadType::ChamberOnly:
-            return ChamberOnlyMontage.Get();
+            Montage = ChamberOnlyMontage.Get();
+            MontageName = TEXT("ChamberOnlyMontage");
+            break;
 
         default:
+            RELOAD_LOG(Warning, TEXT("GetMontageForReloadType: Unknown reload type %d"), static_cast<int32>(ReloadType));
             return nullptr;
     }
+
+    if (!Montage)
+    {
+        RELOAD_LOG(Warning, TEXT("GetMontageForReloadType: '%s' is NOT SET in Blueprint! Set it in GA_ReloadAbility_C defaults."),
+            MontageName);
+    }
+
+    return Montage;
 }
 
 bool USuspenseCoreReloadAbility::FindBestMagazine(int32& OutQuickSlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const

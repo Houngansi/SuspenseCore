@@ -492,9 +492,18 @@ void USuspenseCoreWeaponFireModeComponent::GrantFireModeAbilities()
             continue;
         }
 
-        // Skip if already granted
+        // Skip if already granted by this component
         if (AbilityHandles.Contains(Mode.FireModeTag))
         {
+            continue;
+        }
+
+        // CRITICAL FIX: Check if ability of this class is already granted (e.g., by AttributeComponent)
+        // This prevents duplicate abilities when GrantedAbilities in DataTable includes fire abilities
+        if (CachedASC->FindAbilitySpecFromClass(Mode.FireModeAbility))
+        {
+            EQUIPMENT_LOG(Log, TEXT("Skipping fire mode ability (already granted): %s"),
+                *Mode.FireModeTag.ToString());
             continue;
         }
 

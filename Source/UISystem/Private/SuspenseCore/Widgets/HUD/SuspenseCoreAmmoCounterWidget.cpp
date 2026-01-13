@@ -398,8 +398,20 @@ void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
 	// ═══════════════════════════════════════════════════════════════════════════
 	// WEAPON STATE EVENTS
 	// ═══════════════════════════════════════════════════════════════════════════
+
+	// Subscribe to EquipmentSystem tag (TAG_Equipment_Event_Weapon_AmmoChanged)
 	WeaponAmmoChangedHandle = EventBus->SubscribeNative(
 		TAG_Equipment_Event_Weapon_AmmoChanged,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreAmmoCounterWidget::OnWeaponAmmoChangedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// CRITICAL FIX: Also subscribe to BridgeSystem tag (SuspenseCoreTags::Event::Weapon::AmmoChanged)
+	// GAS fire abilities publish on this tag because GAS cannot depend on EquipmentSystem
+	// This ensures UI updates when ConsumeAmmo() is called from fire abilities
+	WeaponAmmoChangedGASHandle = EventBus->SubscribeNative(
+		SuspenseCoreTags::Event::Weapon::AmmoChanged,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreAmmoCounterWidget::OnWeaponAmmoChangedEvent),
 		ESuspenseCoreEventPriority::Normal
@@ -434,6 +446,7 @@ void USuspenseCoreAmmoCounterWidget::TeardownEventSubscriptions()
 
 	// Weapon state events
 	EventBus->Unsubscribe(WeaponAmmoChangedHandle);
+	EventBus->Unsubscribe(WeaponAmmoChangedGASHandle);  // BridgeSystem tag (from GAS fire abilities)
 	EventBus->Unsubscribe(FireModeChangedHandle);
 
 	UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Event subscriptions torn down"));

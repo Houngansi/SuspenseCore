@@ -136,6 +136,13 @@ bool USuspenseCoreBaseFireAbility::CanActivateAbility(
 		return false;
 	}
 
+	// CRITICAL: Must have ammo to fire
+	// Check via ISuspenseCoreWeapon interface for proper Tarkov-style ammo state
+	if (!HasAmmo())
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -869,16 +876,26 @@ void USuspenseCoreBaseFireAbility::PublishAmmoChangedEvent()
 {
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		ISuspenseCoreWeapon* Weapon = GetWeaponInterface();
-		if (!Weapon)
+		// Get MagazineProvider for proper Tarkov-style ammo state
+		ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
+		if (!MagProvider)
 		{
 			return;
 		}
 
+		// Get ammo state from MagazineProvider (SSOT)
+		FSuspenseCoreWeaponAmmoState AmmoState = ISuspenseCoreMagazineProvider::Execute_GetAmmoState(Cast<UObject>(MagProvider));
+
+		// Build event data in format expected by AmmoCounterWidget
+		// Use standard fields that UI widgets expect
 		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
-		EventData.SetFloat(FName("CurrentAmmo"), Weapon->Execute_GetCurrentAmmo(Cast<UObject>(Weapon)));
-		EventData.SetFloat(FName("RemainingAmmo"), Weapon->Execute_GetRemainingAmmo(Cast<UObject>(Weapon)));
-		EventData.SetFloat(FName("MagazineSize"), Weapon->Execute_GetMagazineSize(Cast<UObject>(Weapon)));
+		EventData.SetInt(TEXT("CurrentRounds"), AmmoState.InsertedMagazine.CurrentRoundCount);
+		EventData.SetInt(TEXT("MaxCapacity"), AmmoState.InsertedMagazine.MaxCapacity);
+		EventData.SetBool(TEXT("HasChamberedRound"), AmmoState.ChamberedRound.IsChambered());
+		EventData.SetString(TEXT("LoadedAmmoType"), AmmoState.InsertedMagazine.LoadedAmmoID.ToString());
+
+		// Publish on BridgeSystem tag - AmmoCounterWidget subscribes to both this
+		// and TAG_Equipment_Event_Weapon_AmmoChanged for cross-module compatibility
 		EventBus->Publish(SuspenseCoreTags::Event::Weapon::AmmoChanged, EventData);
 	}
 }

@@ -8,7 +8,7 @@
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
-#include "SuspenseCore/Services/EventBus/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Animation/AnimInstance.h"

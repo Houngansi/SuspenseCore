@@ -237,6 +237,12 @@ private:
     /** Broadcast reload cancelled event */
     void BroadcastReloadCancelled();
 
+    /**
+     * Execute magazine swap when montage completes
+     * Fallback when AnimNotifies (MagOut/MagIn) don't fire in the montage
+     */
+    void ExecuteReloadOnMontageComplete();
+
     //==================================================================
     // Runtime State
     //==================================================================

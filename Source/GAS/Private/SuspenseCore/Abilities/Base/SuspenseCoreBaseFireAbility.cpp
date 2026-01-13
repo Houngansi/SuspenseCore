@@ -642,18 +642,24 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	float VerticalRecoil = 0.0f;
 	float HorizontalRecoil = 0.0f;
 
+	// Scale factor to convert DataTable recoil points (0-500 range) to rotation degrees (0.1-2.0 range)
+	// DataTable uses Tarkov-style recoil values (e.g., 145 for AK74M) which need conversion
+	// to actual camera rotation angles for AddPitchInput/AddYawInput
+	constexpr float RecoilPointsToDegrees = 0.002f;
+
 	if (WeaponAttrs)
 	{
 		// Use weapon attributes if available (SSOT)
-		VerticalRecoil = WeaponAttrs->GetVerticalRecoil() * RecoilMultiplier * ADSMultiplier;
-		HorizontalRecoil = WeaponAttrs->GetHorizontalRecoil() * RecoilMultiplier * ADSMultiplier;
+		// Apply scale factor to convert recoil points to rotation degrees
+		VerticalRecoil = WeaponAttrs->GetVerticalRecoil() * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
+		HorizontalRecoil = WeaponAttrs->GetHorizontalRecoil() * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
 
 		// Add random horizontal variation
 		HorizontalRecoil *= FMath::FRandRange(-1.0f, 1.0f);
 	}
 	else
 	{
-		// Fallback defaults
+		// Fallback defaults (already in degrees, no conversion needed)
 		VerticalRecoil = 0.3f * RecoilMultiplier * ADSMultiplier;
 		HorizontalRecoil = FMath::FRandRange(-0.1f, 0.1f) * RecoilMultiplier * ADSMultiplier;
 	}

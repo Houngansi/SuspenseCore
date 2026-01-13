@@ -8,6 +8,7 @@
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
+#include "SuspenseCore/Services/EventBus/SuspenseCoreEventBus.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Animation/AnimInstance.h"
@@ -637,10 +638,123 @@ void USuspenseCoreReloadAbility::OnMontageEnded(UAnimMontage* Montage, bool bInt
     else
     {
         // Reload completed successfully
+        // CRITICAL FIX: Execute magazine swap directly if AnimNotifies didn't fire
+        // This ensures magazine insertion happens even without MagOut/MagIn notifies in montage
+        ExecuteReloadOnMontageComplete();
+
         BroadcastReloadCompleted();
         RELOAD_LOG(Log, TEXT("Reload completed successfully"));
         EndAbility(CachedSpecHandle, CachedActorInfo, CachedActivationInfo, true, false);
     }
+}
+
+void USuspenseCoreReloadAbility::ExecuteReloadOnMontageComplete()
+{
+    // Skip if NewMagazine was already consumed by OnMagInNotify
+    if (!NewMagazine.IsValid())
+    {
+        RELOAD_LOG(Verbose, TEXT("ExecuteReloadOnMontageComplete: NewMagazine already consumed by AnimNotify"));
+        return;
+    }
+
+    ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
+    if (!MagProvider)
+    {
+        RELOAD_LOG(Warning, TEXT("ExecuteReloadOnMontageComplete: No MagazineProvider!"));
+        return;
+    }
+
+    UObject* ProviderObj = Cast<UObject>(MagProvider);
+    ISuspenseCoreQuickSlotProvider* QuickSlotProvider = GetQuickSlotProvider();
+    ISuspenseCoreInventory* InventoryProvider = GetInventoryProvider();
+
+    RELOAD_LOG(Log, TEXT("ExecuteReloadOnMontageComplete: AnimNotifies didn't fire, executing magazine swap directly"));
+
+    // Step 1: Eject current magazine (if not ChamberOnly reload)
+    if (CurrentReloadType != ESuspenseCoreReloadType::ChamberOnly)
+    {
+        bool bDropToGround = (CurrentReloadType == ESuspenseCoreReloadType::Emergency);
+        EjectedMagazine = ISuspenseCoreMagazineProvider::Execute_EjectMagazine(ProviderObj, bDropToGround);
+
+        if (bDropToGround)
+        {
+            EjectedMagazine = FSuspenseCoreMagazineInstance();
+        }
+    }
+
+    // Step 2: Insert new magazine
+    ISuspenseCoreMagazineProvider::Execute_InsertMagazine(ProviderObj, NewMagazine);
+    RELOAD_LOG(Log, TEXT("ExecuteReloadOnMontageComplete: Inserted magazine %s with %d rounds"),
+        *NewMagazine.MagazineID.ToString(), NewMagazine.CurrentRoundCount);
+
+    // Step 3: Remove magazine from source (QuickSlot or Inventory)
+    if (NewMagazineQuickSlotIndex >= 0 && QuickSlotProvider)
+    {
+        ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(
+            Cast<UObject>(QuickSlotProvider), NewMagazineQuickSlotIndex);
+        RELOAD_LOG(Log, TEXT("ExecuteReloadOnMontageComplete: Cleared QuickSlot %d"), NewMagazineQuickSlotIndex);
+    }
+    else if (NewMagazineInventoryInstanceID.IsValid() && InventoryProvider)
+    {
+        bool bRemoved = InventoryProvider->RemoveItemInstance(NewMagazineInventoryInstanceID);
+        RELOAD_LOG(Log, TEXT("ExecuteReloadOnMontageComplete: Removed from inventory (ID=%s): %s"),
+            *NewMagazineInventoryInstanceID.ToString(), bRemoved ? TEXT("SUCCESS") : TEXT("FAILED"));
+        NewMagazineInventoryInstanceID = FGuid();
+    }
+
+    // Step 4: Store ejected magazine
+    if (EjectedMagazine.IsValid())
+    {
+        if (NewMagazineQuickSlotIndex >= 0 && QuickSlotProvider)
+        {
+            int32 StoredSlotIndex;
+            ISuspenseCoreQuickSlotProvider::Execute_StoreEjectedMagazine(
+                Cast<UObject>(QuickSlotProvider), EjectedMagazine, StoredSlotIndex);
+            RELOAD_LOG(Log, TEXT("ExecuteReloadOnMontageComplete: Stored ejected mag in QuickSlot %d"), StoredSlotIndex);
+        }
+        else if (InventoryProvider)
+        {
+            FSuspenseCoreItemInstance EjectedMagItem;
+            EjectedMagItem.UniqueInstanceID = FGuid::NewGuid();
+            EjectedMagItem.ItemID = EjectedMagazine.MagazineID;
+            EjectedMagItem.Quantity = 1;
+            EjectedMagItem.MagazineData = EjectedMagazine;
+
+            ISuspenseCoreInventory::Execute_AddItemInstance(
+                Cast<UObject>(InventoryProvider), EjectedMagItem);
+        }
+        EjectedMagazine = FSuspenseCoreMagazineInstance();
+    }
+
+    // Step 5: Chamber a round (for non-tactical reloads or if not already chambered)
+    FSuspenseCoreWeaponAmmoState AmmoState = ISuspenseCoreMagazineProvider::Execute_GetAmmoState(ProviderObj);
+    if (!AmmoState.ChamberedRound.IsChambered() && !AmmoState.IsMagazineEmpty())
+    {
+        ISuspenseCoreMagazineProvider::Execute_ChamberRound(ProviderObj);
+        RELOAD_LOG(Log, TEXT("ExecuteReloadOnMontageComplete: Chambered a round"));
+    }
+
+    // Step 6: Publish ammo changed event for UI update
+    USuspenseCoreEventBus* EventBus = GetEventBus();
+    if (EventBus)
+    {
+        // Get fresh ammo state after reload
+        FSuspenseCoreWeaponAmmoState FinalState = ISuspenseCoreMagazineProvider::Execute_GetAmmoState(ProviderObj);
+
+        FSuspenseCoreEventData EventData;
+        EventData.SetInt(TEXT("CurrentRounds"), FinalState.InsertedMagazine.CurrentRoundCount);
+        EventData.SetBool(TEXT("HasChamberedRound"), FinalState.ChamberedRound.IsChambered());
+        EventData.SetInt(TEXT("MagazineCapacity"), FinalState.InsertedMagazine.MaxCapacity);
+        EventData.SetBool(TEXT("HasMagazine"), FinalState.bHasMagazine);
+
+        EventBus->Publish(SuspenseCoreTags::Event::Weapon::AmmoChanged, EventData);
+        RELOAD_LOG(Log, TEXT("ExecuteReloadOnMontageComplete: Published AmmoChanged event (Rounds=%d, Chambered=%s)"),
+            FinalState.InsertedMagazine.CurrentRoundCount,
+            FinalState.ChamberedRound.IsChambered() ? TEXT("YES") : TEXT("NO"));
+    }
+
+    // Mark magazine as consumed
+    NewMagazine = FSuspenseCoreMagazineInstance();
 }
 
 void USuspenseCoreReloadAbility::OnMontageBlendOut(UAnimMontage* Montage, bool bInterrupted)

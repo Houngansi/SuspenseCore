@@ -285,6 +285,7 @@ private:
 	FSuspenseCoreSubscriptionHandle MagazineSwappedHandle;
 	FSuspenseCoreSubscriptionHandle MagazineRoundsChangedHandle;
 	FSuspenseCoreSubscriptionHandle WeaponAmmoChangedHandle;
+	FSuspenseCoreSubscriptionHandle WeaponAmmoChangedGASHandle;  // BridgeSystem tag subscription (from GAS fire abilities)
 	FSuspenseCoreSubscriptionHandle FireModeChangedHandle;
 	FSuspenseCoreSubscriptionHandle ActiveWeaponChangedHandle;
 	FSuspenseCoreSubscriptionHandle ReloadStartHandle;

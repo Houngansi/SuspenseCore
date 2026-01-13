@@ -635,26 +635,63 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 		}
 	}
 
-	// Get weapon attributes for base recoil values
+	// Get weapon and ammo attributes for recoil calculation
 	const USuspenseCoreWeaponAttributeSet* WeaponAttrs = GetWeaponAttributes();
+	const USuspenseCoreAmmoAttributeSet* AmmoAttrs = nullptr;
+
+	// Try to get ammo attributes from ASC (affects recoil based on ammo type)
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+	{
+		AmmoAttrs = ActorInfo->AbilitySystemComponent->GetSet<USuspenseCoreAmmoAttributeSet>();
+	}
 
 	// Calculate final recoil values
 	float VerticalRecoil = 0.0f;
 	float HorizontalRecoil = 0.0f;
 
-	// Scale factor to convert DataTable recoil points (0-500 range) to rotation degrees (0.1-2.0 range)
-	// DataTable uses Tarkov-style recoil values (e.g., 145 for AK74M) which need conversion
-	// to actual camera rotation angles for AddPitchInput/AddYawInput
+	// ===================================================================================
+	// RECOIL CONVERSION FACTOR EXPLANATION
+	// ===================================================================================
+	// DataTable stores recoil as "Tarkov-style points" in range 0-500:
+	//   - Low recoil weapons: ~50-100 (e.g., MP5: 52)
+	//   - Medium recoil: ~100-200 (e.g., AK-74M: 145, M4A1: 165)
+	//   - High recoil: ~200-400 (e.g., AKM: 280, SA-58: 350)
+	//
+	// AddPitchInput/AddYawInput expect rotation in degrees per frame.
+	// Comfortable recoil range per shot: 0.2° - 1.5° vertical
+	//
+	// Conversion: RecoilPoints × 0.002 = Degrees
+	//   - 100 points → 0.2° (low kick)
+	//   - 145 points → 0.29° (medium, e.g., AK-74M)
+	//   - 350 points → 0.7° (heavy kick)
+	//   - 500 points → 1.0° (maximum)
+	//
+	// This is a TEMPORARY linear conversion. For full Tarkov-style recoil, see:
+	// Documentation/Plans/TarkovStyle_Recoil_System_Design.md
+	// ===================================================================================
 	constexpr float RecoilPointsToDegrees = 0.002f;
 
 	if (WeaponAttrs)
 	{
-		// Use weapon attributes if available (SSOT)
-		// Apply scale factor to convert recoil points to rotation degrees
-		VerticalRecoil = WeaponAttrs->GetVerticalRecoil() * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
-		HorizontalRecoil = WeaponAttrs->GetHorizontalRecoil() * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
+		// Get base recoil values from weapon SSOT
+		float BaseVertical = WeaponAttrs->GetVerticalRecoil();
+		float BaseHorizontal = WeaponAttrs->GetHorizontalRecoil();
 
-		// Add random horizontal variation
+		// Apply ammo modifier if available (heavy ammo = more recoil)
+		// AmmoRecoilModifier range: 0.5 (subsonic) - 2.0 (hot loads)
+		float AmmoModifier = 1.0f;
+		if (AmmoAttrs)
+		{
+			AmmoModifier = AmmoAttrs->GetRecoilModifier();
+		}
+
+		// Calculate final recoil with all modifiers
+		// Formula: Base × AmmoMod × PointsToDegrees × ProgressiveMod × ADSMod
+		VerticalRecoil = BaseVertical * AmmoModifier * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
+		HorizontalRecoil = BaseHorizontal * AmmoModifier * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
+
+		// Add random horizontal variation (recoil kicks left or right randomly)
 		HorizontalRecoil *= FMath::FRandRange(-1.0f, 1.0f);
 	}
 	else

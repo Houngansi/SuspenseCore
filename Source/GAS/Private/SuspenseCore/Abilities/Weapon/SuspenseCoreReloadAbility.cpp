@@ -821,33 +821,73 @@ bool USuspenseCoreReloadAbility::PlayReloadMontage()
     UAnimMontage* Montage = GetMontageForReloadType(CurrentReloadType);
     if (!Montage)
     {
-        RELOAD_LOG(Warning, TEXT("No montage for reload type %d"), static_cast<int32>(CurrentReloadType));
+        RELOAD_LOG(Warning, TEXT("PlayReloadMontage: No montage for reload type %d"), static_cast<int32>(CurrentReloadType));
         return false;
     }
 
-    ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+    RELOAD_LOG(Log, TEXT("PlayReloadMontage: Got montage '%s' for reload type %d"),
+        *Montage->GetName(), static_cast<int32>(CurrentReloadType));
+
+    AActor* AvatarActor = GetAvatarActorFromActorInfo();
+    ACharacter* Character = Cast<ACharacter>(AvatarActor);
     if (!Character)
     {
+        RELOAD_LOG(Warning, TEXT("PlayReloadMontage: AvatarActor '%s' is not ACharacter!"),
+            AvatarActor ? *AvatarActor->GetName() : TEXT("NULL"));
         return false;
     }
 
-    UAnimInstance* AnimInstance = Character->GetMesh()->GetAnimInstance();
+    USkeletalMeshComponent* MeshComp = Character->GetMesh();
+    if (!MeshComp)
+    {
+        RELOAD_LOG(Warning, TEXT("PlayReloadMontage: Character->GetMesh() returned NULL!"));
+        return false;
+    }
+
+    UAnimInstance* AnimInstance = MeshComp->GetAnimInstance();
     if (!AnimInstance)
     {
-        return false;
+        // Try to find AnimInstance on other skeletal mesh components (MetaHuman Body)
+        RELOAD_LOG(Warning, TEXT("PlayReloadMontage: Primary mesh '%s' has no AnimInstance, searching other components..."),
+            *MeshComp->GetName());
+
+        TArray<USkeletalMeshComponent*> SkeletalMeshes;
+        Character->GetComponents<USkeletalMeshComponent>(SkeletalMeshes);
+
+        for (USkeletalMeshComponent* SMC : SkeletalMeshes)
+        {
+            if (SMC && SMC != MeshComp && SMC->GetAnimInstance())
+            {
+                AnimInstance = SMC->GetAnimInstance();
+                RELOAD_LOG(Log, TEXT("PlayReloadMontage: Found AnimInstance on component '%s'"), *SMC->GetName());
+                break;
+            }
+        }
+
+        if (!AnimInstance)
+        {
+            RELOAD_LOG(Warning, TEXT("PlayReloadMontage: No AnimInstance found on any skeletal mesh!"));
+            return false;
+        }
     }
 
     // Calculate play rate to match desired duration
     float MontageLength = Montage->GetPlayLength();
     float PlayRate = (ReloadDuration > 0.0f) ? (MontageLength / ReloadDuration) : 1.0f;
 
+    RELOAD_LOG(Log, TEXT("PlayReloadMontage: Playing montage. Length=%.2f, Duration=%.2f, PlayRate=%.2f"),
+        MontageLength, ReloadDuration, PlayRate);
+
     // Play montage
     float Duration = AnimInstance->Montage_Play(Montage, PlayRate);
     if (Duration <= 0.0f)
     {
-        RELOAD_LOG(Warning, TEXT("Failed to play reload montage"));
+        RELOAD_LOG(Warning, TEXT("PlayReloadMontage: Montage_Play returned %.2f (failed). AnimInstance='%s', Montage='%s'"),
+            Duration, *AnimInstance->GetClass()->GetName(), *Montage->GetName());
         return false;
     }
+
+    RELOAD_LOG(Log, TEXT("PlayReloadMontage: SUCCESS! Duration=%.2f"), Duration);
 
     // Bind to montage end
     FOnMontageEnded EndDelegate;

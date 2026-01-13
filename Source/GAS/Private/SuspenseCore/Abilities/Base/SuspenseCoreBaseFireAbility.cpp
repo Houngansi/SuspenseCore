@@ -603,9 +603,74 @@ void USuspenseCoreBaseFireAbility::SpawnTracer(const FVector& Start, const FVect
 
 void USuspenseCoreBaseFireAbility::ApplyRecoil()
 {
-	// COMPLETELY DISABLED - need to find what actually causes the jerk
-	// If jerk persists with recoil disabled, the problem is elsewhere
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE] ApplyRecoil SKIPPED (disabled for debugging)"));
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
+	{
+		return;
+	}
+
+	// Get player controller for camera shake and view punch
+	APawn* Pawn = Cast<APawn>(Avatar);
+	if (!Pawn)
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+	if (!PC)
+	{
+		return;
+	}
+
+	// Calculate recoil strength based on consecutive shots
+	const float RecoilMultiplier = GetCurrentRecoilMultiplier();
+
+	// Apply ADS reduction if aiming
+	float ADSMultiplier = 1.0f;
+	if (ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState())
+	{
+		if (CombatState->IsAiming())
+		{
+			ADSMultiplier = RecoilConfig.ADSMultiplier;
+		}
+	}
+
+	// Get weapon attributes for base recoil values
+	const USuspenseCoreWeaponAttributeSet* WeaponAttrs = GetWeaponAttributes();
+
+	// Calculate final recoil values
+	float VerticalRecoil = 0.0f;
+	float HorizontalRecoil = 0.0f;
+
+	if (WeaponAttrs)
+	{
+		// Use weapon attributes if available (SSOT)
+		VerticalRecoil = WeaponAttrs->GetVerticalRecoil() * RecoilMultiplier * ADSMultiplier;
+		HorizontalRecoil = WeaponAttrs->GetHorizontalRecoil() * RecoilMultiplier * ADSMultiplier;
+
+		// Add random horizontal variation
+		HorizontalRecoil *= FMath::FRandRange(-1.0f, 1.0f);
+	}
+	else
+	{
+		// Fallback defaults
+		VerticalRecoil = 0.3f * RecoilMultiplier * ADSMultiplier;
+		HorizontalRecoil = FMath::FRandRange(-0.1f, 0.1f) * RecoilMultiplier * ADSMultiplier;
+	}
+
+	// Apply view punch (smooth camera rotation)
+	// Use AddPitchInput/AddYawInput for smooth recoil that can be controlled
+	PC->AddPitchInput(-VerticalRecoil);
+	PC->AddYawInput(HorizontalRecoil);
+
+	// Play camera shake if configured
+	if (RecoilCameraShake)
+	{
+		PC->ClientStartCameraShake(RecoilCameraShake, RecoilMultiplier * ADSMultiplier);
+	}
+
+	// Start recoil recovery timer
+	StartRecoilRecovery();
 }
 
 float USuspenseCoreBaseFireAbility::GetCurrentRecoilMultiplier() const

@@ -175,6 +175,28 @@ protected:
     bool FindBestMagazine(int32& OutQuickSlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const;
 
     //==================================================================
+    // Network RPCs (Multiplayer Support)
+    //==================================================================
+
+    /**
+     * Server RPC to validate and execute reload
+     * @param ReloadType Type of reload to perform
+     * @param MagazineSlotIndex QuickSlot index (-1 if from inventory)
+     * @param Magazine Magazine instance to use
+     */
+    UFUNCTION(Server, Reliable, WithValidation)
+    void Server_ExecuteReload(ESuspenseCoreReloadType ReloadType, int32 MagazineSlotIndex, const FSuspenseCoreMagazineInstance& Magazine);
+    bool Server_ExecuteReload_Validate(ESuspenseCoreReloadType ReloadType, int32 MagazineSlotIndex, const FSuspenseCoreMagazineInstance& Magazine);
+    void Server_ExecuteReload_Implementation(ESuspenseCoreReloadType ReloadType, int32 MagazineSlotIndex, const FSuspenseCoreMagazineInstance& Magazine);
+
+    /**
+     * Multicast RPC to play reload effects on all clients
+     * @param ReloadType Type of reload being performed
+     */
+    UFUNCTION(NetMulticast, Unreliable)
+    void Multicast_PlayReloadEffects(ESuspenseCoreReloadType ReloadType);
+
+    //==================================================================
     // Animation Notify Handlers
     //==================================================================
 
@@ -272,8 +294,9 @@ private:
     int32 NewMagazineQuickSlotIndex;
 
     /** Inventory item instance ID (valid when NewMagazineQuickSlotIndex == -1) */
+    /** Mutable for FindBestMagazine which is const but must track found magazine */
     UPROPERTY()
-    FGuid NewMagazineInventoryInstanceID;
+    mutable FGuid NewMagazineInventoryInstanceID;
 
     /** Ejected magazine (to be stored or dropped) */
     UPROPERTY()
@@ -290,4 +313,13 @@ private:
 
     /** Cached activation info */
     FGameplayAbilityActivationInfo CachedActivationInfo;
+
+    /** Cached MagazineProvider interface - avoids repeated lookups */
+    mutable TWeakObjectPtr<UObject> CachedMagazineProvider;
+
+    /** Cached QuickSlotProvider interface - avoids repeated lookups */
+    mutable TWeakObjectPtr<UObject> CachedQuickSlotProvider;
+
+    /** Cached InventoryProvider interface - avoids repeated lookups */
+    mutable TWeakObjectPtr<UObject> CachedInventoryProvider;
 };

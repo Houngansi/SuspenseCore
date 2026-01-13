@@ -287,7 +287,15 @@ FSuspenseCoreInventoryItemInstance ASuspenseCoreWeaponActor::GetItemInstance_Imp
 
 bool ASuspenseCoreWeaponActor::Fire_Implementation(const FWeaponFireParams& /*Params*/)
 {
-    // Actor doesn't simulate fire; ability flow does it.
+    // PRIORITY: Use MagazineComponent (Tarkov-style) if available
+    if (MagazineComponent)
+    {
+        // MagazineComponent::Fire() handles chambered round + auto-chamber from magazine
+        FName FiredAmmoID = MagazineComponent->Fire(true);
+        return !FiredAmmoID.IsNone();
+    }
+
+    // Fallback to legacy AmmoComponent
     return AmmoComponent ? AmmoComponent->ConsumeAmmo(1.0f) : false;
 }
 
@@ -395,6 +403,20 @@ void ASuspenseCoreWeaponActor::SetCurrentSpread_Implementation(float /*NewSpread
 
 float ASuspenseCoreWeaponActor::GetCurrentAmmo_Implementation() const
 {
+    // PRIORITY: Use MagazineComponent (Tarkov-style) if available
+    // Returns chambered round (1) + magazine rounds
+    if (MagazineComponent)
+    {
+        const FSuspenseCoreWeaponAmmoState& State = MagazineComponent->GetWeaponAmmoState();
+        int32 TotalAmmo = State.InsertedMagazine.CurrentRoundCount;
+        if (State.ChamberedRound.IsChambered())
+        {
+            TotalAmmo += 1;
+        }
+        return static_cast<float>(TotalAmmo);
+    }
+
+    // Fallback to legacy AmmoComponent
     return AmmoComponent ? AmmoComponent->GetCurrentAmmo() : 0.0f;
 }
 
@@ -405,6 +427,13 @@ float ASuspenseCoreWeaponActor::GetRemainingAmmo_Implementation() const
 
 float ASuspenseCoreWeaponActor::GetMagazineSize_Implementation() const
 {
+    // PRIORITY: Use MagazineComponent (Tarkov-style) if available
+    if (MagazineComponent)
+    {
+        return static_cast<float>(MagazineComponent->GetMagazineCapacity());
+    }
+
+    // Fallback to legacy AmmoComponent
     return AmmoComponent ? AmmoComponent->GetMagazineSize() : 0.0f;
 }
 

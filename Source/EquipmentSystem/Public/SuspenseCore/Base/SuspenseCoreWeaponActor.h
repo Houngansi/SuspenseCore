@@ -118,6 +118,12 @@ public:
     virtual bool HasADSScopeCamera_Implementation() const override { return ScopeCam != nullptr; }
     virtual void ResetADSCameraState_Implementation() override { bSmoothedLocationInitialized = false; }
 
+    // Attachment System (ISuspenseCoreWeapon)
+    virtual FSuspenseCoreInstalledAttachments GetInstalledAttachments_Implementation() const override;
+    virtual bool InstallAttachment_Implementation(FSuspenseCoreAttachmentInstance& Attachment, const FGameplayTag& SlotType) override;
+    virtual FSuspenseCoreAttachmentInstance RemoveAttachment_Implementation(const FGameplayTag& SlotType) override;
+    virtual bool HasAttachmentInSlot_Implementation(const FGameplayTag& SlotType) const override;
+
     //================================================
     // ISuspenseCoreFireModeProvider (proxy to component)
     //================================================
@@ -219,6 +225,16 @@ protected:
     /** Whether CachedItemData is valid */
     UPROPERTY(Transient)
     bool bHasCachedData = false;
+
+    //================================================
+    // Attachment System (Tarkov-Style)
+    // @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
+    //================================================
+
+    /** All installed attachments on this weapon
+     *  Modifiers stack multiplicatively for recoil, additively for ergonomics */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Attachments", SaveGame)
+    FSuspenseCoreInstalledAttachments InstalledAttachments;
 
     /** Smoothed camera position for ADS (reduces jitter from weapon sway) */
     UPROPERTY(Transient)

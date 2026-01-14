@@ -183,7 +183,7 @@ void USuspenseCoreCameraShakeComponent::OnDamageShakeEvent(
 {
 	// For damage events, check if we are the target (via ObjectPayload "Target")
 	// or if Source is our owner (damage applied to self)
-	UObject* DamageTarget = EventData.GetObject(TEXT("Target"));
+	UObject* DamageTarget = EventData.GetObject<UObject>(TEXT("Target"));
 	if (DamageTarget && DamageTarget != GetOwner())
 	{
 		return;

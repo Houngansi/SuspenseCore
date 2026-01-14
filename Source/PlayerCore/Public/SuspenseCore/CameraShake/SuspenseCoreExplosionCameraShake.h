@@ -236,7 +236,7 @@ class PLAYERCORE_API USuspenseCoreExplosionCameraShake : public UCameraShakeBase
 	GENERATED_BODY()
 
 public:
-	USuspenseCoreExplosionCameraShake();
+	USuspenseCoreExplosionCameraShake(const FObjectInitializer& ObjectInitializer);
 
 	/**
 	 * Set shake parameters before starting.

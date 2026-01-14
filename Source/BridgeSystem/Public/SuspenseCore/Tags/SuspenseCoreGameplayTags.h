@@ -153,6 +153,12 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Reset);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ADSEnter);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ADSExit);
+
+			// Camera Shake Events
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ShakeWeapon);     // Weapon fire camera shake
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ShakeMovement);   // Movement camera shake (jump, land, sprint)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ShakeDamage);     // Damage received camera shake
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ShakeExplosion);  // Explosion camera shake
 		}
 
 		//--------------------------------------------------------------

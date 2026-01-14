@@ -185,6 +185,22 @@ public:
 				ToolTip = "Throwable attributes DataTable. Row Structure: FSuspenseCoreThrowableAttributeRow"))
 	TSoftObjectPtr<UDataTable> ThrowableAttributesDataTable;
 
+	/**
+	 * DataTable containing attachment/modification attribute definitions
+	 * Row Structure: FSuspenseCoreAttachmentAttributeRow
+	 *
+	 * JSON SOURCE: Content/Data/ItemDatabase/SuspenseCoreAttachmentAttributes.json
+	 * Used for muzzle devices, stocks, grips, sights, handguards.
+	 * Modifiers are multiplicative for recoil (0.85 = -15%), additive for ergonomics.
+	 *
+	 * @see SuspenseCoreGASAttributeRows.h
+	 * @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Section 5.2
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Attachment attributes DataTable. Row Structure: FSuspenseCoreAttachmentAttributeRow"))
+	TSoftObjectPtr<UDataTable> AttachmentAttributesDataTable;
+
 	/** Use SSOT DataTable attributes instead of legacy fields */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
 		meta = (ToolTip = "Enable new SSOT attribute system. Disable for legacy fallback."))

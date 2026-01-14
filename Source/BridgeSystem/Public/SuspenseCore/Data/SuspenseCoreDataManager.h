@@ -340,6 +340,50 @@ public:
 	bool IsArmorAttributesSystemReady() const { return bArmorAttributesSystemReady; }
 
 	//========================================================================
+	// Attachment Attributes Access (Tarkov-Style Recoil Modifiers)
+	// @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
+	//========================================================================
+
+	/**
+	 * Get attachment attributes by AttachmentID
+	 * Uses AttachmentAttributesDataTable configured in Settings
+	 *
+	 * @param AttributeKey AttachmentID or explicit row name
+	 * @param OutAttributes Output attachment attributes structure
+	 * @return true if attributes found
+	 *
+	 * @see FSuspenseCoreAttachmentAttributeRow
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|GAS")
+	bool GetAttachmentAttributes(FName AttributeKey, FSuspenseCoreAttachmentAttributeRow& OutAttributes) const;
+
+	/**
+	 * Check if attachment attributes exist for given key
+	 * @param AttributeKey AttachmentID or row name
+	 * @return true if attributes exist in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool HasAttachmentAttributes(FName AttributeKey) const;
+
+	/**
+	 * Get all cached attachment attribute keys
+	 * @return Array of all attachment attribute keys
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	TArray<FName> GetAllAttachmentAttributeKeys() const;
+
+	/**
+	 * Get count of cached attachment attributes
+	 * @return Number of attachment attribute rows in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	int32 GetCachedAttachmentAttributesCount() const { return AttachmentAttributesCache.Num(); }
+
+	/** Check if attachment attributes system is initialized */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool IsAttachmentAttributesSystemReady() const { return bAttachmentAttributesSystemReady; }
+
+	//========================================================================
 	// Magazine System Access (Tarkov-Style)
 	//========================================================================
 
@@ -475,6 +519,24 @@ protected:
 	bool BuildArmorAttributesCache(UDataTable* DataTable);
 
 	//========================================================================
+	// Attachment Attributes Initialization (Tarkov-Style Modifiers)
+	//========================================================================
+
+	/**
+	 * Initialize attachment attributes system
+	 * Loads AttachmentAttributesDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeAttachmentAttributesSystem();
+
+	/**
+	 * Build attachment attributes cache from DataTable
+	 * @param DataTable Attachment attributes DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildAttachmentAttributesCache(UDataTable* DataTable);
+
+	//========================================================================
 	// Magazine System Initialization (Tarkov-Style)
 	//========================================================================
 
@@ -586,6 +648,23 @@ private:
 	TObjectPtr<UDataTable> LoadedArmorAttributesDataTable;
 
 	//========================================================================
+	// Attachment Attributes Cached Data (Tarkov-Style Modifiers)
+	//========================================================================
+
+	/**
+	 * Attachment attributes cache from AttachmentAttributesDataTable
+	 * Key: AttachmentID or explicit row name
+	 * Contains recoil modifiers, ergonomics bonuses, suppression flags
+	 * @see FSuspenseCoreAttachmentAttributeRow
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreAttachmentAttributeRow> AttachmentAttributesCache;
+
+	/** Loaded attachment attributes DataTable reference */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedAttachmentAttributesDataTable;
+
+	//========================================================================
 	// Magazine System Cached Data (Tarkov-Style)
 	//========================================================================
 
@@ -625,6 +704,9 @@ private:
 
 	/** Armor attributes system ready flag */
 	bool bArmorAttributesSystemReady = false;
+
+	/** Attachment attributes system ready flag */
+	bool bAttachmentAttributesSystemReady = false;
 
 	/** Magazine system ready flag */
 	bool bMagazineSystemReady = false;

@@ -1017,3 +1017,64 @@ void ASuspenseCoreWeaponActor::CheckWallBlocking()
 
     StanceComp->SetBlockDistance(NewBlockDistance);
 }
+
+//================================================
+// Attachment System (Tarkov-Style)
+// @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
+//================================================
+
+FSuspenseCoreInstalledAttachments ASuspenseCoreWeaponActor::GetInstalledAttachments_Implementation() const
+{
+    return InstalledAttachments;
+}
+
+bool ASuspenseCoreWeaponActor::InstallAttachment_Implementation(FSuspenseCoreAttachmentInstance& Attachment, const FGameplayTag& SlotType)
+{
+    if (!Attachment.IsValid() || !SlotType.IsValid())
+    {
+        UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+            TEXT("InstallAttachment: Invalid attachment or slot type"));
+        return false;
+    }
+
+    // Install attachment to slot (replaces existing if present)
+    const bool bSuccess = InstalledAttachments.InstallAttachment(Attachment, SlotType);
+
+    if (bSuccess)
+    {
+        UE_LOG(LogSuspenseCoreWeaponActor, Log,
+            TEXT("InstallAttachment: Installed '%s' to slot '%s'"),
+            *Attachment.AttachmentID.ToString(),
+            *SlotType.ToString());
+
+        // TODO: Attach visual mesh to socket
+        // TODO: Apply attachment modifiers to AttributeSet
+        // TODO: Broadcast event for UI update
+    }
+
+    return bSuccess;
+}
+
+FSuspenseCoreAttachmentInstance ASuspenseCoreWeaponActor::RemoveAttachment_Implementation(const FGameplayTag& SlotType)
+{
+    FSuspenseCoreAttachmentInstance Removed = InstalledAttachments.RemoveAttachmentFromSlot(SlotType);
+
+    if (Removed.IsValid())
+    {
+        UE_LOG(LogSuspenseCoreWeaponActor, Log,
+            TEXT("RemoveAttachment: Removed '%s' from slot '%s'"),
+            *Removed.AttachmentID.ToString(),
+            *SlotType.ToString());
+
+        // TODO: Detach visual mesh
+        // TODO: Remove attachment modifiers from AttributeSet
+        // TODO: Broadcast event for UI update
+    }
+
+    return Removed;
+}
+
+bool ASuspenseCoreWeaponActor::HasAttachmentInSlot_Implementation(const FGameplayTag& SlotType) const
+{
+    return InstalledAttachments.HasAttachmentInSlot(SlotType);
+}

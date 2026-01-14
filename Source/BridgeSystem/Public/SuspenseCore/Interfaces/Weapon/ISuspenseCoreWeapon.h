@@ -8,6 +8,7 @@
 #include "GameplayEffectTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreAttachmentInstance.h"
 #include "ISuspenseCoreWeapon.generated.h"
 
 // Forward declarations
@@ -349,6 +350,43 @@ public:
     /** Reset ADS camera state (call when exiting ADS to reset smoothing) */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|ADS")
     void ResetADSCameraState();
+
+    //==================================================================
+    // Attachment System (Tarkov-Style)
+    // @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
+    //==================================================================
+
+    /**
+     * Get all installed attachments on this weapon
+     * @return Container with all installed attachment instances
+     */
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Attachments")
+    FSuspenseCoreInstalledAttachments GetInstalledAttachments() const;
+
+    /**
+     * Install attachment to weapon slot
+     * @param Attachment Attachment instance to install
+     * @param SlotType Slot to install to (Equipment.Slot.Muzzle, etc.)
+     * @return True if installation succeeded
+     */
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Attachments")
+    bool InstallAttachment(UPARAM(ref) FSuspenseCoreAttachmentInstance& Attachment, const FGameplayTag& SlotType);
+
+    /**
+     * Remove attachment from slot
+     * @param SlotType Slot to remove from
+     * @return Removed attachment (invalid if slot was empty)
+     */
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Attachments")
+    FSuspenseCoreAttachmentInstance RemoveAttachment(const FGameplayTag& SlotType);
+
+    /**
+     * Check if slot has an attachment installed
+     * @param SlotType Slot to check
+     * @return True if slot has attachment
+     */
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Attachments")
+    bool HasAttachmentInSlot(const FGameplayTag& SlotType) const;
 
     //==================================================================
     // Fire Modes

@@ -8,7 +8,7 @@ system with convergence, skill-based control, and attachment modifiers.
 
 **Author:** Claude Code
 **Date:** 2026-01-14
-**Status:** Phase 4 Complete (Convergence + Ergonomics Integration)
+**Status:** All Phases Complete (Phase 1-6)
 **Related:**
 - `TarkovStyle_Ammo_System_Design.md` - Ammo/Magazine system
 - `SSOT_AttributeSet_DataTable_Integration.md` - Data architecture
@@ -569,31 +569,27 @@ struct BRIDGESYSTEM_API FSuspenseCoreAttachmentInstance
 - `SuspenseCoreBaseFireAbility.cpp` - Implemented convergence system
 - `SuspenseCoreWeaponAttributeSet.h/.cpp` - Added convergence attributes
 
-### Phase 3: Attachment Modifier System 🔄 IN PROGRESS
+### Phase 3: Attachment Modifier System ✅ DONE
 
-**Priority:** P0
+**Commit:** 2026-01-14
 
-**SSOT Created ✅:**
-- `FSuspenseCoreAttachmentAttributeRow` added to `SuspenseCoreGASAttributeRows.h`
-- RecoilModifier, AccuracyModifier, VelocityModifier, ErgonomicsBonus
-- Suppressor/FlashHider effects
-- Compatibility tags
+**Changes:**
+- Created `FSuspenseCoreAttachmentAttributeRow` SSOT in `SuspenseCoreGASAttributeRows.h`
+- Created `FSuspenseCoreAttachmentInstance` runtime struct
+- Added `AttachmentAttributesDataTable` to Settings and DataManager
+- Implemented full SSOT lookup in `CalculateAttachmentRecoilModifier()`
+- Added attachment storage to `SuspenseCoreWeaponActor`
 
-**TODO:**
-1. ~~Create FSuspenseCoreAttachmentAttributeRow SSOT~~ ✅
-2. Create `FSuspenseCoreAttachmentInstance` runtime struct
-3. Create `DT_AttachmentAttributes` DataTable with sample data
-4. Add `TArray<FSuspenseCoreAttachmentInstance>` to weapon actor
-5. Implement `CalculateAttachmentRecoilModifier()` to read from weapon
-6. Hook into existing socket system (`MuzzleSocket`, `StockSocket`, etc.)
-
-**Files to Create:**
+**Files Created:**
 - `Source/BridgeSystem/Public/SuspenseCore/Types/Equipment/SuspenseCoreAttachmentInstance.h`
 - `Content/Data/ItemDatabase/SuspenseCoreAttachmentAttributes.json`
 
-**Files to Modify:**
-- `SuspenseCoreBaseFireAbility.cpp` - Complete `CalculateAttachmentRecoilModifier()`
-- Weapon actor class - Store installed attachments
+**Files Modified:**
+- `SuspenseCoreSettings.h` - Added AttachmentAttributesDataTable
+- `SuspenseCoreDataManager.h/.cpp` - Added GetAttachmentAttributes, BuildAttachmentAttributesCache
+- `SuspenseCoreBaseFireAbility.cpp` - Full SSOT lookup in CalculateAttachmentRecoilModifier
+- `ISuspenseCoreWeapon.h` - Added attachment interface methods
+- `SuspenseCoreWeaponActor.h/.cpp` - Added InstalledAttachments storage
 
 ### Phase 4: Ergonomics Integration ✅ DONE
 
@@ -605,26 +601,48 @@ struct BRIDGESYSTEM_API FSuspenseCoreAttachmentInstance
 - 70 ergonomics = 1.70× faster recovery
 - Cached in RecoilState for performance
 
-### Phase 5: Visual vs Aim Recoil Separation
+### Phase 5: Visual vs Aim Recoil Separation ✅ DONE
 
-**Priority:** P2
-**Status:** PLANNED
+**Commit:** 2026-01-14
 
-**Tasks:**
-1. Separate camera rotation (visual) from aim offset (actual)
-2. Visual recoil can be higher for "feel"
-3. Aim recoil affects actual bullet trajectory
-4. Skill-based: higher "Recoil Control" skill reduces camera recoil
+**Changes:**
+- Separated visual recoil (camera kick) from aim recoil (bullet direction)
+- Visual recoil is amplified by `VisualRecoilMultiplier` (default 1.5x)
+- Aim recoil stays at base value for accurate bullet placement
+- Visual converges faster (VisualConvergenceMultiplier) for stable "feel"
+- Added `GetAimOffsetRotator()` to apply aim offset to shot direction
 
-### Phase 6: Recoil Patterns (Optional)
+**Key Features:**
+- **VisualPitch/VisualYaw**: What player sees (stronger, dramatic)
+- **AimPitch/AimYaw**: Where bullets go (more stable)
+- Separate convergence rates for visual and aim
+- Aim offset applied in `GenerateShotRequest()` for bullet trajectory
 
-**Priority:** P3
-**Status:** PLANNED
+**Files Modified:**
+- `SuspenseCoreBaseFireAbility.h` - Added visual/aim to FSuspenseCoreRecoilState, VisualRecoilMultiplier to FSuspenseCoreRecoilConfig
+- `SuspenseCoreBaseFireAbility.cpp` - Separate visual/aim in ApplyRecoil(), dual convergence in TickConvergence(), aim offset in GenerateShotRequest()
 
-**Tasks:**
-1. Add per-weapon recoil pattern data
-2. Blend between pattern and random based on `RecoilPatternStrength`
-3. Allow players to learn and compensate patterns
+### Phase 6: Recoil Patterns ✅ DONE
+
+**Commit:** 2026-01-14
+
+**Changes:**
+- Added `FSuspenseCoreRecoilPatternPoint` for individual pattern points
+- Added `FSuspenseCoreRecoilPattern` with configurable spray patterns
+- Patterns blend with random recoil based on `RecoilPatternStrength`
+- Pattern loops with scaled-down values for sustained fire
+- Default 8-shot pattern with characteristic up-left-right drift
+
+**Key Features:**
+- **PatternStrength 0.0**: Pure random (unpredictable like CoD)
+- **PatternStrength 0.5**: Semi-predictable (like Tarkov)
+- **PatternStrength 1.0**: Fully learnable (like CS:GO)
+- Pattern multipliers affect base recoil values per shot
+- LoopScaleFactor reduces pattern intensity on subsequent loops (0.7x)
+
+**Files Modified:**
+- `SuspenseCoreBaseFireAbility.h` - Added FSuspenseCoreRecoilPatternPoint, FSuspenseCoreRecoilPattern, CachedPatternStrength
+- `SuspenseCoreBaseFireAbility.cpp` - Pattern blending in ApplyRecoil(), InitializeRecoilStateFromWeapon() caches PatternStrength
 
 ---
 
@@ -769,20 +787,32 @@ void TickConvergence(float DeltaTime)
 
 ## Summary
 
-### Current State (Phase 1)
-- Basic linear recoil conversion working
-- AmmoRecoilModifier integrated
-- No convergence, no attachment effects
+### Implementation Complete ✅
 
-### Next Priority (Phase 2-3)
-1. **Convergence System** - Camera returns to aim point
-2. **Attachment Modifiers** - Muzzle/Stock/Grip affect recoil
+All 6 phases of the Tarkov-style recoil system have been implemented:
 
-### Full Tarkov-Style (Phase 4-6)
-3. Ergonomics integration
-4. Visual vs Aim recoil separation
-5. Recoil patterns (optional)
-6. Character skill integration (future)
+| Phase | Feature | Status |
+|-------|---------|--------|
+| Phase 1 | Basic Recoil + Ammo Modifier | ✅ Done |
+| Phase 2 | Convergence System | ✅ Done |
+| Phase 3 | Attachment Modifiers SSOT | ✅ Done |
+| Phase 4 | Ergonomics Integration | ✅ Done |
+| Phase 5 | Visual vs Aim Separation | ✅ Done |
+| Phase 6 | Recoil Patterns | ✅ Done |
+
+### Key Features Implemented
+
+1. **Convergence System**: Camera auto-returns to aim point after shots
+2. **Attachment Modifiers**: Full SSOT chain from DataTable to FireAbility
+3. **Ergonomics Integration**: Affects convergence speed (42 ergo = 1.42× speed)
+4. **Visual/Aim Separation**: Visual kick stronger (1.5×), aim more stable
+5. **Recoil Patterns**: Learnable patterns blend with random (0-100% configurable)
+
+### Future Enhancements (Optional)
+- Character skill integration ("Recoil Control" skill reduces camera recoil)
+- Per-weapon custom patterns (load from DataTable)
+- Network replication for recoil state
+- Attachment durability affects recoil modifiers
 
 ---
 

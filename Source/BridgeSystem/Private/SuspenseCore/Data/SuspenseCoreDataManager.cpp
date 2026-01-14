@@ -149,6 +149,13 @@ void USuspenseCoreDataManager::Initialize(FSubsystemCollectionBase& Collection)
 		{
 			UE_LOG(LogSuspenseCoreData, Log, TEXT("Armor Attributes System: READY (%d rows cached)"), ArmorAttributesCache.Num());
 		}
+
+		// Attachment Attributes (Tarkov-style recoil modifiers)
+		bAttachmentAttributesSystemReady = InitializeAttachmentAttributesSystem();
+		if (bAttachmentAttributesSystemReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Attachment Attributes System: READY (%d rows cached)"), AttachmentAttributesCache.Num());
+		}
 	}
 	else
 	{
@@ -1244,6 +1251,79 @@ bool USuspenseCoreDataManager::BuildArmorAttributesCache(UDataTable* DataTable)
 }
 
 //========================================================================
+// Attachment Attributes Initialization (Tarkov-Style Modifiers)
+//========================================================================
+
+bool USuspenseCoreDataManager::InitializeAttachmentAttributesSystem()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	if (Settings->AttachmentAttributesDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("AttachmentAttributesDataTable not configured (optional)"));
+		return false;
+	}
+
+	// Load DataTable
+	LoadedAttachmentAttributesDataTable = Settings->AttachmentAttributesDataTable.LoadSynchronous();
+	if (!LoadedAttachmentAttributesDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to load AttachmentAttributesDataTable"));
+		return false;
+	}
+
+	return BuildAttachmentAttributesCache(LoadedAttachmentAttributesDataTable);
+}
+
+bool USuspenseCoreDataManager::BuildAttachmentAttributesCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	AttachmentAttributesCache.Empty();
+
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Building attachment attributes cache from %d rows..."), RowNames.Num());
+
+	int32 LoadedCount = 0;
+
+	for (const FName& RowName : RowNames)
+	{
+		FSuspenseCoreAttachmentAttributeRow* RowData = DataTable->FindRow<FSuspenseCoreAttachmentAttributeRow>(RowName, TEXT(""));
+		if (!RowData)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read attachment attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Validate row
+		if (!RowData->IsValid())
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Invalid attachment attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Use AttachmentID if set, otherwise use row name as key
+		FName CacheKey = RowData->AttachmentID.IsNone() ? RowName : RowData->AttachmentID;
+
+		AttachmentAttributesCache.Add(CacheKey, *RowData);
+		LoadedCount++;
+
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached attachment attrs: %s (RecoilMod=%.2f, ErgBonus=%.1f)"),
+			*CacheKey.ToString(), RowData->RecoilModifier, RowData->ErgonomicsBonus);
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Attachment attributes cache built: %d entries"), LoadedCount);
+	return LoadedCount > 0;
+}
+
+//========================================================================
 // GAS Attributes Access (SSOT)
 //========================================================================
 
@@ -1301,6 +1381,24 @@ bool USuspenseCoreDataManager::GetArmorAttributes(FName AttributeKey, FSuspenseC
 	return false;
 }
 
+bool USuspenseCoreDataManager::GetAttachmentAttributes(FName AttributeKey, FSuspenseCoreAttachmentAttributeRow& OutAttributes) const
+{
+	if (AttributeKey.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreAttachmentAttributeRow* Found = AttachmentAttributesCache.Find(AttributeKey);
+	if (Found)
+	{
+		OutAttributes = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetAttachmentAttributes: '%s' not found in cache"), *AttributeKey.ToString());
+	return false;
+}
+
 bool USuspenseCoreDataManager::HasWeaponAttributes(FName AttributeKey) const
 {
 	return WeaponAttributesCache.Contains(AttributeKey);
@@ -1309,6 +1407,11 @@ bool USuspenseCoreDataManager::HasWeaponAttributes(FName AttributeKey) const
 bool USuspenseCoreDataManager::HasAmmoAttributes(FName AttributeKey) const
 {
 	return AmmoAttributesCache.Contains(AttributeKey);
+}
+
+bool USuspenseCoreDataManager::HasAttachmentAttributes(FName AttributeKey) const
+{
+	return AttachmentAttributesCache.Contains(AttributeKey);
 }
 
 TArray<FName> USuspenseCoreDataManager::GetAllWeaponAttributeKeys() const
@@ -1322,6 +1425,13 @@ TArray<FName> USuspenseCoreDataManager::GetAllAmmoAttributeKeys() const
 {
 	TArray<FName> Keys;
 	AmmoAttributesCache.GetKeys(Keys);
+	return Keys;
+}
+
+TArray<FName> USuspenseCoreDataManager::GetAllAttachmentAttributeKeys() const
+{
+	TArray<FName> Keys;
+	AttachmentAttributesCache.GetKeys(Keys);
 	return Keys;
 }
 

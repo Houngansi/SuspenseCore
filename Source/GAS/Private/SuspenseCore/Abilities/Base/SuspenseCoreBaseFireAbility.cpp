@@ -242,8 +242,32 @@ FWeaponShotParams USuspenseCoreBaseFireAbility::GenerateShotRequest()
 	// Get muzzle location
 	Params.StartLocation = GetMuzzleLocation();
 
-	// Get aim direction
-	Params.Direction = GetAimDirection();
+	// Get base aim direction
+	FVector BaseDirection = GetAimDirection();
+
+	// ===================================================================================
+	// APPLY AIM RECOIL OFFSET (Phase 5)
+	// ===================================================================================
+	// The aim offset represents accumulated recoil that affects bullet trajectory
+	// This is separate from visual recoil (what camera shows)
+	// AimPitch/AimYaw determine where bullets actually go
+	// ===================================================================================
+	if (RecoilState.HasAimOffset())
+	{
+		// Convert aim offset to rotation delta
+		FRotator AimOffset = RecoilState.GetAimOffsetRotator();
+
+		// Apply offset to direction
+		FRotator BaseRotation = BaseDirection.Rotation();
+		FRotator AdjustedRotation = BaseRotation + AimOffset;
+
+		// Convert back to direction vector
+		Params.Direction = AdjustedRotation.Vector();
+	}
+	else
+	{
+		Params.Direction = BaseDirection;
+	}
 
 	// Get weapon and ammo attributes for proper damage/spread calculation
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
@@ -701,20 +725,68 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 		VerticalRecoil = BaseVertical * AmmoModifier * AttachmentModifier * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
 		HorizontalRecoil = BaseHorizontal * AmmoModifier * AttachmentModifier * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
 
-		// Apply horizontal recoil bias from weapon (some weapons kick left/right consistently)
-		// RecoilAngleBias: -1.0 (always left) to 1.0 (always right), 0 = random
-		float Bias = RecoilState.CachedRecoilBias;
-		if (FMath::Abs(Bias) > 0.01f)
+		// ===================================================================================
+		// RECOIL PATTERN SYSTEM (Phase 6)
+		// ===================================================================================
+		// Blend between pattern-based recoil and random recoil based on PatternStrength
+		// PatternStrength 0.0: Pure random (unpredictable)
+		// PatternStrength 0.5: 50% pattern, 50% random (semi-predictable)
+		// PatternStrength 1.0: Pure pattern (fully learnable like CS:GO)
+		//
+		// The pattern provides a predictable sequence that skilled players can learn
+		// to compensate, creating a skill ceiling while still being accessible
+		// ===================================================================================
+		float PatternStrength = RecoilState.CachedPatternStrength;
+
+		if (PatternStrength > 0.01f && RecoilPattern.Points.Num() > 0)
 		{
-			// Blend between full random and biased direction
-			float RandomComponent = FMath::FRandRange(-1.0f, 1.0f);
-			float BiasedComponent = (Bias > 0.0f) ? FMath::FRandRange(0.0f, 1.0f) : FMath::FRandRange(-1.0f, 0.0f);
-			HorizontalRecoil *= FMath::Lerp(RandomComponent, BiasedComponent, FMath::Abs(Bias));
+			// Get pattern point for current shot (0-indexed, so use ConsecutiveShotsCount-1)
+			int32 ShotIndex = FMath::Max(0, ConsecutiveShotsCount - 1);
+			FSuspenseCoreRecoilPatternPoint PatternPoint = RecoilPattern.GetPointForShot(ShotIndex);
+
+			// Pattern recoil: use pattern multipliers on base values
+			float PatternVertical = VerticalRecoil * PatternPoint.PitchOffset;
+			float PatternHorizontal = BaseHorizontal * AmmoModifier * AttachmentModifier *
+				RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier * PatternPoint.YawOffset;
+
+			// Random recoil: add variance for unpredictability
+			float RandomVertical = VerticalRecoil * (1.0f + FMath::FRandRange(-0.1f, 0.1f));
+			float RandomHorizontal = HorizontalRecoil;
+
+			// Apply horizontal recoil bias from weapon (some weapons kick left/right consistently)
+			float Bias = RecoilState.CachedRecoilBias;
+			if (FMath::Abs(Bias) > 0.01f)
+			{
+				float RandomComponent = FMath::FRandRange(-1.0f, 1.0f);
+				float BiasedComponent = (Bias > 0.0f) ? FMath::FRandRange(0.0f, 1.0f) : FMath::FRandRange(-1.0f, 0.0f);
+				RandomHorizontal *= FMath::Lerp(RandomComponent, BiasedComponent, FMath::Abs(Bias));
+			}
+			else
+			{
+				RandomHorizontal *= FMath::FRandRange(-1.0f, 1.0f);
+			}
+
+			// Blend pattern and random based on PatternStrength
+			VerticalRecoil = FMath::Lerp(RandomVertical, PatternVertical, PatternStrength);
+			HorizontalRecoil = FMath::Lerp(RandomHorizontal, PatternHorizontal, PatternStrength);
 		}
 		else
 		{
-			// Pure random horizontal direction
-			HorizontalRecoil *= FMath::FRandRange(-1.0f, 1.0f);
+			// Pure random recoil (PatternStrength = 0 or no pattern defined)
+			// Apply horizontal recoil bias from weapon (some weapons kick left/right consistently)
+			float Bias = RecoilState.CachedRecoilBias;
+			if (FMath::Abs(Bias) > 0.01f)
+			{
+				// Blend between full random and biased direction
+				float RandomComponent = FMath::FRandRange(-1.0f, 1.0f);
+				float BiasedComponent = (Bias > 0.0f) ? FMath::FRandRange(0.0f, 1.0f) : FMath::FRandRange(-1.0f, 0.0f);
+				HorizontalRecoil *= FMath::Lerp(RandomComponent, BiasedComponent, FMath::Abs(Bias));
+			}
+			else
+			{
+				// Pure random horizontal direction
+				HorizontalRecoil *= FMath::FRandRange(-1.0f, 1.0f);
+			}
 		}
 	}
 	else
@@ -725,18 +797,46 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	}
 
 	// ===================================================================================
-	// APPLY RECOIL IMPULSE
+	// VISUAL VS AIM RECOIL SEPARATION (Phase 5)
 	// ===================================================================================
-	// Apply view punch immediately (camera rotation)
-	PC->AddPitchInput(-VerticalRecoil);
-	PC->AddYawInput(HorizontalRecoil);
+	// Visual recoil: What player SEES (camera kick, stronger for feel)
+	// Aim recoil: Where bullets GO (actual aim offset, more stable)
+	//
+	// VisualRecoilMultiplier (default 1.5) makes camera kick feel 50% stronger
+	// But actual bullet spread (AimRecoil) is the base recoil value
+	// This creates the Tarkov "feel" - dramatic visual feedback but stable aim
+	// ===================================================================================
+
+	// Calculate visual recoil (stronger for dramatic effect)
+	float VisualVertical = VerticalRecoil * RecoilConfig.VisualRecoilMultiplier;
+	float VisualHorizontal = HorizontalRecoil * RecoilConfig.VisualRecoilMultiplier;
+
+	// Aim recoil stays at base value (where bullets actually go)
+	float AimVertical = VerticalRecoil;
+	float AimHorizontal = HorizontalRecoil;
+
+	// ===================================================================================
+	// APPLY VISUAL RECOIL TO CAMERA
+	// ===================================================================================
+	// Apply view punch immediately (camera rotation - the dramatic visual effect)
+	PC->AddPitchInput(-VisualVertical);
+	PC->AddYawInput(VisualHorizontal);
 
 	// ===================================================================================
 	// CONVERGENCE TRACKING
 	// ===================================================================================
-	// Track accumulated offset for convergence system to return to aim point
+	// Track visual offset (what camera shows)
+	RecoilState.VisualPitch += VisualVertical;
+	RecoilState.VisualYaw += VisualHorizontal;
+
+	// Track aim offset (where bullets go)
+	RecoilState.AimPitch += AimVertical;
+	RecoilState.AimYaw += AimHorizontal;
+
+	// Legacy compatibility (deprecated but maintained for existing code)
 	RecoilState.AccumulatedPitch += VerticalRecoil;
 	RecoilState.AccumulatedYaw += HorizontalRecoil;
+
 	RecoilState.TimeSinceLastShot = 0.0f;
 	RecoilState.bWaitingForConvergence = true;
 	RecoilState.bIsConverging = false;
@@ -798,47 +898,127 @@ void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
 	}
 
 	// ===================================================================================
-	// CONVERGENCE CALCULATION
+	// VISUAL VS AIM CONVERGENCE (Phase 5)
 	// ===================================================================================
-	// Formula: ConvergenceRate = Speed × ErgoBonus × DeltaTime
-	// ErgoBonus = 1 + Ergonomics/100 (42 ergo = 1.42× speed)
+	// Visual recoil converges FASTER (VisualConvergenceMultiplier, default 1.2×)
+	// This makes camera feel stable quickly while aim still drifts
 	//
-	// Each frame, move AccumulatedOffset toward zero (TargetOffset)
-	// This creates the "kick and return" feel of Tarkov
+	// Aim recoil converges at base speed - this affects actual bullet accuracy
+	// The separation creates the Tarkov "feel" where gun kicks visually but
+	// aim recovery is more gradual
 	// ===================================================================================
 
 	float EffectiveSpeed = RecoilState.GetEffectiveConvergenceSpeed();
-	float ConvergenceRate = EffectiveSpeed * DeltaTime;
+	float BaseConvergenceRate = EffectiveSpeed * DeltaTime;
 
-	// Calculate recovery amounts (converge toward target, usually zero)
+	// Visual recoil converges faster than aim recoil
+	float VisualConvergenceRate = BaseConvergenceRate * RecoilConfig.VisualConvergenceMultiplier;
+	float AimConvergenceRate = BaseConvergenceRate;
+
+	// ===================================================================================
+	// VISUAL RECOIL RECOVERY (Camera feel)
+	// ===================================================================================
+	float VisualPitchRecovery = 0.0f;
+	float VisualYawRecovery = 0.0f;
+
+	if (RecoilState.HasVisualOffset())
+	{
+		// Converge visual toward zero
+		if (FMath::Abs(RecoilState.VisualPitch) > 0.01f)
+		{
+			VisualPitchRecovery = -FMath::Sign(RecoilState.VisualPitch) *
+				FMath::Min(VisualConvergenceRate, FMath::Abs(RecoilState.VisualPitch));
+		}
+
+		if (FMath::Abs(RecoilState.VisualYaw) > 0.01f)
+		{
+			VisualYawRecovery = -FMath::Sign(RecoilState.VisualYaw) *
+				FMath::Min(VisualConvergenceRate, FMath::Abs(RecoilState.VisualYaw));
+		}
+
+		// Apply visual recovery to camera
+		if (!FMath::IsNearlyZero(VisualPitchRecovery) || !FMath::IsNearlyZero(VisualYawRecovery))
+		{
+			// Note: Pitch is positive when going down, negative when going up
+			// We stored VisualPitch as positive (upward kick), so recovery is negative
+			PC->AddPitchInput(VisualPitchRecovery);
+			PC->AddYawInput(VisualYawRecovery);
+
+			// Update visual offset state
+			RecoilState.VisualPitch += VisualPitchRecovery;
+			RecoilState.VisualYaw += VisualYawRecovery;
+		}
+
+		// Snap to zero if very small
+		if (FMath::IsNearlyZero(RecoilState.VisualPitch, 0.01f))
+		{
+			RecoilState.VisualPitch = 0.0f;
+		}
+		if (FMath::IsNearlyZero(RecoilState.VisualYaw, 0.01f))
+		{
+			RecoilState.VisualYaw = 0.0f;
+		}
+	}
+
+	// ===================================================================================
+	// AIM RECOIL RECOVERY (Bullet accuracy)
+	// ===================================================================================
+	if (RecoilState.HasAimOffset())
+	{
+		// Converge aim toward zero
+		if (FMath::Abs(RecoilState.AimPitch) > 0.01f)
+		{
+			float AimPitchRecovery = -FMath::Sign(RecoilState.AimPitch) *
+				FMath::Min(AimConvergenceRate, FMath::Abs(RecoilState.AimPitch));
+			RecoilState.AimPitch += AimPitchRecovery;
+		}
+
+		if (FMath::Abs(RecoilState.AimYaw) > 0.01f)
+		{
+			float AimYawRecovery = -FMath::Sign(RecoilState.AimYaw) *
+				FMath::Min(AimConvergenceRate, FMath::Abs(RecoilState.AimYaw));
+			RecoilState.AimYaw += AimYawRecovery;
+		}
+
+		// Snap to zero if very small
+		if (FMath::IsNearlyZero(RecoilState.AimPitch, 0.01f))
+		{
+			RecoilState.AimPitch = 0.0f;
+		}
+		if (FMath::IsNearlyZero(RecoilState.AimYaw, 0.01f))
+		{
+			RecoilState.AimYaw = 0.0f;
+		}
+	}
+
+	// ===================================================================================
+	// LEGACY COMPATIBILITY (maintain AccumulatedPitch/Yaw for existing code)
+	// ===================================================================================
 	float PitchDelta = RecoilState.TargetPitch - RecoilState.AccumulatedPitch;
 	float YawDelta = RecoilState.TargetYaw - RecoilState.AccumulatedYaw;
 
-	// Calculate how much to recover this frame
-	float PitchRecovery = 0.0f;
-	float YawRecovery = 0.0f;
-
 	if (FMath::Abs(PitchDelta) > 0.01f)
 	{
-		// Move toward target by ConvergenceRate degrees
-		PitchRecovery = FMath::Sign(PitchDelta) * FMath::Min(ConvergenceRate, FMath::Abs(PitchDelta));
+		float PitchRecovery = FMath::Sign(PitchDelta) *
+			FMath::Min(BaseConvergenceRate, FMath::Abs(PitchDelta));
+		RecoilState.AccumulatedPitch += PitchRecovery;
 	}
 
 	if (FMath::Abs(YawDelta) > 0.01f)
 	{
-		YawRecovery = FMath::Sign(YawDelta) * FMath::Min(ConvergenceRate, FMath::Abs(YawDelta));
+		float YawRecovery = FMath::Sign(YawDelta) *
+			FMath::Min(BaseConvergenceRate, FMath::Abs(YawDelta));
+		RecoilState.AccumulatedYaw += YawRecovery;
 	}
 
-	// Apply recovery to camera (inverse of recoil direction)
-	if (!FMath::IsNearlyZero(PitchRecovery) || !FMath::IsNearlyZero(YawRecovery))
+	// Snap legacy values to zero if very small
+	if (FMath::IsNearlyZero(RecoilState.AccumulatedPitch, 0.01f))
 	{
-		// Note: Pitch is inverted because AddPitchInput(-value) pushes camera up
-		PC->AddPitchInput(PitchRecovery);
-		PC->AddYawInput(-YawRecovery);
-
-		// Update accumulated offset
-		RecoilState.AccumulatedPitch += PitchRecovery;
-		RecoilState.AccumulatedYaw -= YawRecovery;
+		RecoilState.AccumulatedPitch = 0.0f;
+	}
+	if (FMath::IsNearlyZero(RecoilState.AccumulatedYaw, 0.01f))
+	{
+		RecoilState.AccumulatedYaw = 0.0f;
 	}
 
 	// Check if convergence is complete
@@ -860,6 +1040,7 @@ void USuspenseCoreBaseFireAbility::InitializeRecoilStateFromWeapon()
 		RecoilState.CachedConvergenceDelay = WeaponAttrs->GetConvergenceDelay();
 		RecoilState.CachedErgonomics = WeaponAttrs->GetErgonomics();
 		RecoilState.CachedRecoilBias = WeaponAttrs->GetRecoilAngleBias();
+		RecoilState.CachedPatternStrength = WeaponAttrs->GetRecoilPatternStrength();
 	}
 	else
 	{
@@ -868,26 +1049,72 @@ void USuspenseCoreBaseFireAbility::InitializeRecoilStateFromWeapon()
 		RecoilState.CachedConvergenceDelay = 0.1f;
 		RecoilState.CachedErgonomics = 42.0f;
 		RecoilState.CachedRecoilBias = 0.0f;
+		RecoilState.CachedPatternStrength = 0.3f; // Default: 30% pattern, 70% random
 	}
 }
 
 float USuspenseCoreBaseFireAbility::CalculateAttachmentRecoilModifier() const
 {
-	// TODO: Phase 3 - Get installed attachments from weapon and multiply their RecoilModifiers
-	// For now, return 1.0 (no modification)
-	//
-	// Future implementation:
-	// ISuspenseCoreWeapon* Weapon = GetWeaponInterface();
-	// TArray<FSuspenseCoreAttachmentInstance> Attachments = Weapon->GetInstalledAttachments();
-	// float TotalModifier = 1.0f;
-	// for (const auto& Attachment : Attachments)
-	// {
-	//     const FSuspenseCoreAttachmentAttributeRow* Row = GetAttachmentData(Attachment.AttachmentID);
-	//     if (Row) TotalModifier *= Row->RecoilModifier;
-	// }
-	// return TotalModifier;
+	// Get weapon interface to access installed attachments
+	ISuspenseCoreWeapon* Weapon = const_cast<USuspenseCoreBaseFireAbility*>(this)->GetWeaponInterface();
+	if (!Weapon)
+	{
+		return 1.0f;
+	}
 
-	return 1.0f;
+	// Get installed attachments from weapon
+	FSuspenseCoreInstalledAttachments InstalledAttachments =
+		ISuspenseCoreWeapon::Execute_GetInstalledAttachments(Cast<UObject>(Weapon));
+
+	// If no attachments installed, return 1.0 (no modification)
+	if (!InstalledAttachments.HasAnyAttachments())
+	{
+		return 1.0f;
+	}
+
+	// Get DataManager to lookup attachment SSOT data
+	USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(GetAvatarActorFromActorInfo());
+	if (!DataManager)
+	{
+		return 1.0f;
+	}
+
+	// Multiply all attachment recoil modifiers (Tarkov-style)
+	// e.g., Muzzle brake (0.85) × Stock (0.90) × Grip (0.95) = 0.727 total
+	// @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Section 5.2
+	float TotalModifier = 1.0f;
+
+	for (const FSuspenseCoreAttachmentInstance& Attachment : InstalledAttachments.Attachments)
+	{
+		if (!Attachment.IsInstalled())
+		{
+			continue;
+		}
+
+		// Lookup attachment SSOT data from AttachmentAttributesDataTable
+		FSuspenseCoreAttachmentAttributeRow AttachmentData;
+		if (DataManager->GetAttachmentAttributes(Attachment.AttachmentID, AttachmentData))
+		{
+			// Apply recoil modifier from SSOT (multiplicative stacking)
+			// RecoilModifier: 0.85 = -15% recoil, 1.0 = no change, 1.2 = +20% recoil
+			if (AttachmentData.AffectsRecoil())
+			{
+				TotalModifier *= AttachmentData.RecoilModifier;
+
+				UE_LOG(LogTemp, Verbose, TEXT("Attachment '%s' recoil modifier: %.2f (total: %.3f)"),
+					*Attachment.AttachmentID.ToString(), AttachmentData.RecoilModifier, TotalModifier);
+			}
+		}
+		else
+		{
+			// Fallback: if SSOT data not found, log warning but continue
+			// This allows the system to work even without full DataTable configuration
+			UE_LOG(LogTemp, Warning, TEXT("Attachment '%s' not found in SSOT - using default modifier 1.0"),
+				*Attachment.AttachmentID.ToString());
+		}
+	}
+
+	return TotalModifier;
 }
 
 float USuspenseCoreBaseFireAbility::GetCurrentRecoilMultiplier() const

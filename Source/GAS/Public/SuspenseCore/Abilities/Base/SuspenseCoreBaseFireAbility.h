@@ -65,8 +65,113 @@ struct GAS_API FSuspenseCoreShotResult
 };
 
 /**
+ * FSuspenseCoreRecoilPatternPoint
+ *
+ * A single point in a recoil pattern sequence.
+ * Defines how much the weapon kicks for a specific shot in a burst.
+ *
+ * @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Phase 6
+ */
+USTRUCT(BlueprintType)
+struct GAS_API FSuspenseCoreRecoilPatternPoint
+{
+	GENERATED_BODY()
+
+	/** Pitch offset for this shot (degrees, positive = upward kick) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pattern")
+	float PitchOffset;
+
+	/** Yaw offset for this shot (degrees, positive = right kick) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pattern")
+	float YawOffset;
+
+	FSuspenseCoreRecoilPatternPoint()
+		: PitchOffset(0.0f)
+		, YawOffset(0.0f)
+	{
+	}
+
+	FSuspenseCoreRecoilPatternPoint(float InPitch, float InYaw)
+		: PitchOffset(InPitch)
+		, YawOffset(InYaw)
+	{
+	}
+};
+
+/**
+ * FSuspenseCoreRecoilPattern
+ *
+ * Defines a learnable recoil pattern for a weapon.
+ * The pattern is blended with random recoil based on RecoilPatternStrength.
+ *
+ * USAGE:
+ * - PatternStrength 0.0: Pure random recoil
+ * - PatternStrength 0.5: 50% pattern, 50% random (semi-predictable)
+ * - PatternStrength 1.0: Pure pattern (fully learnable like CS:GO)
+ *
+ * The pattern loops after all points are used, scaled down for subsequent loops.
+ *
+ * @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Phase 6
+ */
+USTRUCT(BlueprintType)
+struct GAS_API FSuspenseCoreRecoilPattern
+{
+	GENERATED_BODY()
+
+	/** Ordered sequence of recoil pattern points */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pattern")
+	TArray<FSuspenseCoreRecoilPatternPoint> Points;
+
+	/** How much to scale pattern on subsequent loops (0.5 = 50% of original) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pattern",
+		meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float LoopScaleFactor;
+
+	FSuspenseCoreRecoilPattern()
+		: LoopScaleFactor(0.7f)
+	{
+		// Default pattern: Initial strong kick, then alternating
+		// This is a placeholder - real patterns should come from SSOT
+		Points.Add(FSuspenseCoreRecoilPatternPoint(1.0f, 0.0f));   // Shot 1: Strong up
+		Points.Add(FSuspenseCoreRecoilPatternPoint(0.8f, -0.1f));  // Shot 2: Up-left
+		Points.Add(FSuspenseCoreRecoilPatternPoint(0.7f, 0.15f));  // Shot 3: Up-right
+		Points.Add(FSuspenseCoreRecoilPatternPoint(0.6f, -0.05f)); // Shot 4: Up-slight left
+		Points.Add(FSuspenseCoreRecoilPatternPoint(0.5f, 0.1f));   // Shot 5: Up-right
+		Points.Add(FSuspenseCoreRecoilPatternPoint(0.4f, 0.0f));   // Shot 6: Stabilizing
+		Points.Add(FSuspenseCoreRecoilPatternPoint(0.35f, -0.08f));// Shot 7: Left drift
+		Points.Add(FSuspenseCoreRecoilPatternPoint(0.3f, 0.12f));  // Shot 8: Right drift
+	}
+
+	/** Get pattern point for a specific shot, with loop scaling */
+	FSuspenseCoreRecoilPatternPoint GetPointForShot(int32 ShotIndex) const
+	{
+		if (Points.Num() == 0)
+		{
+			return FSuspenseCoreRecoilPatternPoint();
+		}
+
+		int32 LoopCount = ShotIndex / Points.Num();
+		int32 IndexInLoop = ShotIndex % Points.Num();
+
+		FSuspenseCoreRecoilPatternPoint Point = Points[IndexInLoop];
+
+		// Scale down for subsequent loops
+		if (LoopCount > 0)
+		{
+			float Scale = FMath::Pow(LoopScaleFactor, static_cast<float>(LoopCount));
+			Point.PitchOffset *= Scale;
+			Point.YawOffset *= Scale;
+		}
+
+		return Point;
+	}
+};
+
+/**
  * Recoil configuration parameters.
- * Controls progressive recoil buildup and ADS modifiers.
+ * Controls progressive recoil buildup, ADS modifiers, and visual/aim separation.
+ *
+ * @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Phase 5
  */
 USTRUCT(BlueprintType)
 struct GAS_API FSuspenseCoreRecoilConfig
@@ -89,11 +194,32 @@ struct GAS_API FSuspenseCoreRecoilConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|ADS")
 	float ADSMultiplier;
 
+	//========================================================================
+	// Visual vs Aim Recoil Separation (Phase 5)
+	// @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Section 2.1
+	//========================================================================
+
+	/** Visual recoil multiplier - how much stronger camera kick feels vs actual aim
+	 *  1.5 = Visual recoil is 50% stronger than aim recoil
+	 *  This creates the Tarkov "feel" where weapon kicks visually but aim recovers faster */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Visual",
+		meta = (ClampMin = "1.0", ClampMax = "3.0", ToolTip = "Visual kick multiplier (1.5 = 50% stronger camera kick)"))
+	float VisualRecoilMultiplier;
+
+	/** How quickly visual recoil converges relative to aim recoil
+	 *  1.0 = same rate, 1.5 = visual converges 50% faster than aim
+	 *  Faster visual convergence makes gun "feel" stable while aim still drifts */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Visual",
+		meta = (ClampMin = "0.5", ClampMax = "2.0", ToolTip = "Visual convergence speed multiplier"))
+	float VisualConvergenceMultiplier;
+
 	FSuspenseCoreRecoilConfig()
 		: ProgressiveMultiplier(1.2f)
 		, MaximumMultiplier(3.0f)
 		, ResetTime(0.5f)
 		, ADSMultiplier(0.5f)
+		, VisualRecoilMultiplier(1.5f)
+		, VisualConvergenceMultiplier(1.2f)
 	{
 	}
 };
@@ -102,13 +228,19 @@ struct GAS_API FSuspenseCoreRecoilConfig
 /**
  * FSuspenseCoreRecoilState
  *
- * Runtime state for Tarkov-style recoil with convergence.
+ * Runtime state for Tarkov-style recoil with convergence and visual/aim separation.
  * Tracks accumulated camera offset and manages auto-return to aim point.
  *
  * CONVERGENCE SYSTEM:
  * After each shot, camera is displaced by recoil. Over time (after ConvergenceDelay),
  * camera automatically returns to original aim point at ConvergenceSpeed.
  * This creates the characteristic Tarkov "kick and return" feel.
+ *
+ * VISUAL VS AIM SEPARATION (Phase 5):
+ * - VisualPitch/Yaw: What player SEES (camera kick, stronger for feel)
+ * - AimPitch/Yaw: Where bullets GO (actual aim offset, more accurate)
+ * - Visual recoil can be 50% stronger for dramatic effect
+ * - Visual converges faster so gun "feels" stable while aim still drifts
  *
  * @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Section 2.4
  */
@@ -118,14 +250,44 @@ struct GAS_API FSuspenseCoreRecoilState
 	GENERATED_BODY()
 
 	//========================================================================
-	// Camera Offset State
+	// Visual Recoil State (what player SEES)
+	// Applied to camera, can be stronger for "feel"
 	//========================================================================
 
-	/** Current accumulated camera pitch offset (degrees, negative = up) */
+	/** Current visual camera pitch offset (degrees, negative = up)
+	 *  This is what the player sees - can be stronger than aim recoil */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|Visual")
+	float VisualPitch;
+
+	/** Current visual camera yaw offset (degrees) */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|Visual")
+	float VisualYaw;
+
+	//========================================================================
+	// Aim Recoil State (where bullets GO)
+	// Applied to shot direction, determines actual accuracy
+	//========================================================================
+
+	/** Current aim pitch offset (degrees, negative = up)
+	 *  This affects where bullets actually go - more stable than visual */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|Aim")
+	float AimPitch;
+
+	/** Current aim yaw offset (degrees) */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|Aim")
+	float AimYaw;
+
+	//========================================================================
+	// Legacy/Combined State (for backward compatibility)
+	//========================================================================
+
+	/** Current accumulated camera pitch offset (degrees, negative = up)
+	 *  @deprecated Use VisualPitch for camera, AimPitch for bullets */
 	UPROPERTY(BlueprintReadOnly, Category = "Recoil|State")
 	float AccumulatedPitch;
 
-	/** Current accumulated camera yaw offset (degrees) */
+	/** Current accumulated camera yaw offset (degrees)
+	 *  @deprecated Use VisualYaw for camera, AimYaw for bullets */
 	UPROPERTY(BlueprintReadOnly, Category = "Recoil|State")
 	float AccumulatedYaw;
 
@@ -169,8 +331,15 @@ struct GAS_API FSuspenseCoreRecoilState
 	/** Cached recoil angle bias from weapon data */
 	float CachedRecoilBias;
 
+	/** Cached pattern strength from weapon data (0=random, 1=pure pattern) */
+	float CachedPatternStrength;
+
 	FSuspenseCoreRecoilState()
-		: AccumulatedPitch(0.0f)
+		: VisualPitch(0.0f)
+		, VisualYaw(0.0f)
+		, AimPitch(0.0f)
+		, AimYaw(0.0f)
+		, AccumulatedPitch(0.0f)
 		, AccumulatedYaw(0.0f)
 		, TargetPitch(0.0f)
 		, TargetYaw(0.0f)
@@ -181,12 +350,17 @@ struct GAS_API FSuspenseCoreRecoilState
 		, CachedConvergenceDelay(0.1f)
 		, CachedErgonomics(42.0f)
 		, CachedRecoilBias(0.0f)
+		, CachedPatternStrength(0.3f)
 	{
 	}
 
 	/** Reset all state (on weapon switch or death) */
 	void Reset()
 	{
+		VisualPitch = 0.0f;
+		VisualYaw = 0.0f;
+		AimPitch = 0.0f;
+		AimYaw = 0.0f;
 		AccumulatedPitch = 0.0f;
 		AccumulatedYaw = 0.0f;
 		TargetPitch = 0.0f;
@@ -196,11 +370,24 @@ struct GAS_API FSuspenseCoreRecoilState
 		bWaitingForConvergence = false;
 	}
 
-	/** Check if camera has any accumulated offset */
+	/** Check if camera has any accumulated offset (visual or aim) */
 	bool HasOffset() const
 	{
-		return !FMath::IsNearlyZero(AccumulatedPitch, 0.01f) ||
-			   !FMath::IsNearlyZero(AccumulatedYaw, 0.01f);
+		return HasVisualOffset() || HasAimOffset();
+	}
+
+	/** Check if visual recoil has any offset */
+	bool HasVisualOffset() const
+	{
+		return !FMath::IsNearlyZero(VisualPitch, 0.01f) ||
+			   !FMath::IsNearlyZero(VisualYaw, 0.01f);
+	}
+
+	/** Check if aim recoil has any offset */
+	bool HasAimOffset() const
+	{
+		return !FMath::IsNearlyZero(AimPitch, 0.01f) ||
+			   !FMath::IsNearlyZero(AimYaw, 0.01f);
 	}
 
 	/** Get effective convergence speed with ergonomics bonus
@@ -209,6 +396,12 @@ struct GAS_API FSuspenseCoreRecoilState
 	float GetEffectiveConvergenceSpeed() const
 	{
 		return CachedConvergenceSpeed * (1.0f + CachedErgonomics / 100.0f);
+	}
+
+	/** Get aim offset as FRotator (for applying to shot direction) */
+	FRotator GetAimOffsetRotator() const
+	{
+		return FRotator(-AimPitch, AimYaw, 0.0f);
 	}
 };
 
@@ -269,6 +462,11 @@ public:
 	/** Recoil configuration */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Recoil")
 	FSuspenseCoreRecoilConfig RecoilConfig;
+
+	/** Recoil pattern for learnable spray patterns (Phase 6)
+	 *  Blended with random recoil based on weapon's RecoilPatternStrength */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Recoil")
+	FSuspenseCoreRecoilPattern RecoilPattern;
 
 	/** Enable debug visualization */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Debug")

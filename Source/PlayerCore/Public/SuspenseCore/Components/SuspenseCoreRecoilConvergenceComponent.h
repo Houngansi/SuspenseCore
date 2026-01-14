@@ -22,10 +22,10 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreRecoilConvergenceComponent.generated.h"
 
 // Forward declarations
-struct FSuspenseCoreEventData;
 class USuspenseCoreEventBus;
 
 /**
@@ -96,8 +96,7 @@ private:
 	/** Unsubscribe from EventBus */
 	void UnsubscribeFromEvents();
 
-	/** Handle recoil impulse event from fire ability */
-	UFUNCTION()
+	/** Handle recoil impulse event from fire ability (native callback) */
 	void OnRecoilImpulseEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/** Cached EventBus reference */
@@ -105,7 +104,7 @@ private:
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
 	/** Subscription handle for cleanup */
-	FDelegateHandle RecoilEventHandle;
+	FSuspenseCoreSubscriptionHandle RecoilEventHandle;
 
 	//========================================================================
 	// Convergence State

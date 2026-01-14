@@ -27,6 +27,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "GameFramework/Character.h"
 #include "SuspenseCoreCameraShakeComponent.generated.h"
 
 // Forward declarations
@@ -88,6 +89,10 @@ public:
 	/** Enable/disable all camera shakes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|CameraShake")
 	bool bEnableCameraShakes = true;
+
+	/** Bind directly to Character's LandedDelegate for landing shake (independent of abilities) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|CameraShake")
+	bool bBindToLandedDelegate = true;
 
 	//========================================================================
 	// Camera Shake Classes
@@ -213,5 +218,9 @@ private:
 
 	/** Start camera shake via player controller */
 	void StartCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, float Scale);
+
+	/** Called when character lands (via LandedDelegate) */
+	UFUNCTION()
+	void OnCharacterLanded(const FHitResult& Hit);
 };
 

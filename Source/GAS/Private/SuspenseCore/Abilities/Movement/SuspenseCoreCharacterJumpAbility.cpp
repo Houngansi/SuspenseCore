@@ -358,12 +358,6 @@ void USuspenseCoreCharacterJumpAbility::BroadcastJumpLanded()
 	// Using Native Tag for compile-time safety
 	EventBus->Publish(SuspenseCoreTags::Event::Ability::CharacterJump::Landed, EventData);
 
-	// Publish camera shake event for landing
-	// CameraShakeComponent will auto-scale based on FallHeight if provided
-	FSuspenseCoreEventData ShakeData = FSuspenseCoreEventData::Create(AvatarActor, ESuspenseCoreEventPriority::Normal);
-	ShakeData.SetString(TEXT("Type"), TEXT("Landing"));
-	ShakeData.SetFloat(TEXT("Scale"), 1.0f);
-	// Note: FallHeight could be calculated by tracking Z position at jump start vs landing
-	// For now, use default landing preset
-	EventBus->Publish(SuspenseCoreTags::Event::Camera::ShakeMovement, ShakeData);
+	// NOTE: Camera shake for landing is now handled directly by CameraShakeComponent
+	// via Character's LandedDelegate - this is more reliable than ability-based approach
 }

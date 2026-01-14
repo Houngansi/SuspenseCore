@@ -32,12 +32,28 @@ void USuspenseCoreCameraShakeComponent::BeginPlay()
 	// Subscribe to camera shake events
 	SubscribeToEvents();
 
+	// Bind directly to Character's LandedDelegate for reliable landing detection
+	if (bBindToLandedDelegate)
+	{
+		if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+		{
+			Character->LandedDelegate.AddDynamic(this, &USuspenseCoreCameraShakeComponent::OnCharacterLanded);
+			UE_LOG(LogTemp, Log, TEXT("CameraShakeComponent: Bound to LandedDelegate"));
+		}
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("CameraShakeComponent: Initialized on %s"),
 		*GetOwner()->GetName());
 }
 
 void USuspenseCoreCameraShakeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// Unbind from LandedDelegate
+	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->LandedDelegate.RemoveDynamic(this, &USuspenseCoreCameraShakeComponent::OnCharacterLanded);
+	}
+
 	// Unsubscribe from EventBus
 	UnsubscribeFromEvents();
 
@@ -426,5 +442,13 @@ void USuspenseCoreCameraShakeComponent::StartCameraShake(TSubclassOf<UCameraShak
 		*ShakeClass->GetName(), Scale, *PC->GetName());
 
 	PC->ClientStartCameraShake(ShakeClass, Scale);
+}
+
+void USuspenseCoreCameraShakeComponent::OnCharacterLanded(const FHitResult& Hit)
+{
+	UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: OnCharacterLanded triggered!"));
+
+	// Play landing shake directly - independent of ability system
+	PlayMovementShake(TEXT("Landing"), 1.0f);
 }
 

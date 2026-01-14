@@ -21,6 +21,7 @@ USuspenseCoreCharacterJumpAbility::USuspenseCoreCharacterJumpAbility()
 	MaxJumpDuration = 3.0f;
 	GroundCheckInterval = 0.1f;
 	bIsEnding = false;
+	bLandingBroadcast = false;
 
 	// Configure ability
 	AbilityInputID = ESuspenseCoreAbilityInputID::Jump;
@@ -106,6 +107,7 @@ void USuspenseCoreCharacterJumpAbility::ActivateAbility(
 	const FGameplayEventData* TriggerEventData)
 {
 	bIsEnding = false;
+	bLandingBroadcast = false;
 
 	// Apply stamina cost
 	if (!ApplyStaminaCost(ActorInfo))
@@ -170,6 +172,13 @@ void USuspenseCoreCharacterJumpAbility::EndAbility(
 	if (ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get()))
 	{
 		Character->StopJumping();
+	}
+
+	// Broadcast landing if character is grounded and we haven't broadcast yet
+	// This handles cases where ability is cancelled before CheckForLanding detects landing
+	if (!bLandingBroadcast && IsCharacterGrounded(ActorInfo))
+	{
+		BroadcastJumpLanded();
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -320,6 +329,13 @@ void USuspenseCoreCharacterJumpAbility::ForceEndAbility()
 
 void USuspenseCoreCharacterJumpAbility::BroadcastJumpLanded()
 {
+	// Prevent double broadcast
+	if (bLandingBroadcast)
+	{
+		return;
+	}
+	bLandingBroadcast = true;
+
 	if (!bPublishAbilityEvents)
 	{
 		return;

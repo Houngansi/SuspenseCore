@@ -141,4 +141,7 @@ private:
 
 	/** Flag to prevent double ending */
 	bool bIsEnding;
+
+	/** Flag to prevent double landing broadcast */
+	bool bLandingBroadcast;
 };

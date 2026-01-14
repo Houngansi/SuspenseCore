@@ -674,9 +674,10 @@ protected:
 	void UnbindFromWorldTick();
 
 	/**
-	 * World tick callback for convergence.
+	 * Timer callback for convergence updates.
+	 * Called at 60Hz rate to update recoil recovery.
 	 */
-	void OnWorldTick(float DeltaTime);
+	void OnConvergenceTick();
 
 	//========================================================================
 	// Ammunition
@@ -773,10 +774,10 @@ protected:
 	/** Runtime recoil state with convergence tracking */
 	FSuspenseCoreRecoilState RecoilState;
 
-	/** Delegate handle for world tick binding */
-	FDelegateHandle WorldTickDelegateHandle;
+	/** Timer handle for convergence tick updates */
+	FTimerHandle ConvergenceTickTimerHandle;
 
-	/** Whether we're currently bound to world tick */
+	/** Whether we're currently bound to convergence tick timer */
 	bool bBoundToWorldTick;
 
 	//========================================================================

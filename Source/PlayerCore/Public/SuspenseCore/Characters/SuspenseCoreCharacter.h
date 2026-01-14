@@ -21,6 +21,7 @@ class ASuspenseCorePlayerState;
 class USuspenseCoreCharacterClassData;
 class USuspenseCoreWeaponStanceComponent;
 class USuspenseCoreQuickSlotComponent;
+class USuspenseCoreRecoilConvergenceComponent;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MOVEMENT STATE ENUM
@@ -341,6 +342,10 @@ protected:
 	/** QuickSlot component for Tarkov-style magazine access (nullptr if WITH_EQUIPMENT_SYSTEM=0) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
 	USuspenseCoreQuickSlotComponent* QuickSlotComponent = nullptr;
+
+	/** Recoil convergence component for Tarkov-style camera return after shots */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
+	USuspenseCoreRecoilConvergenceComponent* RecoilConvergenceComponent = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION - MOVEMENT (Tarkov-style)

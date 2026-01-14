@@ -90,6 +90,7 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ReloadStarted);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ReloadCompleted);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpreadChanged);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(RecoilImpulse);  // Recoil impulse for convergence
 		}
 
 		//--------------------------------------------------------------

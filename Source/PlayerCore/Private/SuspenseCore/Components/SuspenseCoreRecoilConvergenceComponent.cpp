@@ -3,8 +3,12 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/SuspenseCoreRecoilConvergenceComponent.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
+#include "Engine/World.h"
 
 USuspenseCoreRecoilConvergenceComponent::USuspenseCoreRecoilConvergenceComponent()
 	: AccumulatedPitch(0.0f)
@@ -16,7 +20,7 @@ USuspenseCoreRecoilConvergenceComponent::USuspenseCoreRecoilConvergenceComponent
 	, bWaitingForDelay(false)
 	, bIsConverging(false)
 {
-	// Start with tick disabled - enable only when needed
+	// Start with tick disabled - enable only when needed (performance)
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
@@ -28,6 +32,20 @@ void USuspenseCoreRecoilConvergenceComponent::BeginPlay()
 
 	// Ensure tick is disabled at start
 	SetComponentTickEnabled(false);
+
+	// Subscribe to recoil events via EventBus
+	SubscribeToEvents();
+
+	UE_LOG(LogTemp, Log, TEXT("RecoilConvergence: Component initialized on %s"),
+		*GetOwner()->GetName());
+}
+
+void USuspenseCoreRecoilConvergenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Unsubscribe from EventBus
+	UnsubscribeFromEvents();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void USuspenseCoreRecoilConvergenceComponent::TickComponent(
@@ -69,13 +87,59 @@ void USuspenseCoreRecoilConvergenceComponent::TickComponent(
 	}
 }
 
-void USuspenseCoreRecoilConvergenceComponent::ApplyRecoilImpulse(
-	float PitchImpulse,
-	float YawImpulse,
-	float ConvergenceDelay,
-	float ConvergenceSpeed,
-	float Ergonomics)
+//========================================================================
+// EventBus Integration
+//========================================================================
+
+void USuspenseCoreRecoilConvergenceComponent::SubscribeToEvents()
 {
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RecoilConvergence: No EventBus found, cannot subscribe"));
+		return;
+	}
+
+	CachedEventBus = EventBus;
+
+	// Subscribe to RecoilImpulse events
+	RecoilEventHandle = EventBus->Subscribe(
+		SuspenseCoreTags::Event::Weapon::RecoilImpulse,
+		FOnSuspenseCoreEvent::CreateUObject(this, &USuspenseCoreRecoilConvergenceComponent::OnRecoilImpulseEvent)
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("RecoilConvergence: Subscribed to EventBus for RecoilImpulse"));
+}
+
+void USuspenseCoreRecoilConvergenceComponent::UnsubscribeFromEvents()
+{
+	if (CachedEventBus.IsValid() && RecoilEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(SuspenseCoreTags::Event::Weapon::RecoilImpulse, RecoilEventHandle);
+		UE_LOG(LogTemp, Log, TEXT("RecoilConvergence: Unsubscribed from EventBus"));
+	}
+
+	CachedEventBus.Reset();
+	RecoilEventHandle.Reset();
+}
+
+void USuspenseCoreRecoilConvergenceComponent::OnRecoilImpulseEvent(
+	FGameplayTag EventTag,
+	const FSuspenseCoreEventData& EventData)
+{
+	// Only respond to events from our owner (the Character)
+	if (EventData.Instigator != GetOwner())
+	{
+		return;
+	}
+
+	// Extract recoil data from event
+	float PitchImpulse = EventData.GetFloat(TEXT("PitchImpulse"));
+	float YawImpulse = EventData.GetFloat(TEXT("YawImpulse"));
+	float ConvergenceDelay = EventData.GetFloat(TEXT("ConvergenceDelay"), 0.1f);
+	float ConvergenceSpeed = EventData.GetFloat(TEXT("ConvergenceSpeed"), 5.0f);
+	float Ergonomics = EventData.GetFloat(TEXT("Ergonomics"), 42.0f);
+
 	// Accumulate offset
 	AccumulatedPitch += PitchImpulse;
 	AccumulatedYaw += YawImpulse;
@@ -93,9 +157,25 @@ void USuspenseCoreRecoilConvergenceComponent::ApplyRecoilImpulse(
 	// Enable tick
 	SetComponentTickEnabled(true);
 
-	UE_LOG(LogTemp, Verbose, TEXT("RecoilConvergence: Impulse applied. Pitch=%.3f, Yaw=%.3f, Total: Pitch=%.3f, Yaw=%.3f"),
+	UE_LOG(LogTemp, Log, TEXT("RecoilConvergence: Impulse received via EventBus. Pitch=%.3f, Yaw=%.3f, Total: Pitch=%.3f, Yaw=%.3f"),
 		PitchImpulse, YawImpulse, AccumulatedPitch, AccumulatedYaw);
 }
+
+USuspenseCoreEventBus* USuspenseCoreRecoilConvergenceComponent::GetEventBus() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	// Get EventBus from world subsystem
+	return World->GetSubsystem<USuspenseCoreEventBus>();
+}
+
+//========================================================================
+// Public API
+//========================================================================
 
 void USuspenseCoreRecoilConvergenceComponent::ResetConvergence()
 {
@@ -108,6 +188,10 @@ void USuspenseCoreRecoilConvergenceComponent::ResetConvergence()
 
 	UE_LOG(LogTemp, Log, TEXT("RecoilConvergence: Reset"));
 }
+
+//========================================================================
+// Internal Methods
+//========================================================================
 
 bool USuspenseCoreRecoilConvergenceComponent::HasOffset() const
 {

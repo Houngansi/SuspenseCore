@@ -17,6 +17,7 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
+#include "SuspenseCore/Components/SuspenseCoreRecoilConvergenceComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -77,7 +78,6 @@ USuspenseCoreBaseFireAbility::USuspenseCoreBaseFireAbility()
 	: bDebugTraces(false)
 	, ConsecutiveShotsCount(0)
 	, LastShotTime(0.0f)
-	, bBoundToWorldTick(false)
 {
 	// Network configuration
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
@@ -166,10 +166,8 @@ void USuspenseCoreBaseFireAbility::ActivateAbility(
 	// Initialize recoil state from weapon SSOT data (convergence, ergonomics, etc.)
 	InitializeRecoilStateFromWeapon();
 
-	// Bind to world tick for convergence updates
-	BindToWorldTick();
-
 	// Fire first shot - children implement FireNextShot()
+	// NOTE: Convergence is handled by USuspenseCoreRecoilConvergenceComponent on Character
 	FireNextShot();
 }
 
@@ -186,15 +184,10 @@ void USuspenseCoreBaseFireAbility::EndAbility(
 		CombatState->SetFiring(false);
 	}
 
-	// DO NOT unbind convergence tick here - convergence should continue after ability ends
-	// The timer will auto-unbind when convergence completes (HasOffset() returns false)
-	// This allows the camera to smoothly return to aim point even after stopping fire
-
-	// Clear non-convergence timers
+	// Clear recoil reset timer
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RecoilResetTimerHandle);
-		World->GetTimerManager().ClearTimer(ConvergenceDelayTimerHandle);
 	}
 
 	// Start recoil reset timer (resets shot counter after delay)
@@ -209,9 +202,8 @@ void USuspenseCoreBaseFireAbility::EndAbility(
 		);
 	}
 
-	// Note: We do NOT unbind from world tick here!
-	// Convergence should continue even after firing stops.
-	// The tick will automatically unbind when recoil reaches zero.
+	// NOTE: Convergence continues via USuspenseCoreRecoilConvergenceComponent
+	// Component lives on Character and is independent of ability lifecycle
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -809,188 +801,31 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	PC->AddYawInput(VisualHorizontal);
 
 	// ===================================================================================
-	// CONVERGENCE TRACKING
+	// NOTIFY CONVERGENCE COMPONENT
 	// ===================================================================================
-	// Track visual offset (what camera shows) - positive = kicked up
+	// Convergence (camera return to aim point) is handled by component on Character
+	// This decouples convergence from ability lifecycle - works after ability ends
+	if (USuspenseCoreRecoilConvergenceComponent* ConvergenceComp = GetRecoilConvergenceComponent())
+	{
+		ConvergenceComp->ApplyRecoilImpulse(
+			VisualVertical,
+			VisualHorizontal,
+			RecoilState.CachedConvergenceDelay,
+			RecoilState.CachedConvergenceSpeed,
+			RecoilState.CachedErgonomics
+		);
+	}
+
+	// Track state for debugging/UI (not used for convergence)
 	RecoilState.VisualPitch += VisualVertical;
 	RecoilState.VisualYaw += VisualHorizontal;
-
-	// NOTE: AimOffset is NOT used anymore - bullets go where camera looks
-	// Visual/Aim separation is purely cosmetic (stronger camera kick feel)
-	// AimPitch/AimYaw are kept at 0 for HasOffset() check to work correctly
-
-	// Legacy compatibility (deprecated but maintained for existing code)
 	RecoilState.AccumulatedPitch += VerticalRecoil;
 	RecoilState.AccumulatedYaw += HorizontalRecoil;
-
-	RecoilState.TimeSinceLastShot = 0.0f;
-	RecoilState.bWaitingForConvergence = true;
-	RecoilState.bIsConverging = false;
-
-	// Start convergence delay timer
-	StartConvergenceTimer();
 
 	// Play camera shake if configured
 	if (RecoilCameraShake)
 	{
 		PC->ClientStartCameraShake(RecoilCameraShake, RecoilMultiplier * ADSMultiplier);
-	}
-}
-
-void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
-{
-	// Skip if no offset to converge
-	if (!RecoilState.HasOffset())
-	{
-		// Convergence complete - unbind from tick to save performance
-		if (bBoundToWorldTick)
-		{
-			UE_LOG(LogTemp, Log, TEXT("Convergence: Complete, unbinding. VisualPitch=%.3f"), RecoilState.VisualPitch);
-			UnbindFromWorldTick();
-		}
-		return;
-	}
-
-	// Update time since last shot
-	RecoilState.TimeSinceLastShot += DeltaTime;
-
-	// Wait for convergence delay before starting recovery
-	if (RecoilState.bWaitingForConvergence)
-	{
-		if (RecoilState.TimeSinceLastShot >= RecoilState.CachedConvergenceDelay)
-		{
-			UE_LOG(LogTemp, Log, TEXT("Convergence: Delay complete, starting recovery. VisualPitch=%.3f"), RecoilState.VisualPitch);
-			RecoilState.bWaitingForConvergence = false;
-			RecoilState.bIsConverging = true;
-		}
-		return;
-	}
-
-	// Get player controller
-	AActor* Avatar = GetAvatarActorFromActorInfo();
-	if (!Avatar)
-	{
-		return;
-	}
-
-	APawn* Pawn = Cast<APawn>(Avatar);
-	if (!Pawn)
-	{
-		return;
-	}
-
-	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
-	if (!PC)
-	{
-		return;
-	}
-
-	// ===================================================================================
-	// VISUAL VS AIM CONVERGENCE (Phase 5)
-	// ===================================================================================
-	// Visual recoil converges FASTER (VisualConvergenceMultiplier, default 1.2×)
-	// This makes camera feel stable quickly while aim still drifts
-	//
-	// Aim recoil converges at base speed - this affects actual bullet accuracy
-	// The separation creates the Tarkov "feel" where gun kicks visually but
-	// aim recovery is more gradual
-	// ===================================================================================
-
-	float EffectiveSpeed = RecoilState.GetEffectiveConvergenceSpeed();
-	float BaseConvergenceRate = EffectiveSpeed * DeltaTime;
-
-	// Visual recoil converges faster than aim recoil
-	float VisualConvergenceRate = BaseConvergenceRate * RecoilConfig.VisualConvergenceMultiplier;
-	float AimConvergenceRate = BaseConvergenceRate;
-
-	// ===================================================================================
-	// VISUAL RECOIL RECOVERY (Camera feel)
-	// ===================================================================================
-	float VisualPitchRecovery = 0.0f;
-	float VisualYawRecovery = 0.0f;
-
-	if (RecoilState.HasVisualOffset())
-	{
-		// Converge visual toward zero
-		if (FMath::Abs(RecoilState.VisualPitch) > 0.01f)
-		{
-			VisualPitchRecovery = -FMath::Sign(RecoilState.VisualPitch) *
-				FMath::Min(VisualConvergenceRate, FMath::Abs(RecoilState.VisualPitch));
-		}
-
-		if (FMath::Abs(RecoilState.VisualYaw) > 0.01f)
-		{
-			VisualYawRecovery = -FMath::Sign(RecoilState.VisualYaw) *
-				FMath::Min(VisualConvergenceRate, FMath::Abs(RecoilState.VisualYaw));
-		}
-
-		// Apply visual recovery to camera
-		if (!FMath::IsNearlyZero(VisualPitchRecovery) || !FMath::IsNearlyZero(VisualYawRecovery))
-		{
-			// VisualPitch is positive (camera kicked UP from recoil)
-			// VisualPitchRecovery is negative (need to return camera DOWN toward center)
-			// Since recoil used AddPitchInput(-VisualVertical) to go UP,
-			// recovery needs AddPitchInput(+value) to go DOWN
-			// VisualPitchRecovery is already negative, so we negate it to get positive
-			UE_LOG(LogTemp, Verbose, TEXT("Convergence: Applying recovery. PitchRecovery=%.4f, VisualPitch=%.3f"),
-				VisualPitchRecovery, RecoilState.VisualPitch);
-			PC->AddPitchInput(-VisualPitchRecovery);
-			PC->AddYawInput(VisualYawRecovery);
-
-			// Update visual offset state
-			RecoilState.VisualPitch += VisualPitchRecovery;
-			RecoilState.VisualYaw += VisualYawRecovery;
-		}
-
-		// Snap to zero if very small
-		if (FMath::IsNearlyZero(RecoilState.VisualPitch, 0.01f))
-		{
-			RecoilState.VisualPitch = 0.0f;
-		}
-		if (FMath::IsNearlyZero(RecoilState.VisualYaw, 0.01f))
-		{
-			RecoilState.VisualYaw = 0.0f;
-		}
-	}
-
-	// NOTE: AimOffset recovery removed - AimOffset no longer used for bullet direction
-	// Bullets go where camera looks, so only visual convergence matters
-
-	// ===================================================================================
-	// LEGACY COMPATIBILITY (maintain AccumulatedPitch/Yaw for existing code)
-	// ===================================================================================
-	float PitchDelta = RecoilState.TargetPitch - RecoilState.AccumulatedPitch;
-	float YawDelta = RecoilState.TargetYaw - RecoilState.AccumulatedYaw;
-
-	if (FMath::Abs(PitchDelta) > 0.01f)
-	{
-		float PitchRecovery = FMath::Sign(PitchDelta) *
-			FMath::Min(BaseConvergenceRate, FMath::Abs(PitchDelta));
-		RecoilState.AccumulatedPitch += PitchRecovery;
-	}
-
-	if (FMath::Abs(YawDelta) > 0.01f)
-	{
-		float YawRecovery = FMath::Sign(YawDelta) *
-			FMath::Min(BaseConvergenceRate, FMath::Abs(YawDelta));
-		RecoilState.AccumulatedYaw += YawRecovery;
-	}
-
-	// Snap legacy values to zero if very small
-	if (FMath::IsNearlyZero(RecoilState.AccumulatedPitch, 0.01f))
-	{
-		RecoilState.AccumulatedPitch = 0.0f;
-	}
-	if (FMath::IsNearlyZero(RecoilState.AccumulatedYaw, 0.01f))
-	{
-		RecoilState.AccumulatedYaw = 0.0f;
-	}
-
-	// Check if convergence is complete
-	if (!RecoilState.HasOffset())
-	{
-		RecoilState.bIsConverging = false;
-		RecoilState.Reset();
 	}
 }
 
@@ -1104,88 +939,15 @@ void USuspenseCoreBaseFireAbility::ResetShotCounter()
 	ConsecutiveShotsCount = 0;
 }
 
-void USuspenseCoreBaseFireAbility::StartConvergenceTimer()
+USuspenseCoreRecoilConvergenceComponent* USuspenseCoreBaseFireAbility::GetRecoilConvergenceComponent() const
 {
-	// Clear any existing convergence delay timer
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ConvergenceDelayTimerHandle);
-	}
-
-	// Convergence is now handled by world tick, not timer
-	// The delay is managed in TickConvergence via TimeSinceLastShot
-}
-
-void USuspenseCoreBaseFireAbility::BindToWorldTick()
-{
-	if (bBoundToWorldTick)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Convergence: BindToWorldTick skipped - already bound"));
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Convergence: BindToWorldTick failed - no World"));
-		return;
-	}
-
-	// Use looping timer for convergence updates (60Hz tick rate)
-	// This replaces direct world tick delegate for better compatibility
-	constexpr float ConvergenceTickRate = 1.0f / 60.0f; // 60 FPS tick rate
-
-	World->GetTimerManager().SetTimer(
-		ConvergenceTickTimerHandle,
-		this,
-		&USuspenseCoreBaseFireAbility::OnConvergenceTick,
-		ConvergenceTickRate,
-		true // bLoop
-	);
-
-	bBoundToWorldTick = true;
-	UE_LOG(LogTemp, Log, TEXT("Convergence: Timer started (60Hz)"));
-}
-
-void USuspenseCoreBaseFireAbility::UnbindFromWorldTick()
-{
-	if (!bBoundToWorldTick)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (World)
-	{
-		World->GetTimerManager().ClearTimer(ConvergenceTickTimerHandle);
-	}
-
-	bBoundToWorldTick = false;
-}
-
-void USuspenseCoreBaseFireAbility::OnConvergenceTick()
-{
-	// Check if we should tick convergence
-	// NOTE: Cannot use IsLocallyControlled() here - ability may be inactive after EndAbility
-	// Instead, check the actor directly
 	AActor* Avatar = GetAvatarActorFromActorInfo();
 	if (!Avatar)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Convergence: No Avatar, unbinding"));
-		UnbindFromWorldTick();
-		return;
+		return nullptr;
 	}
 
-	APawn* Pawn = Cast<APawn>(Avatar);
-	if (!Pawn || !Pawn->IsLocallyControlled())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Convergence: Not locally controlled"));
-		return;
-	}
-
-	// Get delta time from timer rate (60Hz = ~0.0167 seconds)
-	constexpr float DeltaTime = 1.0f / 60.0f;
-	TickConvergence(DeltaTime);
+	return Avatar->FindComponentByClass<USuspenseCoreRecoilConvergenceComponent>();
 }
 
 //========================================================================

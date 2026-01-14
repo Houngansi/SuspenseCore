@@ -27,6 +27,7 @@ class ISuspenseCoreWeaponCombatState;
 class ISuspenseCoreWeapon;
 class ISuspenseCoreMagazineProvider;
 class USuspenseCoreWeaponAttributeSet;
+class USuspenseCoreRecoilConvergenceComponent;
 class UNiagaraSystem;
 class USoundBase;
 class UAnimMontage;
@@ -612,18 +613,10 @@ protected:
 
 	/**
 	 * Apply recoil impulse to player view and start convergence tracking.
-	 * Called on each shot. Adds to AccumulatedPitch/Yaw in RecoilState.
+	 * Called on each shot. Notifies RecoilConvergenceComponent for auto-return.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Recoil")
 	void ApplyRecoil();
-
-	/**
-	 * Tick convergence system - call every frame while RecoilState has offset.
-	 * Gradually returns camera to original aim point after ConvergenceDelay.
-	 * @param DeltaTime Time since last tick
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Recoil")
-	void TickConvergence(float DeltaTime);
 
 	/**
 	 * Initialize recoil state from weapon attributes (SSOT).
@@ -663,25 +656,11 @@ protected:
 	void ResetShotCounter();
 
 	/**
-	 * Start convergence timer after shot.
+	 * Get recoil convergence component from owner.
+	 * Component handles camera return after recoil.
+	 * @return Component or nullptr if not found
 	 */
-	void StartConvergenceTimer();
-
-	/**
-	 * Bind to world tick for convergence updates.
-	 */
-	void BindToWorldTick();
-
-	/**
-	 * Unbind from world tick.
-	 */
-	void UnbindFromWorldTick();
-
-	/**
-	 * Timer callback for convergence updates.
-	 * Called at 60Hz rate to update recoil recovery.
-	 */
-	void OnConvergenceTick();
+	USuspenseCoreRecoilConvergenceComponent* GetRecoilConvergenceComponent() const;
 
 	//========================================================================
 	// Ammunition
@@ -768,21 +747,13 @@ protected:
 	/** Recoil reset timer handle */
 	FTimerHandle RecoilResetTimerHandle;
 
-	/** Convergence delay timer handle */
-	FTimerHandle ConvergenceDelayTimerHandle;
-
 	//========================================================================
-	// Recoil State (Tarkov-Style Convergence)
+	// Recoil State (Tarkov-Style)
+	// NOTE: Convergence is handled by USuspenseCoreRecoilConvergenceComponent
 	//========================================================================
 
-	/** Runtime recoil state with convergence tracking */
+	/** Runtime recoil state (for tracking, not convergence) */
 	FSuspenseCoreRecoilState RecoilState;
-
-	/** Timer handle for convergence tick updates */
-	FTimerHandle ConvergenceTickTimerHandle;
-
-	/** Whether we're currently bound to convergence tick timer */
-	bool bBoundToWorldTick;
 
 	//========================================================================
 	// Validation Constants

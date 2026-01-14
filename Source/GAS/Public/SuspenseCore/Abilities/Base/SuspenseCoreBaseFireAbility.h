@@ -399,7 +399,9 @@ struct GAS_API FSuspenseCoreRecoilState
 	}
 
 	/** Get aim offset as FRotator (for applying to shot direction)
-	 *  Positive AimPitch = gun kicked UP = bullets go UP = positive FRotator pitch */
+	 *  AimPitch stores CORRECTION (Aim - Visual), typically negative.
+	 *  Applied to camera direction to get bullet direction.
+	 *  Negative pitch = bullets go less up than camera = more accurate */
 	FRotator GetAimOffsetRotator() const
 	{
 		return FRotator(AimPitch, AimYaw, 0.0f);

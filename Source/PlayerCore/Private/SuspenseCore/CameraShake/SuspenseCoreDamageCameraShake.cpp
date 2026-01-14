@@ -116,10 +116,9 @@ float USuspenseCoreDamageCameraShakePattern::CalculateBlendAmount() const
 // USuspenseCoreDamageCameraShake
 //========================================================================
 
-USuspenseCoreDamageCameraShake::USuspenseCoreDamageCameraShake()
+USuspenseCoreDamageCameraShake::USuspenseCoreDamageCameraShake(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<USuspenseCoreDamageCameraShakePattern>(TEXT("RootShakePattern")))
 {
-	// Create default pattern as subobject
-	RootShakePattern = CreateDefaultSubobject<USuspenseCoreDamageCameraShakePattern>(TEXT("DamageShakePattern"));
 }
 
 void USuspenseCoreDamageCameraShake::SetShakeParams(const FSuspenseCoreDamageShakeParams& NewParams)

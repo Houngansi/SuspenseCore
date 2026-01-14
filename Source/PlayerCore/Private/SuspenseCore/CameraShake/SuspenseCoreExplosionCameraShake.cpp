@@ -116,10 +116,9 @@ float USuspenseCoreExplosionCameraShakePattern::CalculateBlendAmount() const
 // USuspenseCoreExplosionCameraShake
 //========================================================================
 
-USuspenseCoreExplosionCameraShake::USuspenseCoreExplosionCameraShake()
+USuspenseCoreExplosionCameraShake::USuspenseCoreExplosionCameraShake(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<USuspenseCoreExplosionCameraShakePattern>(TEXT("RootShakePattern")))
 {
-	// Create default pattern as subobject
-	RootShakePattern = CreateDefaultSubobject<USuspenseCoreExplosionCameraShakePattern>(TEXT("ExplosionShakePattern"));
 }
 
 void USuspenseCoreExplosionCameraShake::SetShakeParams(const FSuspenseCoreExplosionShakeParams& NewParams)

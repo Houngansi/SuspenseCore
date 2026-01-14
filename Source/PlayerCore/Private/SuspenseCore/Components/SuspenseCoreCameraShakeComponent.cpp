@@ -146,14 +146,20 @@ void USuspenseCoreCameraShakeComponent::OnMovementShakeEvent(
 	FGameplayTag EventTag,
 	const FSuspenseCoreEventData& EventData)
 {
+	UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Received ShakeMovement event from %s (Owner: %s)"),
+		EventData.Source ? *EventData.Source->GetName() : TEXT("NULL"),
+		GetOwner() ? *GetOwner()->GetName() : TEXT("NULL"));
+
 	// Only respond to events from our owner
 	if (EventData.Source != GetOwner())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Source mismatch, ignoring event"));
 		return;
 	}
 
 	if (!bEnableCameraShakes)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Camera shakes disabled"));
 		return;
 	}
 
@@ -274,8 +280,13 @@ void USuspenseCoreCameraShakeComponent::PlayWeaponShake(const FString& WeaponTyp
 
 void USuspenseCoreCameraShakeComponent::PlayMovementShake(const FString& MovementType, float Scale)
 {
+	UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: PlayMovementShake called - Type=%s, Scale=%.2f, ShakeClass=%s"),
+		*MovementType, Scale, MovementShakeClass ? *MovementShakeClass->GetName() : TEXT("NULL"));
+
 	if (!bEnableCameraShakes || !MovementShakeClass)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: PlayMovementShake aborted - EnableShakes=%d, Class=%s"),
+			bEnableCameraShakes, MovementShakeClass ? TEXT("Valid") : TEXT("NULL"));
 		return;
 	}
 
@@ -283,10 +294,9 @@ void USuspenseCoreCameraShakeComponent::PlayMovementShake(const FString& Movemen
 
 	if (FinalScale > KINDA_SMALL_NUMBER)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Starting movement shake FinalScale=%.2f (Base=%.2f * Movement=%.2f * Master=%.2f)"),
+			FinalScale, Scale, MovementShakeScale, MasterShakeScale);
 		StartCameraShake(MovementShakeClass, FinalScale);
-
-		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Playing movement shake Type=%s, Scale=%.2f"),
-			*MovementType, FinalScale);
 	}
 }
 
@@ -401,14 +411,19 @@ void USuspenseCoreCameraShakeComponent::StartCameraShake(TSubclassOf<UCameraShak
 	APlayerController* PC = GetOwnerPlayerController();
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: No PlayerController found"));
+		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: No PlayerController found for %s"),
+			GetOwner() ? *GetOwner()->GetName() : TEXT("NULL"));
 		return;
 	}
 
 	if (!ShakeClass)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: ShakeClass is NULL"));
 		return;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: >>> ClientStartCameraShake(%s, Scale=%.2f) via PC=%s"),
+		*ShakeClass->GetName(), Scale, *PC->GetName());
 
 	PC->ClientStartCameraShake(ShakeClass, Scale);
 }

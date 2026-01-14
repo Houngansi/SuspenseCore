@@ -370,10 +370,11 @@ struct GAS_API FSuspenseCoreRecoilState
 		bWaitingForConvergence = false;
 	}
 
-	/** Check if camera has any accumulated offset (visual or aim) */
+	/** Check if camera has any accumulated offset that needs convergence */
 	bool HasOffset() const
 	{
-		return HasVisualOffset() || HasAimOffset();
+		// Only check visual offset - AimOffset no longer used for bullet direction
+		return HasVisualOffset();
 	}
 
 	/** Check if visual recoil has any offset */
@@ -383,7 +384,7 @@ struct GAS_API FSuspenseCoreRecoilState
 			   !FMath::IsNearlyZero(VisualYaw, 0.01f);
 	}
 
-	/** Check if aim recoil has any offset */
+	/** Check if aim recoil has any offset (deprecated - AimOffset not used) */
 	bool HasAimOffset() const
 	{
 		return !FMath::IsNearlyZero(AimPitch, 0.01f) ||

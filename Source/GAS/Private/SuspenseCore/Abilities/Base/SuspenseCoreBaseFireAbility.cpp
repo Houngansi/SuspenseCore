@@ -248,32 +248,11 @@ FWeaponShotParams USuspenseCoreBaseFireAbility::GenerateShotRequest()
 	// Get muzzle location
 	Params.StartLocation = GetMuzzleLocation();
 
-	// Get base aim direction
-	FVector BaseDirection = GetAimDirection();
-
-	// ===================================================================================
-	// APPLY AIM RECOIL OFFSET (Phase 5)
-	// ===================================================================================
-	// The aim offset represents accumulated recoil that affects bullet trajectory
-	// This is separate from visual recoil (what camera shows)
-	// AimPitch/AimYaw determine where bullets actually go
-	// ===================================================================================
-	if (RecoilState.HasAimOffset())
-	{
-		// Convert aim offset to rotation delta
-		FRotator AimOffset = RecoilState.GetAimOffsetRotator();
-
-		// Apply offset to direction
-		FRotator BaseRotation = BaseDirection.Rotation();
-		FRotator AdjustedRotation = BaseRotation + AimOffset;
-
-		// Convert back to direction vector
-		Params.Direction = AdjustedRotation.Vector();
-	}
-	else
-	{
-		Params.Direction = BaseDirection;
-	}
+	// Get aim direction - bullets go where camera is looking
+	// NO AimOffset applied - this caused issues when player manually adjusted aim
+	// Visual/Aim separation is purely cosmetic (camera kick feels stronger)
+	// but bullets always go to crosshair
+	Params.Direction = GetAimDirection();
 
 	// Get weapon and ammo attributes for proper damage/spread calculation
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
@@ -836,25 +815,9 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	RecoilState.VisualPitch += VisualVertical;
 	RecoilState.VisualYaw += VisualHorizontal;
 
-	// ===================================================================================
-	// AIM OFFSET CALCULATION (Phase 5 - Visual/Aim Separation)
-	// ===================================================================================
-	// AimOffset is the CORRECTION needed to make bullets go where AimRecoil points,
-	// not where VisualRecoil (camera) points.
-	//
-	// Camera already moved by VisualRecoil, GetAimDirection() returns that direction.
-	// To make bullets go to AimRecoil position, we need to CORRECT by (Aim - Visual).
-	//
-	// Example with VisualRecoilMultiplier = 1.5:
-	//   Visual = Base * 1.5 (camera kicks this much)
-	//   Aim = Base * 1.0 (bullets should go here)
-	//   Correction = Aim - Visual = -0.5 * Base (negative = pull back toward center)
-	// ===================================================================================
-	float AimCorrectionPitch = AimVertical - VisualVertical;  // Negative when Visual > Aim
-	float AimCorrectionYaw = AimHorizontal - VisualHorizontal;
-
-	RecoilState.AimPitch += AimCorrectionPitch;
-	RecoilState.AimYaw += AimCorrectionYaw;
+	// NOTE: AimOffset is NOT used anymore - bullets go where camera looks
+	// Visual/Aim separation is purely cosmetic (stronger camera kick feel)
+	// AimPitch/AimYaw are kept at 0 for HasOffset() check to work correctly
 
 	// Legacy compatibility (deprecated but maintained for existing code)
 	RecoilState.AccumulatedPitch += VerticalRecoil;
@@ -986,36 +949,8 @@ void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
 		}
 	}
 
-	// ===================================================================================
-	// AIM RECOIL RECOVERY (Bullet accuracy)
-	// ===================================================================================
-	if (RecoilState.HasAimOffset())
-	{
-		// Converge aim toward zero
-		if (FMath::Abs(RecoilState.AimPitch) > 0.01f)
-		{
-			float AimPitchRecovery = -FMath::Sign(RecoilState.AimPitch) *
-				FMath::Min(AimConvergenceRate, FMath::Abs(RecoilState.AimPitch));
-			RecoilState.AimPitch += AimPitchRecovery;
-		}
-
-		if (FMath::Abs(RecoilState.AimYaw) > 0.01f)
-		{
-			float AimYawRecovery = -FMath::Sign(RecoilState.AimYaw) *
-				FMath::Min(AimConvergenceRate, FMath::Abs(RecoilState.AimYaw));
-			RecoilState.AimYaw += AimYawRecovery;
-		}
-
-		// Snap to zero if very small
-		if (FMath::IsNearlyZero(RecoilState.AimPitch, 0.01f))
-		{
-			RecoilState.AimPitch = 0.0f;
-		}
-		if (FMath::IsNearlyZero(RecoilState.AimYaw, 0.01f))
-		{
-			RecoilState.AimYaw = 0.0f;
-		}
-	}
+	// NOTE: AimOffset recovery removed - AimOffset no longer used for bullet direction
+	// Bullets go where camera looks, so only visual convergence matters
 
 	// ===================================================================================
 	// LEGACY COMPATIBILITY (maintain AccumulatedPitch/Yaw for existing code)
@@ -1223,13 +1158,25 @@ void USuspenseCoreBaseFireAbility::UnbindFromWorldTick()
 
 void USuspenseCoreBaseFireAbility::OnConvergenceTick()
 {
-	// Only tick convergence on locally controlled character
-	if (IsLocallyControlled())
+	// Check if we should tick convergence
+	// NOTE: Cannot use IsLocallyControlled() here - ability may be inactive after EndAbility
+	// Instead, check the actor directly
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
 	{
-		// Get delta time from timer rate (60Hz = ~0.0167 seconds)
-		constexpr float DeltaTime = 1.0f / 60.0f;
-		TickConvergence(DeltaTime);
+		UnbindFromWorldTick();
+		return;
 	}
+
+	APawn* Pawn = Cast<APawn>(Avatar);
+	if (!Pawn || !Pawn->IsLocallyControlled())
+	{
+		return;
+	}
+
+	// Get delta time from timer rate (60Hz = ~0.0167 seconds)
+	constexpr float DeltaTime = 1.0f / 60.0f;
+	TickConvergence(DeltaTime);
 }
 
 //========================================================================

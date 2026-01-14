@@ -845,6 +845,7 @@ void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
 		// Convergence complete - unbind from tick to save performance
 		if (bBoundToWorldTick)
 		{
+			UE_LOG(LogTemp, Log, TEXT("Convergence: Complete, unbinding. VisualPitch=%.3f"), RecoilState.VisualPitch);
 			UnbindFromWorldTick();
 		}
 		return;
@@ -858,6 +859,7 @@ void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
 	{
 		if (RecoilState.TimeSinceLastShot >= RecoilState.CachedConvergenceDelay)
 		{
+			UE_LOG(LogTemp, Log, TEXT("Convergence: Delay complete, starting recovery. VisualPitch=%.3f"), RecoilState.VisualPitch);
 			RecoilState.bWaitingForConvergence = false;
 			RecoilState.bIsConverging = true;
 		}
@@ -930,6 +932,8 @@ void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
 			// Since recoil used AddPitchInput(-VisualVertical) to go UP,
 			// recovery needs AddPitchInput(+value) to go DOWN
 			// VisualPitchRecovery is already negative, so we negate it to get positive
+			UE_LOG(LogTemp, Verbose, TEXT("Convergence: Applying recovery. PitchRecovery=%.4f, VisualPitch=%.3f"),
+				VisualPitchRecovery, RecoilState.VisualPitch);
 			PC->AddPitchInput(-VisualPitchRecovery);
 			PC->AddYawInput(VisualYawRecovery);
 
@@ -1116,12 +1120,14 @@ void USuspenseCoreBaseFireAbility::BindToWorldTick()
 {
 	if (bBoundToWorldTick)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Convergence: BindToWorldTick skipped - already bound"));
 		return;
 	}
 
 	UWorld* World = GetWorld();
 	if (!World)
 	{
+		UE_LOG(LogTemp, Error, TEXT("Convergence: BindToWorldTick failed - no World"));
 		return;
 	}
 
@@ -1138,6 +1144,7 @@ void USuspenseCoreBaseFireAbility::BindToWorldTick()
 	);
 
 	bBoundToWorldTick = true;
+	UE_LOG(LogTemp, Log, TEXT("Convergence: Timer started (60Hz)"));
 }
 
 void USuspenseCoreBaseFireAbility::UnbindFromWorldTick()
@@ -1164,6 +1171,7 @@ void USuspenseCoreBaseFireAbility::OnConvergenceTick()
 	AActor* Avatar = GetAvatarActorFromActorInfo();
 	if (!Avatar)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Convergence: No Avatar, unbinding"));
 		UnbindFromWorldTick();
 		return;
 	}
@@ -1171,6 +1179,7 @@ void USuspenseCoreBaseFireAbility::OnConvergenceTick()
 	APawn* Pawn = Cast<APawn>(Avatar);
 	if (!Pawn || !Pawn->IsLocallyControlled())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Convergence: Not locally controlled"));
 		return;
 	}
 

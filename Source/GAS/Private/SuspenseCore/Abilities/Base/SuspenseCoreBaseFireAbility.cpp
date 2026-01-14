@@ -825,20 +825,36 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	// APPLY VISUAL RECOIL TO CAMERA
 	// ===================================================================================
 	// Apply view punch immediately (camera rotation - the dramatic visual effect)
-	// Positive VisualVertical = gun kicks UP = camera looks UP = positive pitch input
-	PC->AddPitchInput(VisualVertical);
+	// In UE: AddPitchInput with NEGATIVE value = look UP (muzzle rise)
+	PC->AddPitchInput(-VisualVertical);
 	PC->AddYawInput(VisualHorizontal);
 
 	// ===================================================================================
 	// CONVERGENCE TRACKING
 	// ===================================================================================
-	// Track visual offset (what camera shows)
+	// Track visual offset (what camera shows) - positive = kicked up
 	RecoilState.VisualPitch += VisualVertical;
 	RecoilState.VisualYaw += VisualHorizontal;
 
-	// Track aim offset (where bullets go)
-	RecoilState.AimPitch += AimVertical;
-	RecoilState.AimYaw += AimHorizontal;
+	// ===================================================================================
+	// AIM OFFSET CALCULATION (Phase 5 - Visual/Aim Separation)
+	// ===================================================================================
+	// AimOffset is the CORRECTION needed to make bullets go where AimRecoil points,
+	// not where VisualRecoil (camera) points.
+	//
+	// Camera already moved by VisualRecoil, GetAimDirection() returns that direction.
+	// To make bullets go to AimRecoil position, we need to CORRECT by (Aim - Visual).
+	//
+	// Example with VisualRecoilMultiplier = 1.5:
+	//   Visual = Base * 1.5 (camera kicks this much)
+	//   Aim = Base * 1.0 (bullets should go here)
+	//   Correction = Aim - Visual = -0.5 * Base (negative = pull back toward center)
+	// ===================================================================================
+	float AimCorrectionPitch = AimVertical - VisualVertical;  // Negative when Visual > Aim
+	float AimCorrectionYaw = AimHorizontal - VisualHorizontal;
+
+	RecoilState.AimPitch += AimCorrectionPitch;
+	RecoilState.AimYaw += AimCorrectionYaw;
 
 	// Legacy compatibility (deprecated but maintained for existing code)
 	RecoilState.AccumulatedPitch += VerticalRecoil;
@@ -947,9 +963,11 @@ void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
 		if (!FMath::IsNearlyZero(VisualPitchRecovery) || !FMath::IsNearlyZero(VisualYawRecovery))
 		{
 			// VisualPitch is positive (camera kicked UP from recoil)
-			// VisualPitchRecovery is negative (return camera DOWN toward center)
-			// AddPitchInput(negative) = look DOWN = recovering to original aim point
-			PC->AddPitchInput(VisualPitchRecovery);
+			// VisualPitchRecovery is negative (need to return camera DOWN toward center)
+			// Since recoil used AddPitchInput(-VisualVertical) to go UP,
+			// recovery needs AddPitchInput(+value) to go DOWN
+			// VisualPitchRecovery is already negative, so we negate it to get positive
+			PC->AddPitchInput(-VisualPitchRecovery);
 			PC->AddYawInput(VisualYawRecovery);
 
 			// Update visual offset state

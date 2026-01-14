@@ -15,6 +15,8 @@
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+#include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -1164,10 +1166,16 @@ void USuspenseCoreBaseFireAbility::BindToWorldTick()
 		return;
 	}
 
-	// Bind to world tick for convergence updates
-	WorldTickDelegateHandle = World->OnWorldPostActorTick.AddUObject(
+	// Use looping timer for convergence updates (60Hz tick rate)
+	// This replaces direct world tick delegate for better compatibility
+	constexpr float ConvergenceTickRate = 1.0f / 60.0f; // 60 FPS tick rate
+
+	World->GetTimerManager().SetTimer(
+		ConvergenceTickTimerHandle,
 		this,
-		&USuspenseCoreBaseFireAbility::OnWorldTick
+		&USuspenseCoreBaseFireAbility::OnConvergenceTick,
+		ConvergenceTickRate,
+		true // bLoop
 	);
 
 	bBoundToWorldTick = true;
@@ -1183,18 +1191,19 @@ void USuspenseCoreBaseFireAbility::UnbindFromWorldTick()
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		World->OnWorldPostActorTick.Remove(WorldTickDelegateHandle);
+		World->GetTimerManager().ClearTimer(ConvergenceTickTimerHandle);
 	}
 
-	WorldTickDelegateHandle.Reset();
 	bBoundToWorldTick = false;
 }
 
-void USuspenseCoreBaseFireAbility::OnWorldTick(float DeltaTime)
+void USuspenseCoreBaseFireAbility::OnConvergenceTick()
 {
 	// Only tick convergence on locally controlled character
 	if (IsLocallyControlled())
 	{
+		// Get delta time from timer rate (60Hz = ~0.0167 seconds)
+		constexpr float DeltaTime = 1.0f / 60.0f;
 		TickConvergence(DeltaTime);
 	}
 }

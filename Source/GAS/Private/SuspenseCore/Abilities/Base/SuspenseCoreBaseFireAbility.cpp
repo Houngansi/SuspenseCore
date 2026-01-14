@@ -347,6 +347,17 @@ void USuspenseCoreBaseFireAbility::ExecuteSingleShot()
 		PlayLocalFireEffects();
 		ApplyRecoil();
 		IncrementShotCounter();
+
+		// Publish camera shake event for weapon fire
+		if (USuspenseCoreEventBus* EventBus = GetEventBus())
+		{
+			FSuspenseCoreEventData ShakeData = FSuspenseCoreEventData::Create(
+				GetAvatarActorFromActorInfo(),
+				ESuspenseCoreEventPriority::Normal);
+			ShakeData.SetString(TEXT("Type"), TEXT("Rifle"));  // Default weapon type
+			ShakeData.SetFloat(TEXT("Scale"), 1.0f);
+			EventBus->Publish(SuspenseCoreTags::Event::Camera::ShakeWeapon, ShakeData);
+		}
 	}
 
 	// Publish fired event

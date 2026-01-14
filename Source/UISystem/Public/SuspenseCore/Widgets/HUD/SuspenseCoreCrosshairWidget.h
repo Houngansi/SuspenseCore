@@ -230,6 +230,7 @@ private:
 
 	// EventBus handlers
 	void OnSpreadUpdatedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnSpreadChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnWeaponFiredEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnHitConfirmedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
@@ -249,6 +250,7 @@ private:
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
 	FSuspenseCoreSubscriptionHandle SpreadUpdatedHandle;
+	FSuspenseCoreSubscriptionHandle SpreadChangedHandle;
 	FSuspenseCoreSubscriptionHandle WeaponFiredHandle;
 	FSuspenseCoreSubscriptionHandle HitConfirmedHandle;
 
@@ -259,6 +261,12 @@ private:
 	bool bCurrentlyFiring = false;
 	bool bWasFiring = false;
 	bool bCrosshairVisible = true;
+
+	/** Time since last shot for recovery detection */
+	float TimeSinceLastShot = 0.0f;
+
+	/** Cooldown before starting spread recovery */
+	static constexpr float FireCooldown = 0.15f;
 
 	FTimerHandle HitMarkerTimerHandle;
 };

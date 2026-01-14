@@ -6,6 +6,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "Components/Image.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -66,9 +67,23 @@ void USuspenseCoreCrosshairWidget::NativeTick(const FGeometry& MyGeometry, float
 		return;
 	}
 
-	// Interpolate spread
+	// Track time since last shot
+	TimeSinceLastShot += InDeltaTime;
+
+	// Detect firing state based on cooldown
+	bool bWasFiringThisFrame = bCurrentlyFiring;
+	bCurrentlyFiring = (TimeSinceLastShot < FireCooldown);
+
+	// Start recovery when firing stops
+	if (bWasFiringThisFrame && !bCurrentlyFiring)
+	{
+		TargetSpreadRadius = BaseSpreadRadius;
+	}
+
+	// Select interpolation speed
 	float InterpSpeed = bCurrentlyFiring ? SpreadInterpSpeed : RecoveryInterpSpeed;
 
+	// Interpolate current spread toward target
 	if (FMath::Abs(CurrentSpreadRadius - TargetSpreadRadius) > KINDA_SMALL_NUMBER)
 	{
 		CurrentSpreadRadius = FMath::FInterpTo(
@@ -81,8 +96,6 @@ void USuspenseCoreCrosshairWidget::NativeTick(const FGeometry& MyGeometry, float
 		UpdateCrosshairPositions();
 		OnSpreadChanged(CurrentSpreadRadius);
 	}
-
-	bWasFiring = bCurrentlyFiring;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -178,17 +191,11 @@ void USuspenseCoreCrosshairWidget::SetupEventSubscriptions()
 
 	using namespace SuspenseCoreEquipmentTags::Event;
 
+	// Subscribe to Equipment tags (legacy/alternative source)
 	SpreadUpdatedHandle = EventBus->SubscribeNative(
 		TAG_Equipment_Event_Weapon_SpreadUpdated,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreCrosshairWidget::OnSpreadUpdatedEvent),
-		ESuspenseCoreEventPriority::Normal
-	);
-
-	WeaponFiredHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_Weapon_Fired,
-		this,
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreCrosshairWidget::OnWeaponFiredEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
@@ -198,6 +205,23 @@ void USuspenseCoreCrosshairWidget::SetupEventSubscriptions()
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreCrosshairWidget::OnHitConfirmedEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
+
+	// Subscribe to GAS weapon events (primary source from fire ability)
+	WeaponFiredHandle = EventBus->SubscribeNative(
+		SuspenseCoreTags::Event::Weapon::Fired,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreCrosshairWidget::OnWeaponFiredEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	SpreadChangedHandle = EventBus->SubscribeNative(
+		SuspenseCoreTags::Event::Weapon::SpreadChanged,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreCrosshairWidget::OnSpreadChangedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("CrosshairWidget: Subscribed to weapon events"));
 }
 
 void USuspenseCoreCrosshairWidget::TeardownEventSubscriptions()
@@ -211,6 +235,7 @@ void USuspenseCoreCrosshairWidget::TeardownEventSubscriptions()
 	EventBus->Unsubscribe(SpreadUpdatedHandle);
 	EventBus->Unsubscribe(WeaponFiredHandle);
 	EventBus->Unsubscribe(HitConfirmedHandle);
+	EventBus->Unsubscribe(SpreadChangedHandle);
 }
 
 USuspenseCoreEventBus* USuspenseCoreCrosshairWidget::GetEventBus() const
@@ -244,6 +269,27 @@ void USuspenseCoreCrosshairWidget::OnSpreadUpdatedEvent(FGameplayTag EventTag, c
 	UpdateCrosshair(Spread, Recoil, bIsFiring);
 }
 
+void USuspenseCoreCrosshairWidget::OnSpreadChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (!bCrosshairVisible)
+	{
+		return;
+	}
+
+	// GAS publishes spread in degrees - convert to pixels
+	float SpreadDegrees = EventData.GetFloat(TEXT("Spread"), 0.0f);
+
+	// Update target spread (with multiplier for visual scaling)
+	TargetSpreadRadius = FMath::Clamp(
+		SpreadDegrees * SpreadMultiplier,
+		MinimumSpread,
+		MaximumSpread
+	);
+
+	UE_LOG(LogTemp, Verbose, TEXT("CrosshairWidget: SpreadChanged - Degrees=%.2f, TargetRadius=%.2f"),
+		SpreadDegrees, TargetSpreadRadius);
+}
+
 void USuspenseCoreCrosshairWidget::OnWeaponFiredEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	if (!bCrosshairVisible)
@@ -251,11 +297,22 @@ void USuspenseCoreCrosshairWidget::OnWeaponFiredEvent(FGameplayTag EventTag, con
 		return;
 	}
 
+	// Reset timer - we're actively firing
+	TimeSinceLastShot = 0.0f;
 	bCurrentlyFiring = true;
 
-	// Add recoil kick
-	float RecoilKick = EventData.GetFloat(TEXT("RecoilKick"), 5.0f);
-	TargetSpreadRadius = FMath::Min(CurrentSpreadRadius + RecoilKick, MaximumSpread);
+	// Get spread from event (in degrees)
+	float SpreadDegrees = EventData.GetFloat(TEXT("Spread"), 0.0f);
+
+	// Add recoil kick for visual feedback
+	float RecoilKick = EventData.GetFloat(TEXT("RecoilKick"), 2.0f);
+
+	// Calculate new target spread
+	float NewSpread = (SpreadDegrees * SpreadMultiplier) + RecoilKick;
+	TargetSpreadRadius = FMath::Clamp(NewSpread, MinimumSpread, MaximumSpread);
+
+	UE_LOG(LogTemp, Warning, TEXT("CrosshairWidget: Fired - Spread=%.2f°, Kick=%.2f, Target=%.2fpx"),
+		SpreadDegrees, RecoilKick, TargetSpreadRadius);
 }
 
 void USuspenseCoreCrosshairWidget::OnHitConfirmedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)

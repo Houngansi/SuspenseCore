@@ -358,6 +358,9 @@ void USuspenseCoreBaseFireAbility::ExecuteSingleShot()
 			ShakeData.SetFloat(TEXT("Scale"), 1.0f);
 			EventBus->Publish(SuspenseCoreTags::Event::Camera::ShakeWeapon, ShakeData);
 		}
+
+		// Publish spread change for crosshair widget
+		PublishSpreadChangedEvent(ShotParams.SpreadAngle);
 	}
 
 	// Publish fired event
@@ -1165,6 +1168,8 @@ void USuspenseCoreBaseFireAbility::PublishWeaponFiredEvent(const FWeaponShotPara
 		EventData.SetVector(FName("Origin"), ShotParams.StartLocation);
 		EventData.SetVector(FName("Direction"), ShotParams.Direction);
 		EventData.SetFloat(FName("Damage"), ShotParams.BaseDamage);
+		EventData.SetFloat(FName("Spread"), ShotParams.SpreadAngle);
+		EventData.SetFloat(FName("RecoilKick"), 2.0f);  // Visual kick for crosshair
 		EventData.SetBool(FName("Success"), bSuccess);
 		EventBus->Publish(SuspenseCoreTags::Event::Weapon::Fired, EventData);
 	}

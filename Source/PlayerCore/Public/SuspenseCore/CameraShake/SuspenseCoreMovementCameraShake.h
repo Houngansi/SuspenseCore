@@ -56,13 +56,13 @@ struct PLAYERCORE_API FSuspenseCoreMovementShakeParams
 
 	/** Default constructor */
 	FSuspenseCoreMovementShakeParams()
-		: Duration(0.25f)
+		: Duration(0.2f)
 		, BlendInTime(0.02f)
-		, BlendOutTime(0.18f)
-		, Pitch(2.5f, 12.0f)      // Заметный pitch
-		, Yaw(0.5f, 10.0f)        // Небольшой yaw
-		, Roll(1.0f, 8.0f)        // Заметный roll
-		, LocationZ(8.0f, 10.0f)  // Заметное смещение Z
+		, BlendOutTime(0.15f)
+		, Pitch(0.5f, 12.0f)
+		, Yaw(0.0f, 0.0f)
+		, Roll(0.2f, 8.0f)
+		, LocationZ(1.5f, 10.0f)
 	{
 	}
 
@@ -70,11 +70,11 @@ struct PLAYERCORE_API FSuspenseCoreMovementShakeParams
 	static FSuspenseCoreMovementShakeParams GetJumpPreset()
 	{
 		FSuspenseCoreMovementShakeParams Params;
-		Params.Duration = 0.2f;
-		Params.BlendOutTime = 0.15f;
-		Params.Pitch = FSuspenseCoreOscillator(2.0f, 15.0f);   // Заметный kick вниз
-		Params.Roll = FSuspenseCoreOscillator(0.8f, 10.0f);
-		Params.LocationZ = FSuspenseCoreOscillator(10.0f, 12.0f);  // Сильный push вверх
+		Params.Duration = 0.15f;
+		Params.BlendOutTime = 0.1f;
+		Params.Pitch = FSuspenseCoreOscillator(-0.3f, 15.0f);  // Slight look down on jump
+		Params.Roll = FSuspenseCoreOscillator(0.1f, 10.0f);
+		Params.LocationZ = FSuspenseCoreOscillator(2.0f, 12.0f);  // Upward push
 		return Params;
 	}
 
@@ -82,12 +82,12 @@ struct PLAYERCORE_API FSuspenseCoreMovementShakeParams
 	static FSuspenseCoreMovementShakeParams GetLandingPreset()
 	{
 		FSuspenseCoreMovementShakeParams Params;
-		Params.Duration = 0.3f;
+		Params.Duration = 0.25f;
 		Params.BlendInTime = 0.0f;  // Immediate impact
-		Params.BlendOutTime = 0.25f;
-		Params.Pitch = FSuspenseCoreOscillator(4.0f, 18.0f);   // Сильный head bob
-		Params.Roll = FSuspenseCoreOscillator(1.5f, 12.0f);    // Заметный roll
-		Params.LocationZ = FSuspenseCoreOscillator(-15.0f, 8.0f); // Сильный downward impact
+		Params.BlendOutTime = 0.2f;
+		Params.Pitch = FSuspenseCoreOscillator(1.0f, 20.0f);   // Head bob down
+		Params.Roll = FSuspenseCoreOscillator(0.3f, 15.0f);    // Slight roll
+		Params.LocationZ = FSuspenseCoreOscillator(-4.0f, 8.0f); // Downward impact
 		return Params;
 	}
 
@@ -95,12 +95,12 @@ struct PLAYERCORE_API FSuspenseCoreMovementShakeParams
 	static FSuspenseCoreMovementShakeParams GetHardLandingPreset()
 	{
 		FSuspenseCoreMovementShakeParams Params;
-		Params.Duration = 0.5f;
+		Params.Duration = 0.4f;
 		Params.BlendInTime = 0.0f;
-		Params.BlendOutTime = 0.4f;
-		Params.Pitch = FSuspenseCoreOscillator(6.0f, 12.0f);
-		Params.Roll = FSuspenseCoreOscillator(2.5f, 10.0f);
-		Params.LocationZ = FSuspenseCoreOscillator(-25.0f, 6.0f);
+		Params.BlendOutTime = 0.3f;
+		Params.Pitch = FSuspenseCoreOscillator(2.5f, 15.0f);
+		Params.Roll = FSuspenseCoreOscillator(0.8f, 12.0f);
+		Params.LocationZ = FSuspenseCoreOscillator(-8.0f, 6.0f);
 		return Params;
 	}
 

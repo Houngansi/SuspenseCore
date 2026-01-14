@@ -293,18 +293,6 @@ void USuspenseCoreCharacterJumpAbility::PerformJump(
 	{
 		Character->Jump();
 	}
-
-	// Publish camera shake event for jump start
-	if (bPublishAbilityEvents)
-	{
-		if (USuspenseCoreEventBus* EventBus = GetEventBus())
-		{
-			FSuspenseCoreEventData ShakeData = FSuspenseCoreEventData::Create(Character, ESuspenseCoreEventPriority::Normal);
-			ShakeData.SetString(TEXT("Type"), TEXT("Jump"));
-			ShakeData.SetFloat(TEXT("Scale"), 1.0f);
-			EventBus->Publish(SuspenseCoreTags::Event::Camera::ShakeMovement, ShakeData);
-		}
-	}
 }
 
 void USuspenseCoreCharacterJumpAbility::CheckForLanding()

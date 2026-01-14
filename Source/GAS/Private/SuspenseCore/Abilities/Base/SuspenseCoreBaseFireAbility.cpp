@@ -186,7 +186,11 @@ void USuspenseCoreBaseFireAbility::EndAbility(
 		CombatState->SetFiring(false);
 	}
 
-	// Clear timers
+	// DO NOT unbind convergence tick here - convergence should continue after ability ends
+	// The timer will auto-unbind when convergence completes (HasOffset() returns false)
+	// This allows the camera to smoothly return to aim point even after stopping fire
+
+	// Clear non-convergence timers
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RecoilResetTimerHandle);
@@ -821,7 +825,8 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	// APPLY VISUAL RECOIL TO CAMERA
 	// ===================================================================================
 	// Apply view punch immediately (camera rotation - the dramatic visual effect)
-	PC->AddPitchInput(-VisualVertical);
+	// Positive VisualVertical = gun kicks UP = camera looks UP = positive pitch input
+	PC->AddPitchInput(VisualVertical);
 	PC->AddYawInput(VisualHorizontal);
 
 	// ===================================================================================
@@ -941,8 +946,9 @@ void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
 		// Apply visual recovery to camera
 		if (!FMath::IsNearlyZero(VisualPitchRecovery) || !FMath::IsNearlyZero(VisualYawRecovery))
 		{
-			// Note: Pitch is positive when going down, negative when going up
-			// We stored VisualPitch as positive (upward kick), so recovery is negative
+			// VisualPitch is positive (camera kicked UP from recoil)
+			// VisualPitchRecovery is negative (return camera DOWN toward center)
+			// AddPitchInput(negative) = look DOWN = recovering to original aim point
 			PC->AddPitchInput(VisualPitchRecovery);
 			PC->AddYawInput(VisualYawRecovery);
 

@@ -398,10 +398,11 @@ struct GAS_API FSuspenseCoreRecoilState
 		return CachedConvergenceSpeed * (1.0f + CachedErgonomics / 100.0f);
 	}
 
-	/** Get aim offset as FRotator (for applying to shot direction) */
+	/** Get aim offset as FRotator (for applying to shot direction)
+	 *  Positive AimPitch = gun kicked UP = bullets go UP = positive FRotator pitch */
 	FRotator GetAimOffsetRotator() const
 	{
-		return FRotator(-AimPitch, AimYaw, 0.0f);
+		return FRotator(AimPitch, AimYaw, 0.0f);
 	}
 };
 

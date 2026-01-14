@@ -181,8 +181,15 @@ void USuspenseCoreCameraShakeComponent::OnDamageShakeEvent(
 	FGameplayTag EventTag,
 	const FSuspenseCoreEventData& EventData)
 {
-	// Only respond to events where we are the target
-	if (EventData.Target != GetOwner())
+	// For damage events, check if we are the target (via ObjectPayload "Target")
+	// or if Source is our owner (damage applied to self)
+	UObject* DamageTarget = EventData.GetObject(TEXT("Target"));
+	if (DamageTarget && DamageTarget != GetOwner())
+	{
+		return;
+	}
+	// Fallback: if no Target specified, check Source
+	if (!DamageTarget && EventData.Source != GetOwner())
 	{
 		return;
 	}

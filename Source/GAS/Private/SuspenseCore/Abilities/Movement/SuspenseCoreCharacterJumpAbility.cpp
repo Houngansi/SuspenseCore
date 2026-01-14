@@ -293,6 +293,18 @@ void USuspenseCoreCharacterJumpAbility::PerformJump(
 	{
 		Character->Jump();
 	}
+
+	// Publish camera shake event for jump start
+	if (bPublishAbilityEvents)
+	{
+		if (USuspenseCoreEventBus* EventBus = GetEventBus())
+		{
+			FSuspenseCoreEventData ShakeData = FSuspenseCoreEventData::Create(Character, ESuspenseCoreEventPriority::Normal);
+			ShakeData.SetString(TEXT("Type"), TEXT("Jump"));
+			ShakeData.SetFloat(TEXT("Scale"), 1.0f);
+			EventBus->Publish(SuspenseCoreTags::Event::Camera::ShakeMovement, ShakeData);
+		}
+	}
 }
 
 void USuspenseCoreCharacterJumpAbility::CheckForLanding()
@@ -332,12 +344,22 @@ void USuspenseCoreCharacterJumpAbility::BroadcastJumpLanded()
 	}
 
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	AActor* AvatarActor = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
 
 	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(
-		ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr,
+		AvatarActor,
 		ESuspenseCoreEventPriority::Normal
 	);
 
 	// Using Native Tag for compile-time safety
 	EventBus->Publish(SuspenseCoreTags::Event::Ability::CharacterJump::Landed, EventData);
+
+	// Publish camera shake event for landing
+	// CameraShakeComponent will auto-scale based on FallHeight if provided
+	FSuspenseCoreEventData ShakeData = FSuspenseCoreEventData::Create(AvatarActor, ESuspenseCoreEventPriority::Normal);
+	ShakeData.SetString(TEXT("Type"), TEXT("Landing"));
+	ShakeData.SetFloat(TEXT("Scale"), 1.0f);
+	// Note: FallHeight could be calculated by tracking Z position at jump start vs landing
+	// For now, use default landing preset
+	EventBus->Publish(SuspenseCoreTags::Event::Camera::ShakeMovement, ShakeData);
 }

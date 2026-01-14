@@ -20,6 +20,7 @@
 #endif
 
 #include "SuspenseCore/Components/SuspenseCoreRecoilConvergenceComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreCameraShakeComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -136,6 +137,10 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	// Create recoil convergence component for Tarkov-style camera return
 	// Subscribes to EventBus for SuspenseCoreTags::Event::Weapon::RecoilImpulse
 	RecoilConvergenceComponent = CreateDefaultSubobject<USuspenseCoreRecoilConvergenceComponent>(TEXT("RecoilConvergenceComponent"));
+
+	// Create camera shake component for EventBus-driven camera shakes
+	// Subscribes to SuspenseCoreTags::Event::Camera::Shake* events
+	CameraShakeComponent = CreateDefaultSubobject<USuspenseCoreCameraShakeComponent>(TEXT("CameraShakeComponent"));
 
 	// Movement settings (Tarkov-style: slow walk by default)
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())

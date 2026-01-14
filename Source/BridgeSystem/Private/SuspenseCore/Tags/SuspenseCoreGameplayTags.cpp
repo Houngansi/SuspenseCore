@@ -131,6 +131,12 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Reset, "SuspenseCore.Event.Camera.Reset");
 			UE_DEFINE_GAMEPLAY_TAG(ADSEnter, "SuspenseCore.Event.Camera.ADSEnter");
 			UE_DEFINE_GAMEPLAY_TAG(ADSExit, "SuspenseCore.Event.Camera.ADSExit");
+
+			// Camera Shake Events
+			UE_DEFINE_GAMEPLAY_TAG(ShakeWeapon, "SuspenseCore.Event.Camera.ShakeWeapon");
+			UE_DEFINE_GAMEPLAY_TAG(ShakeMovement, "SuspenseCore.Event.Camera.ShakeMovement");
+			UE_DEFINE_GAMEPLAY_TAG(ShakeDamage, "SuspenseCore.Event.Camera.ShakeDamage");
+			UE_DEFINE_GAMEPLAY_TAG(ShakeExplosion, "SuspenseCore.Event.Camera.ShakeExplosion");
 		}
 
 		//--------------------------------------------------------------

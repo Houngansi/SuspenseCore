@@ -22,6 +22,7 @@ class USuspenseCoreCharacterClassData;
 class USuspenseCoreWeaponStanceComponent;
 class USuspenseCoreQuickSlotComponent;
 class USuspenseCoreRecoilConvergenceComponent;
+class USuspenseCoreCameraShakeComponent;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MOVEMENT STATE ENUM
@@ -346,6 +347,10 @@ protected:
 	/** Recoil convergence component for Tarkov-style camera return after shots */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
 	USuspenseCoreRecoilConvergenceComponent* RecoilConvergenceComponent = nullptr;
+
+	/** Camera shake component - triggers shakes based on EventBus events */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
+	USuspenseCoreCameraShakeComponent* CameraShakeComponent = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION - MOVEMENT (Tarkov-style)

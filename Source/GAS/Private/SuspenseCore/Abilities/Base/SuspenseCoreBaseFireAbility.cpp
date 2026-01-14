@@ -17,7 +17,8 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
-#include "SuspenseCore/Components/SuspenseCoreRecoilConvergenceComponent.h"
+// NOTE: Convergence component is in PlayerCore module
+// Fire ability communicates via EventBus (decoupled)
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -801,19 +802,23 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	PC->AddYawInput(VisualHorizontal);
 
 	// ===================================================================================
-	// NOTIFY CONVERGENCE COMPONENT
+	// PUBLISH RECOIL EVENT VIA EVENTBUS
 	// ===================================================================================
 	// Convergence (camera return to aim point) is handled by component on Character
-	// This decouples convergence from ability lifecycle - works after ability ends
-	if (USuspenseCoreRecoilConvergenceComponent* ConvergenceComp = GetRecoilConvergenceComponent())
+	// Component subscribes to Event::Weapon::RecoilImpulse - fully decoupled
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		ConvergenceComp->ApplyRecoilImpulse(
-			VisualVertical,
-			VisualHorizontal,
-			RecoilState.CachedConvergenceDelay,
-			RecoilState.CachedConvergenceSpeed,
-			RecoilState.CachedErgonomics
-		);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
+		EventData.SetFloat(TEXT("PitchImpulse"), VisualVertical);
+		EventData.SetFloat(TEXT("YawImpulse"), VisualHorizontal);
+		EventData.SetFloat(TEXT("ConvergenceDelay"), RecoilState.CachedConvergenceDelay);
+		EventData.SetFloat(TEXT("ConvergenceSpeed"), RecoilState.CachedConvergenceSpeed);
+		EventData.SetFloat(TEXT("Ergonomics"), RecoilState.CachedErgonomics);
+
+		EventBus->Publish(SuspenseCoreTags::Event::Weapon::RecoilImpulse, EventData);
+
+		UE_LOG(LogTemp, Log, TEXT("RecoilImpulse: Published via EventBus. Pitch=%.3f, Yaw=%.3f"),
+			VisualVertical, VisualHorizontal);
 	}
 
 	// Track state for debugging/UI (not used for convergence)
@@ -937,17 +942,6 @@ void USuspenseCoreBaseFireAbility::IncrementShotCounter()
 void USuspenseCoreBaseFireAbility::ResetShotCounter()
 {
 	ConsecutiveShotsCount = 0;
-}
-
-USuspenseCoreRecoilConvergenceComponent* USuspenseCoreBaseFireAbility::GetRecoilConvergenceComponent() const
-{
-	AActor* Avatar = GetAvatarActorFromActorInfo();
-	if (!Avatar)
-	{
-		return nullptr;
-	}
-
-	return Avatar->FindComponentByClass<USuspenseCoreRecoilConvergenceComponent>();
 }
 
 //========================================================================

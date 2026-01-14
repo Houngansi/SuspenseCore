@@ -68,6 +68,7 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(ReloadStarted, "SuspenseCore.Event.Weapon.ReloadStarted");
 			UE_DEFINE_GAMEPLAY_TAG(ReloadCompleted, "SuspenseCore.Event.Weapon.ReloadCompleted");
 			UE_DEFINE_GAMEPLAY_TAG(SpreadChanged, "SuspenseCore.Event.Weapon.SpreadChanged");
+			UE_DEFINE_GAMEPLAY_TAG(RecoilImpulse, "SuspenseCore.Event.Weapon.RecoilImpulse");
 		}
 
 		//--------------------------------------------------------------

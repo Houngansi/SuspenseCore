@@ -5,21 +5,28 @@
 // Component responsible for camera convergence (return to aim point) after recoil.
 // Lives on Character, independent of ability lifecycle.
 //
-// ARCHITECTURE:
-// - Fire ability applies recoil kick via ApplyRecoilImpulse()
-// - Component ticks every frame and smoothly returns camera to center
+// ARCHITECTURE (AAA Pattern):
+// - Fire ability PUBLISHES Event::Weapon::RecoilImpulse via EventBus
+// - Component SUBSCRIBES to event and handles convergence
+// - Decoupled: No direct call between GAS and PlayerCore modules
 // - Uses TickComponent (proper UE way) instead of timers
 //
 // Usage:
-//   1. Add component to Character
-//   2. Call ApplyRecoilImpulse() from fire ability
-//   3. Component handles convergence automatically
+//   1. Add component to Character via CreateDefaultSubobject
+//   2. Component auto-subscribes to EventBus in BeginPlay
+//   3. Fire ability publishes recoil event
+//   4. Component handles convergence automatically
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GameplayTagContainer.h"
 #include "SuspenseCoreRecoilConvergenceComponent.generated.h"
+
+// Forward declarations
+struct FSuspenseCoreEventData;
+class USuspenseCoreEventBus;
 
 /**
  * USuspenseCoreRecoilConvergenceComponent
@@ -27,14 +34,19 @@
  * Handles camera convergence (return to aim point) after weapon recoil.
  * Decoupled from ability lifecycle - continues working after ability ends.
  *
+ * EVENT-DRIVEN ARCHITECTURE:
+ * - Subscribes to SuspenseCoreTags::Event::Weapon::RecoilImpulse
+ * - Receives: PitchImpulse, YawImpulse, ConvergenceDelay, ConvergenceSpeed, Ergonomics
+ * - No direct dependency on GAS module
+ *
  * FLOW:
- * 1. Fire ability calls ApplyRecoilImpulse() with kick values
- * 2. Component stores accumulated offset
+ * 1. Fire ability publishes RecoilImpulse event via EventBus
+ * 2. Component receives event and stores accumulated offset
  * 3. TickComponent smoothly returns camera to center
  * 4. Auto-disables tick when no offset (performance)
  */
 UCLASS(ClassGroup = (SuspenseCore), meta = (BlueprintSpawnableComponent))
-class GAS_API USuspenseCoreRecoilConvergenceComponent : public UActorComponent
+class PLAYERCORE_API USuspenseCoreRecoilConvergenceComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -42,27 +54,8 @@ public:
 	USuspenseCoreRecoilConvergenceComponent();
 
 	//========================================================================
-	// Public API - Called by Fire Abilities
+	// Public API
 	//========================================================================
-
-	/**
-	 * Apply recoil impulse to the component.
-	 * Called by fire ability after applying camera kick.
-	 *
-	 * @param PitchImpulse Vertical recoil in degrees (positive = kicked up)
-	 * @param YawImpulse Horizontal recoil in degrees (positive = kicked right)
-	 * @param ConvergenceDelay Delay before convergence starts (seconds)
-	 * @param ConvergenceSpeed Speed of convergence (degrees/second)
-	 * @param Ergonomics Weapon ergonomics (affects convergence speed)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Recoil")
-	void ApplyRecoilImpulse(
-		float PitchImpulse,
-		float YawImpulse,
-		float ConvergenceDelay = 0.1f,
-		float ConvergenceSpeed = 5.0f,
-		float Ergonomics = 42.0f
-	);
 
 	/**
 	 * Force reset convergence state.
@@ -89,9 +82,31 @@ protected:
 	//========================================================================
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
+	//========================================================================
+	// EventBus Subscription
+	//========================================================================
+
+	/** Subscribe to recoil events from EventBus */
+	void SubscribeToEvents();
+
+	/** Unsubscribe from EventBus */
+	void UnsubscribeFromEvents();
+
+	/** Handle recoil impulse event from fire ability */
+	UFUNCTION()
+	void OnRecoilImpulseEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Cached EventBus reference */
+	UPROPERTY()
+	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+
+	/** Subscription handle for cleanup */
+	FDelegateHandle RecoilEventHandle;
+
 	//========================================================================
 	// Convergence State
 	//========================================================================
@@ -137,4 +152,7 @@ private:
 
 	/** Get owning player controller */
 	APlayerController* GetOwnerPlayerController() const;
+
+	/** Get EventBus from world */
+	USuspenseCoreEventBus* GetEventBus() const;
 };

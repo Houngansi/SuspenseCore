@@ -27,7 +27,8 @@ class ISuspenseCoreWeaponCombatState;
 class ISuspenseCoreWeapon;
 class ISuspenseCoreMagazineProvider;
 class USuspenseCoreWeaponAttributeSet;
-class USuspenseCoreRecoilConvergenceComponent;
+// NOTE: RecoilConvergenceComponent is in PlayerCore module
+// Fire ability communicates via EventBus::RecoilImpulse event (decoupled)
 class UNiagaraSystem;
 class USoundBase;
 class UAnimMontage;
@@ -655,12 +656,9 @@ protected:
 	 */
 	void ResetShotCounter();
 
-	/**
-	 * Get recoil convergence component from owner.
-	 * Component handles camera return after recoil.
-	 * @return Component or nullptr if not found
-	 */
-	USuspenseCoreRecoilConvergenceComponent* GetRecoilConvergenceComponent() const;
+	// NOTE: Convergence component is accessed via EventBus
+	// Fire ability publishes SuspenseCoreTags::Event::Weapon::RecoilImpulse
+	// Component in PlayerCore subscribes and handles camera return
 
 	//========================================================================
 	// Ammunition

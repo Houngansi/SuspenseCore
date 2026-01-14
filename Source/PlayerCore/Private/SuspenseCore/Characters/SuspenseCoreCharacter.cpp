@@ -18,6 +18,8 @@
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
 #endif
+
+#include "SuspenseCore/Components/SuspenseCoreRecoilConvergenceComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -130,6 +132,10 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	// Create QuickSlot component for Tarkov-style magazine quick access
 	QuickSlotComponent = CreateDefaultSubobject<USuspenseCoreQuickSlotComponent>(TEXT("QuickSlotComponent"));
 #endif
+
+	// Create recoil convergence component for Tarkov-style camera return
+	// Subscribes to EventBus for SuspenseCoreTags::Event::Weapon::RecoilImpulse
+	RecoilConvergenceComponent = CreateDefaultSubobject<USuspenseCoreRecoilConvergenceComponent>(TEXT("RecoilConvergenceComponent"));
 
 	// Movement settings (Tarkov-style: slow walk by default)
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())

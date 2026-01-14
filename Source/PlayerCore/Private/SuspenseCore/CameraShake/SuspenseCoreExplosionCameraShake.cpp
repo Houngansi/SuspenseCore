@@ -116,6 +116,12 @@ float USuspenseCoreExplosionCameraShakePattern::CalculateBlendAmount() const
 // USuspenseCoreExplosionCameraShake
 //========================================================================
 
+USuspenseCoreExplosionCameraShake::USuspenseCoreExplosionCameraShake()
+{
+	// Create default pattern as subobject
+	RootShakePattern = CreateDefaultSubobject<USuspenseCoreExplosionCameraShakePattern>(TEXT("ExplosionShakePattern"));
+}
+
 void USuspenseCoreExplosionCameraShake::SetShakeParams(const FSuspenseCoreExplosionShakeParams& NewParams)
 {
 	if (UCameraShakePattern* Pattern = GetRootShakePattern())

@@ -185,6 +185,8 @@ class PLAYERCORE_API USuspenseCoreMovementCameraShake : public UCameraShakeBase
 	GENERATED_BODY()
 
 public:
+	USuspenseCoreMovementCameraShake();
+
 	/**
 	 * Set shake parameters before starting.
 	 */

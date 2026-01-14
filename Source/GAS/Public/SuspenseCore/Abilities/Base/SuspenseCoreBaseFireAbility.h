@@ -66,44 +66,149 @@ struct GAS_API FSuspenseCoreShotResult
 
 /**
  * Recoil configuration parameters.
+ * Controls progressive recoil buildup and ADS modifiers.
  */
 USTRUCT(BlueprintType)
 struct GAS_API FSuspenseCoreRecoilConfig
 {
 	GENERATED_BODY()
 
-	/** Base recoil multiplier increase per shot */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil")
+	/** Base recoil multiplier increase per shot (e.g., 1.2 = +20% per shot) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Progressive")
 	float ProgressiveMultiplier;
 
-	/** Maximum recoil multiplier cap */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil")
+	/** Maximum recoil multiplier cap (e.g., 3.0 = max 3x recoil) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Progressive")
 	float MaximumMultiplier;
 
-	/** Time after last shot to reset recoil counter */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil")
+	/** Time after last shot to reset recoil counter (seconds) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Progressive")
 	float ResetTime;
 
-	/** Recoil multiplier when aiming down sights */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil")
+	/** Recoil multiplier when aiming down sights (0.5 = 50% recoil when ADS) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|ADS")
 	float ADSMultiplier;
-
-	/** Delay before recoil recovery starts */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil")
-	float RecoveryDelay;
-
-	/** Rate of recoil recovery (per update) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil")
-	float RecoveryRate;
 
 	FSuspenseCoreRecoilConfig()
 		: ProgressiveMultiplier(1.2f)
 		, MaximumMultiplier(3.0f)
 		, ResetTime(0.5f)
 		, ADSMultiplier(0.5f)
-		, RecoveryDelay(0.2f)
-		, RecoveryRate(0.9f)
 	{
+	}
+};
+
+
+/**
+ * FSuspenseCoreRecoilState
+ *
+ * Runtime state for Tarkov-style recoil with convergence.
+ * Tracks accumulated camera offset and manages auto-return to aim point.
+ *
+ * CONVERGENCE SYSTEM:
+ * After each shot, camera is displaced by recoil. Over time (after ConvergenceDelay),
+ * camera automatically returns to original aim point at ConvergenceSpeed.
+ * This creates the characteristic Tarkov "kick and return" feel.
+ *
+ * @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Section 2.4
+ */
+USTRUCT(BlueprintType)
+struct GAS_API FSuspenseCoreRecoilState
+{
+	GENERATED_BODY()
+
+	//========================================================================
+	// Camera Offset State
+	//========================================================================
+
+	/** Current accumulated camera pitch offset (degrees, negative = up) */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|State")
+	float AccumulatedPitch;
+
+	/** Current accumulated camera yaw offset (degrees) */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|State")
+	float AccumulatedYaw;
+
+	/** Target pitch to converge to (usually 0 for return to original aim) */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|State")
+	float TargetPitch;
+
+	/** Target yaw to converge to (usually 0 for return to original aim) */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|State")
+	float TargetYaw;
+
+	//========================================================================
+	// Timing State
+	//========================================================================
+
+	/** Time since last shot (seconds) */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|Timing")
+	float TimeSinceLastShot;
+
+	/** Whether convergence is currently active */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|State")
+	bool bIsConverging;
+
+	/** Whether we're waiting for convergence delay */
+	UPROPERTY(BlueprintReadOnly, Category = "Recoil|State")
+	bool bWaitingForConvergence;
+
+	//========================================================================
+	// Weapon Data Cache (from SSOT)
+	//========================================================================
+
+	/** Cached convergence speed from weapon data */
+	float CachedConvergenceSpeed;
+
+	/** Cached convergence delay from weapon data */
+	float CachedConvergenceDelay;
+
+	/** Cached ergonomics from weapon data */
+	float CachedErgonomics;
+
+	/** Cached recoil angle bias from weapon data */
+	float CachedRecoilBias;
+
+	FSuspenseCoreRecoilState()
+		: AccumulatedPitch(0.0f)
+		, AccumulatedYaw(0.0f)
+		, TargetPitch(0.0f)
+		, TargetYaw(0.0f)
+		, TimeSinceLastShot(0.0f)
+		, bIsConverging(false)
+		, bWaitingForConvergence(false)
+		, CachedConvergenceSpeed(5.0f)
+		, CachedConvergenceDelay(0.1f)
+		, CachedErgonomics(42.0f)
+		, CachedRecoilBias(0.0f)
+	{
+	}
+
+	/** Reset all state (on weapon switch or death) */
+	void Reset()
+	{
+		AccumulatedPitch = 0.0f;
+		AccumulatedYaw = 0.0f;
+		TargetPitch = 0.0f;
+		TargetYaw = 0.0f;
+		TimeSinceLastShot = 0.0f;
+		bIsConverging = false;
+		bWaitingForConvergence = false;
+	}
+
+	/** Check if camera has any accumulated offset */
+	bool HasOffset() const
+	{
+		return !FMath::IsNearlyZero(AccumulatedPitch, 0.01f) ||
+			   !FMath::IsNearlyZero(AccumulatedYaw, 0.01f);
+	}
+
+	/** Get effective convergence speed with ergonomics bonus
+	 *  Formula: Speed × (1 + Ergonomics/100)
+	 *  42 ergo = 1.42× speed, 70 ergo = 1.70× speed */
+	float GetEffectiveConvergenceSpeed() const
+	{
+		return CachedConvergenceSpeed * (1.0f + CachedErgonomics / 100.0f);
 	}
 };
 
@@ -299,20 +404,51 @@ protected:
 	void SpawnTracer(const FVector& Start, const FVector& End);
 
 	//========================================================================
-	// Recoil System
+	// Recoil System (Tarkov-Style with Convergence)
+	// @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
 	//========================================================================
 
 	/**
-	 * Apply recoil to player view.
+	 * Apply recoil impulse to player view and start convergence tracking.
+	 * Called on each shot. Adds to AccumulatedPitch/Yaw in RecoilState.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Recoil")
 	void ApplyRecoil();
 
 	/**
+	 * Tick convergence system - call every frame while RecoilState has offset.
+	 * Gradually returns camera to original aim point after ConvergenceDelay.
+	 * @param DeltaTime Time since last tick
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Recoil")
+	void TickConvergence(float DeltaTime);
+
+	/**
+	 * Initialize recoil state from weapon attributes (SSOT).
+	 * Caches ConvergenceSpeed, ConvergenceDelay, Ergonomics, RecoilBias.
+	 */
+	void InitializeRecoilStateFromWeapon();
+
+	/**
+	 * Calculate total attachment recoil modifier.
+	 * Multiplies all equipped attachment RecoilModifiers.
+	 * @return Combined modifier (e.g., 0.727 = 27% reduction)
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Recoil")
+	float CalculateAttachmentRecoilModifier() const;
+
+	/**
 	 * Get current recoil multiplier based on consecutive shots.
+	 * Formula: 1.0 + (ShotCount-1) × (ProgressiveMultiplier-1), capped at MaximumMultiplier
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Recoil")
 	float GetCurrentRecoilMultiplier() const;
+
+	/**
+	 * Get current recoil state (for debugging/UI).
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Recoil")
+	const FSuspenseCoreRecoilState& GetRecoilState() const { return RecoilState; }
 
 	/**
 	 * Increment consecutive shot counter.
@@ -325,14 +461,24 @@ protected:
 	void ResetShotCounter();
 
 	/**
-	 * Start recoil recovery timer.
+	 * Start convergence timer after shot.
 	 */
-	void StartRecoilRecovery();
+	void StartConvergenceTimer();
 
 	/**
-	 * Recoil recovery tick.
+	 * Bind to world tick for convergence updates.
 	 */
-	void RecoverRecoil();
+	void BindToWorldTick();
+
+	/**
+	 * Unbind from world tick.
+	 */
+	void UnbindFromWorldTick();
+
+	/**
+	 * World tick callback for convergence.
+	 */
+	void OnWorldTick(float DeltaTime);
 
 	//========================================================================
 	// Ammunition
@@ -416,11 +562,24 @@ protected:
 	/** Pending shots awaiting server confirmation */
 	TArray<FWeaponShotParams> PendingShots;
 
-	/** Recoil recovery timer handle */
-	FTimerHandle RecoilRecoveryTimerHandle;
-
 	/** Recoil reset timer handle */
 	FTimerHandle RecoilResetTimerHandle;
+
+	/** Convergence delay timer handle */
+	FTimerHandle ConvergenceDelayTimerHandle;
+
+	//========================================================================
+	// Recoil State (Tarkov-Style Convergence)
+	//========================================================================
+
+	/** Runtime recoil state with convergence tracking */
+	FSuspenseCoreRecoilState RecoilState;
+
+	/** Delegate handle for world tick binding */
+	FDelegateHandle WorldTickDelegateHandle;
+
+	/** Whether we're currently bound to world tick */
+	bool bBoundToWorldTick;
 
 	//========================================================================
 	// Validation Constants

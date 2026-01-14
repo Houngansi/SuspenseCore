@@ -7,8 +7,8 @@ The current implementation is a simplified linear conversion; this plan outlines
 system with convergence, skill-based control, and attachment modifiers.
 
 **Author:** Claude Code
-**Date:** 2026-01-13
-**Status:** Phase 1 Complete (Basic Recoil with Ammo Modifier)
+**Date:** 2026-01-14
+**Status:** Phase 4 Complete (Convergence + Ergonomics Integration)
 **Related:**
 - `TarkovStyle_Ammo_System_Design.md` - Ammo/Magazine system
 - `SSOT_AttributeSet_DataTable_Integration.md` - Data architecture
@@ -544,67 +544,71 @@ struct BRIDGESYSTEM_API FSuspenseCoreAttachmentInstance
 
 ## 6. Implementation Plan
 
-### Phase 1: Basic Recoil with Ammo Modifier - DONE
+### Phase 1: Basic Recoil with Ammo Modifier ✅ DONE
 
-**Commit:** `02f866f` + current changes
+**Commit:** `02f866f`
 
 **Changes:**
 - Added RecoilPointsToDegrees conversion (0.002)
 - Integrated AmmoRecoilModifier into calculation
 - Documented conversion factor
 
-### Phase 2: Add Convergence System - NEXT
+### Phase 2: Add Convergence System ✅ DONE
+
+**Commit:** Current session (2026-01-14)
+
+**Changes:**
+- Added `FSuspenseCoreRecoilState` for runtime tracking
+- Implemented `TickConvergence()` with world tick binding
+- Added ConvergenceSpeed, ConvergenceDelay, RecoilAngleBias, RecoilPatternStrength to SSOT
+- Camera auto-returns to aim point after shots
+
+**Files Modified:**
+- `SuspenseCoreGASAttributeRows.h` - Added convergence fields to FSuspenseCoreWeaponAttributeRow
+- `SuspenseCoreBaseFireAbility.h` - Added FSuspenseCoreRecoilState, convergence methods
+- `SuspenseCoreBaseFireAbility.cpp` - Implemented convergence system
+- `SuspenseCoreWeaponAttributeSet.h/.cpp` - Added convergence attributes
+
+### Phase 3: Attachment Modifier System 🔄 IN PROGRESS
 
 **Priority:** P0
-**Estimated Files:** 3-4
 
-**Tasks:**
-1. Add convergence fields to `FSuspenseCoreWeaponAttributeRow`
-2. Create `FSuspenseCoreRecoilState` for runtime tracking
-3. Implement `TickConvergence()` in FireAbility
-4. Connect Ergonomics to convergence speed
+**SSOT Created ✅:**
+- `FSuspenseCoreAttachmentAttributeRow` added to `SuspenseCoreGASAttributeRows.h`
+- RecoilModifier, AccuracyModifier, VelocityModifier, ErgonomicsBonus
+- Suppressor/FlashHider effects
+- Compatibility tags
 
-**Files to Modify:**
-- `SuspenseCoreGASAttributeRows.h` - Add convergence fields
-- `SuspenseCoreBaseFireAbility.h` - Add RecoilState
-- `SuspenseCoreBaseFireAbility.cpp` - Implement convergence tick
-- `SuspenseCoreWeaponAttributeSet.h` - Add convergence attributes
-
-### Phase 3: Attachment Modifier System - HIGH PRIORITY
-
-**Priority:** P0
-**Estimated Files:** 5-6
-
-**Tasks:**
-1. Create `FSuspenseCoreAttachmentAttributeRow` SSOT
+**TODO:**
+1. ~~Create FSuspenseCoreAttachmentAttributeRow SSOT~~ ✅
 2. Create `FSuspenseCoreAttachmentInstance` runtime struct
-3. Create `DT_AttachmentAttributes` DataTable
-4. Add `TArray<FSuspenseCoreAttachmentInstance>` to weapon
-5. Implement `CalculateTotalRecoilModifier()` that iterates attachments
+3. Create `DT_AttachmentAttributes` DataTable with sample data
+4. Add `TArray<FSuspenseCoreAttachmentInstance>` to weapon actor
+5. Implement `CalculateAttachmentRecoilModifier()` to read from weapon
 6. Hook into existing socket system (`MuzzleSocket`, `StockSocket`, etc.)
 
 **Files to Create:**
-- `SuspenseCoreGASAttributeRows.h` - Add FSuspenseCoreAttachmentAttributeRow
-- `SuspenseCoreAttachmentInstance.h` - New file
-- `Content/Data/ItemDatabase/SuspenseCoreAttachmentAttributes.json` - New data
+- `Source/BridgeSystem/Public/SuspenseCore/Types/Equipment/SuspenseCoreAttachmentInstance.h`
+- `Content/Data/ItemDatabase/SuspenseCoreAttachmentAttributes.json`
 
 **Files to Modify:**
-- `SuspenseCoreBaseFireAbility.cpp` - Use attachment modifiers
-- `SuspenseCoreWeaponActor.h/.cpp` - Store installed attachments
+- `SuspenseCoreBaseFireAbility.cpp` - Complete `CalculateAttachmentRecoilModifier()`
+- Weapon actor class - Store installed attachments
 
-### Phase 4: Ergonomics Integration
+### Phase 4: Ergonomics Integration ✅ DONE
 
-**Priority:** P1
+**Commit:** Current session (2026-01-14)
 
-**Tasks:**
-1. Connect Ergonomics to ADS speed (already exists, verify)
-2. Connect Ergonomics to convergence speed
-3. Calculate total Ergonomics from weapon + attachments
-4. Add Ergonomics penalty from magazine weight
+**Changes:**
+- Ergonomics affects convergence speed: `Speed × (1 + Ergonomics/100)`
+- 42 ergonomics = 1.42× faster recovery
+- 70 ergonomics = 1.70× faster recovery
+- Cached in RecoilState for performance
 
 ### Phase 5: Visual vs Aim Recoil Separation
 
 **Priority:** P2
+**Status:** PLANNED
 
 **Tasks:**
 1. Separate camera rotation (visual) from aim offset (actual)
@@ -615,6 +619,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreAttachmentInstance
 ### Phase 6: Recoil Patterns (Optional)
 
 **Priority:** P3
+**Status:** PLANNED
 
 **Tasks:**
 1. Add per-weapon recoil pattern data

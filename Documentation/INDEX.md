@@ -91,23 +91,24 @@ Source/GAS/Abilities/
 
 ## Active Plans
 
-### Tarkov-Style Recoil System (Phase 1 of 6)
+### Tarkov-Style Recoil System (Phase 4 of 6)
 
 **File:** [Plans/TarkovStyle_Recoil_System_Design.md](Plans/TarkovStyle_Recoil_System_Design.md)
-**Status:** Phase 1 Complete (Basic Recoil with Ammo Modifier)
+**Status:** Phase 4 Complete (Convergence + Ergonomics)
 
 **Devlog Preview:**
-> Working on realistic recoil system. Currently implemented basic conversion from Tarkov-style
-> recoil points (0-500) to camera rotation degrees. Next: convergence system where camera
-> auto-returns to aim point after each shot.
+> Implemented Tarkov-style recoil with convergence! Camera now kicks up on each shot and
+> automatically returns to the original aim point. Ergonomics affects recovery speed
+> (42 ergo = 1.42× faster). Attachment modifier SSOT is ready for integration.
 
 **Completed:**
 - [x] Phase 1: Basic recoil with AmmoRecoilModifier
+- [x] Phase 2: Convergence system (camera auto-returns to aim)
+- [x] Phase 3: Attachment SSOT (FSuspenseCoreAttachmentAttributeRow)
+- [x] Phase 4: Ergonomics integration (affects convergence speed)
 
 **Remaining:**
-- [ ] Phase 2: Convergence system (camera return)
-- [ ] Phase 3: Attachment modifiers (stocks, muzzle devices)
-- [ ] Phase 4: Ergonomics integration
+- [ ] Phase 3: Attachment integration (read from weapon, multiply modifiers)
 - [ ] Phase 5: Visual vs Aim recoil separation
 - [ ] Phase 6: Recoil patterns
 

@@ -102,10 +102,11 @@ void USuspenseCoreRecoilConvergenceComponent::SubscribeToEvents()
 
 	CachedEventBus = EventBus;
 
-	// Subscribe to RecoilImpulse events
-	RecoilEventHandle = EventBus->Subscribe(
+	// Subscribe to RecoilImpulse events using native callback (C++ efficient)
+	RecoilEventHandle = EventBus->SubscribeNative(
 		SuspenseCoreTags::Event::Weapon::RecoilImpulse,
-		FOnSuspenseCoreEvent::CreateUObject(this, &USuspenseCoreRecoilConvergenceComponent::OnRecoilImpulseEvent)
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreRecoilConvergenceComponent::OnRecoilImpulseEvent)
 	);
 
 	UE_LOG(LogTemp, Log, TEXT("RecoilConvergence: Subscribed to EventBus for RecoilImpulse"));
@@ -115,12 +116,12 @@ void USuspenseCoreRecoilConvergenceComponent::UnsubscribeFromEvents()
 {
 	if (CachedEventBus.IsValid() && RecoilEventHandle.IsValid())
 	{
-		CachedEventBus->Unsubscribe(SuspenseCoreTags::Event::Weapon::RecoilImpulse, RecoilEventHandle);
+		CachedEventBus->Unsubscribe(RecoilEventHandle);
 		UE_LOG(LogTemp, Log, TEXT("RecoilConvergence: Unsubscribed from EventBus"));
 	}
 
 	CachedEventBus.Reset();
-	RecoilEventHandle.Reset();
+	RecoilEventHandle.Invalidate();
 }
 
 void USuspenseCoreRecoilConvergenceComponent::OnRecoilImpulseEvent(
@@ -128,7 +129,7 @@ void USuspenseCoreRecoilConvergenceComponent::OnRecoilImpulseEvent(
 	const FSuspenseCoreEventData& EventData)
 {
 	// Only respond to events from our owner (the Character)
-	if (EventData.Instigator != GetOwner())
+	if (EventData.Source != GetOwner())
 	{
 		return;
 	}

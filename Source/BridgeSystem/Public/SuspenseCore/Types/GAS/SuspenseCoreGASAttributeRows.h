@@ -133,6 +133,36 @@ struct BRIDGESYSTEM_API FSuspenseCoreWeaponAttributeRow : public FTableRowBase
 	float HorizontalRecoil = 280.0f;
 
 	//========================================================================
+	// Recoil Dynamics (Tarkov-Style Convergence)
+	// @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
+	//========================================================================
+
+	/** Convergence speed - how fast camera returns to aim point (degrees/second)
+	 *  Higher value = faster recovery. Affected by Ergonomics.
+	 *  Formula: EffectiveSpeed = ConvergenceSpeed * (1 + Ergonomics/100) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Convergence",
+		meta = (ClampMin = "1.0", ClampMax = "20.0", ToolTip = "Camera return speed (deg/s)"))
+	float ConvergenceSpeed = 5.0f;
+
+	/** Delay before convergence starts after shot (seconds)
+	 *  During this delay, camera stays at recoil position */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Convergence",
+		meta = (ClampMin = "0.0", ClampMax = "0.5", ToolTip = "Delay before recovery starts"))
+	float ConvergenceDelay = 0.1f;
+
+	/** Horizontal recoil bias: -1.0 (always left) to 1.0 (always right), 0 = random
+	 *  Some weapons have tendency to kick in specific direction */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Pattern",
+		meta = (ClampMin = "-1.0", ClampMax = "1.0", ToolTip = "Horizontal bias (-1=left, 1=right)"))
+	float RecoilAngleBias = 0.0f;
+
+	/** Recoil pattern predictability: 0.0 (fully random) to 1.0 (learnable pattern)
+	 *  Higher values make recoil more consistent and learnable like CS:GO */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Pattern",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "Pattern predictability (0=random, 1=fixed)"))
+	float RecoilPatternStrength = 0.3f;
+
+	//========================================================================
 	// Reliability Attributes
 	//========================================================================
 
@@ -761,5 +791,195 @@ struct BRIDGESYSTEM_API FSuspenseCoreThrowableAttributeRow : public FTableRowBas
 	bool IsLauncherRound() const
 	{
 		return FuseTime <= 0.0f && ThrowForce <= 0.0f;
+	}
+};
+
+
+/**
+ * FSuspenseCoreAttachmentAttributeRow
+ *
+ * DataTable row structure for weapon attachment/modification attributes.
+ * Used for muzzle devices (suppressors, compensators), stocks, grips, handguards, optics.
+ * Modifiers are MULTIPLICATIVE (0.85 = -15% recoil, 1.1 = +10% spread).
+ *
+ * JSON SOURCE: Content/Data/ItemDatabase/SuspenseCoreAttachmentAttributes.json
+ * TARGET DATATABLE: DT_AttachmentAttributes
+ *
+ * USAGE:
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 1. Import JSON into DataTable via Editor (File → Import)
+ * 2. Configure AttachmentAttributesDataTable in Project Settings → SuspenseCore
+ * 3. DataManager caches rows on Initialize()
+ * 4. On weapon equip: DataManager->GetAttachmentAttributes(AttachmentID)
+ *
+ * TARKOV-STYLE ATTACHMENT SYSTEM:
+ * ═══════════════════════════════════════════════════════════════════════════
+ * - Attachments are items that can be installed on weapon slots
+ * - Multiple modifiers stack multiplicatively for recoil
+ * - Ergonomics bonuses stack additively
+ * - Suppressors affect sound and muzzle flash
+ * - Stocks and grips primarily affect recoil and ergonomics
+ *
+ * @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md Section 5.2
+ * @see USuspenseCoreSettings::AttachmentAttributesDataTable
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreAttachmentAttributeRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	//========================================================================
+	// Identity
+	//========================================================================
+
+	/** Unique attachment identifier - matches FSuspenseCoreUnifiedItemData.ItemID */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FName AttachmentID;
+
+	/** Display name for UI */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FText DisplayName;
+
+	/** Attachment slot type (Muzzle, Stock, Grip, Sight, Handguard, etc.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity",
+		meta = (Categories = "Equipment.Slot"))
+	FGameplayTag SlotType;
+
+	//========================================================================
+	// Stat Modifiers (Multiplicative, 1.0 = no change)
+	// Values < 1.0 reduce, > 1.0 increase
+	// Final = Base × Modifier1 × Modifier2 × ...
+	//========================================================================
+
+	/** Recoil modifier: 0.75 = -25% recoil, 1.2 = +20% recoil
+	 *  Muzzle brakes: 0.75-0.85, Stocks: 0.85-0.95, Grips: 0.94-0.98 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifiers|Combat",
+		meta = (ClampMin = "0.5", ClampMax = "1.5", ToolTip = "Recoil multiplier (0.75 = -25%)"))
+	float RecoilModifier = 1.0f;
+
+	/** Accuracy modifier: 0.9 = -10% spread (more accurate), 1.1 = +10% spread
+	 *  Long barrels improve accuracy, short barrels reduce it */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifiers|Combat",
+		meta = (ClampMin = "0.5", ClampMax = "1.5", ToolTip = "Accuracy multiplier (0.9 = -10% spread)"))
+	float AccuracyModifier = 1.0f;
+
+	/** Muzzle velocity modifier: affects bullet speed and effective range
+	 *  Suppressors typically: 0.95-1.05, Long barrels: 1.05-1.15 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifiers|Combat",
+		meta = (ClampMin = "0.8", ClampMax = "1.2", ToolTip = "Velocity multiplier"))
+	float VelocityModifier = 1.0f;
+
+	//========================================================================
+	// Stat Additions (Additive)
+	// Final = Base + Bonus1 + Bonus2 + ...
+	//========================================================================
+
+	/** Ergonomics bonus: +5 = adds 5 ergonomics points, -8 = reduces by 8
+	 *  Affects ADS speed, convergence speed. Range: -30 to +30 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifiers|Ergonomics",
+		meta = (ClampMin = "-30", ClampMax = "30", ToolTip = "Ergonomics bonus (additive)"))
+	float ErgonomicsBonus = 0.0f;
+
+	/** Weight in kilograms - affects total weapon weight and movement */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifiers|Physical",
+		meta = (ClampMin = "0.0", ClampMax = "5.0", ToolTip = "Weight in kg"))
+	float Weight = 0.1f;
+
+	//========================================================================
+	// Special Effects
+	//========================================================================
+
+	/** Suppresses weapon sound (for suppressors) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+	bool bSuppressesSound = false;
+
+	/** Sound reduction percentage when suppressed (0.0-1.0)
+	 *  0.0 = no reduction, 1.0 = completely silent */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bSuppressesSound",
+				ToolTip = "Sound reduction (0.7 = 70% quieter)"))
+	float SoundReduction = 0.0f;
+
+	/** Hides muzzle flash (for flash hiders and suppressors) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+	bool bHidesMuzzleFlash = false;
+
+	/** Muzzle flash reduction percentage (0.0-1.0)
+	 *  Flash hiders: 0.8-1.0, Suppressors: 0.9-1.0 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bHidesMuzzleFlash",
+				ToolTip = "Flash reduction (0.9 = 90% hidden)"))
+	float FlashReduction = 0.0f;
+
+	//========================================================================
+	// Compatibility
+	//========================================================================
+
+	/** Weapon types this attachment works with (e.g., Weapon.Type.AssaultRifle) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Compatibility",
+		meta = (Categories = "Weapon.Type"))
+	FGameplayTagContainer CompatibleWeaponTypes;
+
+	/** Specific weapon IDs this works with (if empty, uses CompatibleWeaponTypes)
+	 *  Use for weapon-specific attachments like AK-specific stocks */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Compatibility")
+	TArray<FName> CompatibleWeaponIDs;
+
+	//========================================================================
+	// Visuals (References)
+	//========================================================================
+
+	/** Static mesh path for world display */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visuals")
+	TSoftObjectPtr<UStaticMesh> AttachmentMesh;
+
+	/** Icon texture path for inventory UI */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visuals")
+	TSoftObjectPtr<UTexture2D> Icon;
+
+	//========================================================================
+	// Helper Methods
+	//========================================================================
+
+	/** Check if row has valid data */
+	bool IsValid() const
+	{
+		return !AttachmentID.IsNone();
+	}
+
+	/** Check if this attachment is compatible with weapon type */
+	bool IsCompatibleWithWeaponType(const FGameplayTag& WeaponType) const
+	{
+		return CompatibleWeaponTypes.IsEmpty() || CompatibleWeaponTypes.HasTag(WeaponType);
+	}
+
+	/** Check if this attachment is compatible with specific weapon */
+	bool IsCompatibleWithWeapon(const FName& WeaponID, const FGameplayTag& WeaponType) const
+	{
+		// Check specific weapon IDs first
+		if (CompatibleWeaponIDs.Num() > 0)
+		{
+			return CompatibleWeaponIDs.Contains(WeaponID);
+		}
+		// Fall back to weapon type check
+		return IsCompatibleWithWeaponType(WeaponType);
+	}
+
+	/** Check if this attachment affects recoil */
+	bool AffectsRecoil() const
+	{
+		return !FMath::IsNearlyEqual(RecoilModifier, 1.0f);
+	}
+
+	/** Check if this is a suppressor */
+	bool IsSuppressor() const
+	{
+		return bSuppressesSound;
+	}
+
+	/** Check if this is a muzzle device */
+	bool IsMuzzleDevice() const
+	{
+		return SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Equipment.Slot.Muzzle")));
 	}
 };

@@ -24,6 +24,13 @@ USuspenseCoreWeaponAttributeSet::USuspenseCoreWeaponAttributeSet()
     InitAimSpread(1.0f);
     InitVerticalRecoil(1.0f);
     InitHorizontalRecoil(0.5f);
+
+    // Recoil Dynamics (Tarkov-Style Convergence)
+    InitConvergenceSpeed(5.0f);      // 5 deg/sec return to aim
+    InitConvergenceDelay(0.1f);      // 100ms delay before recovery
+    InitRecoilAngleBias(0.0f);       // 0 = random horizontal
+    InitRecoilPatternStrength(0.3f); // 30% pattern, 70% random
+
     InitDurability(100.0f);
     InitMaxDurability(100.0f);
     InitMisfireChance(0.0f);
@@ -53,6 +60,12 @@ void USuspenseCoreWeaponAttributeSet::InitializeFromData(const FSuspenseCoreWeap
     InitAimSpread(RowData.AimSpread);
     InitVerticalRecoil(RowData.VerticalRecoil);
     InitHorizontalRecoil(RowData.HorizontalRecoil);
+
+    // Recoil Dynamics (Tarkov-Style Convergence)
+    InitConvergenceSpeed(RowData.ConvergenceSpeed);
+    InitConvergenceDelay(RowData.ConvergenceDelay);
+    InitRecoilAngleBias(RowData.RecoilAngleBias);
+    InitRecoilPatternStrength(RowData.RecoilPatternStrength);
 
     // Reliability attributes
     InitDurability(RowData.Durability);
@@ -91,6 +104,10 @@ void USuspenseCoreWeaponAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetim
     DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, AimSpread, COND_None, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, VerticalRecoil, COND_None, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, HorizontalRecoil, COND_None, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, ConvergenceSpeed, COND_None, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, ConvergenceDelay, COND_None, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, RecoilAngleBias, COND_None, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, RecoilPatternStrength, COND_None, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, Durability, COND_None, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, MaxDurability, COND_None, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponAttributeSet, MisfireChance, COND_None, REPNOTIFY_Always);
@@ -135,6 +152,10 @@ void USuspenseCoreWeaponAttributeSet::OnRep_HipFireSpread(const FGameplayAttribu
 void USuspenseCoreWeaponAttributeSet::OnRep_AimSpread(const FGameplayAttributeData& OldValue) {}
 void USuspenseCoreWeaponAttributeSet::OnRep_VerticalRecoil(const FGameplayAttributeData& OldValue) {}
 void USuspenseCoreWeaponAttributeSet::OnRep_HorizontalRecoil(const FGameplayAttributeData& OldValue) {}
+void USuspenseCoreWeaponAttributeSet::OnRep_ConvergenceSpeed(const FGameplayAttributeData& OldValue) {}
+void USuspenseCoreWeaponAttributeSet::OnRep_ConvergenceDelay(const FGameplayAttributeData& OldValue) {}
+void USuspenseCoreWeaponAttributeSet::OnRep_RecoilAngleBias(const FGameplayAttributeData& OldValue) {}
+void USuspenseCoreWeaponAttributeSet::OnRep_RecoilPatternStrength(const FGameplayAttributeData& OldValue) {}
 void USuspenseCoreWeaponAttributeSet::OnRep_Durability(const FGameplayAttributeData& OldValue) {}
 void USuspenseCoreWeaponAttributeSet::OnRep_MaxDurability(const FGameplayAttributeData& OldValue) {}
 void USuspenseCoreWeaponAttributeSet::OnRep_MisfireChance(const FGameplayAttributeData& OldValue) {}

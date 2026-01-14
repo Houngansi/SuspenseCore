@@ -112,6 +112,31 @@ public:
     ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, HorizontalRecoil)
 
     //================================================
+    // Recoil Dynamics (Tarkov-Style Convergence)
+    // @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
+    //================================================
+
+    /** Convergence speed - how fast camera returns to aim point (degrees/second) */
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Recoil", ReplicatedUsing = OnRep_ConvergenceSpeed)
+    FGameplayAttributeData ConvergenceSpeed;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, ConvergenceSpeed)
+
+    /** Delay before convergence starts after shot (seconds) */
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Recoil", ReplicatedUsing = OnRep_ConvergenceDelay)
+    FGameplayAttributeData ConvergenceDelay;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, ConvergenceDelay)
+
+    /** Horizontal recoil bias: -1.0 (left) to 1.0 (right), 0 = random */
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Recoil", ReplicatedUsing = OnRep_RecoilAngleBias)
+    FGameplayAttributeData RecoilAngleBias;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, RecoilAngleBias)
+
+    /** Recoil pattern predictability: 0.0 (random) to 1.0 (fixed pattern) */
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Recoil", ReplicatedUsing = OnRep_RecoilPatternStrength)
+    FGameplayAttributeData RecoilPatternStrength;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, RecoilPatternStrength)
+
+    //================================================
     // Reliability & Wear
     //================================================
 
@@ -164,6 +189,10 @@ protected:
     UFUNCTION() void OnRep_AimSpread(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_VerticalRecoil(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_HorizontalRecoil(const FGameplayAttributeData& OldValue);
+    UFUNCTION() void OnRep_ConvergenceSpeed(const FGameplayAttributeData& OldValue);
+    UFUNCTION() void OnRep_ConvergenceDelay(const FGameplayAttributeData& OldValue);
+    UFUNCTION() void OnRep_RecoilAngleBias(const FGameplayAttributeData& OldValue);
+    UFUNCTION() void OnRep_RecoilPatternStrength(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_Durability(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_MaxDurability(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_MisfireChance(const FGameplayAttributeData& OldValue);

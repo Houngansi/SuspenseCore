@@ -75,6 +75,7 @@ USuspenseCoreBaseFireAbility::USuspenseCoreBaseFireAbility()
 	: bDebugTraces(false)
 	, ConsecutiveShotsCount(0)
 	, LastShotTime(0.0f)
+	, bBoundToWorldTick(false)
 {
 	// Network configuration
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
@@ -160,6 +161,12 @@ void USuspenseCoreBaseFireAbility::ActivateAbility(
 		CombatState->SetFiring(true);
 	}
 
+	// Initialize recoil state from weapon SSOT data (convergence, ergonomics, etc.)
+	InitializeRecoilStateFromWeapon();
+
+	// Bind to world tick for convergence updates
+	BindToWorldTick();
+
 	// Fire first shot - children implement FireNextShot()
 	FireNextShot();
 }
@@ -180,11 +187,11 @@ void USuspenseCoreBaseFireAbility::EndAbility(
 	// Clear timers
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(RecoilRecoveryTimerHandle);
 		World->GetTimerManager().ClearTimer(RecoilResetTimerHandle);
+		World->GetTimerManager().ClearTimer(ConvergenceDelayTimerHandle);
 	}
 
-	// Start recoil reset timer
+	// Start recoil reset timer (resets shot counter after delay)
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
@@ -195,6 +202,10 @@ void USuspenseCoreBaseFireAbility::EndAbility(
 			false
 		);
 	}
+
+	// Note: We do NOT unbind from world tick here!
+	// Convergence should continue even after firing stops.
+	// The tick will automatically unbind when recoil reaches zero.
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -598,7 +609,8 @@ void USuspenseCoreBaseFireAbility::SpawnTracer(const FVector& Start, const FVect
 }
 
 //========================================================================
-// Recoil System
+// Recoil System (Tarkov-Style with Convergence)
+// @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
 //========================================================================
 
 void USuspenseCoreBaseFireAbility::ApplyRecoil()
@@ -651,24 +663,19 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	float HorizontalRecoil = 0.0f;
 
 	// ===================================================================================
-	// RECOIL CONVERSION FACTOR EXPLANATION
+	// TARKOV-STYLE RECOIL CALCULATION
 	// ===================================================================================
-	// DataTable stores recoil as "Tarkov-style points" in range 0-500:
-	//   - Low recoil weapons: ~50-100 (e.g., MP5: 52)
-	//   - Medium recoil: ~100-200 (e.g., AK-74M: 145, M4A1: 165)
-	//   - High recoil: ~200-400 (e.g., AKM: 280, SA-58: 350)
+	// Formula: FinalRecoil = Base × Ammo × Attachments × PointsToDegrees × Progressive × ADS
 	//
-	// AddPitchInput/AddYawInput expect rotation in degrees per frame.
-	// Comfortable recoil range per shot: 0.2° - 1.5° vertical
+	// DataTable stores recoil as "Tarkov-style points" in range 0-500:
+	//   - Low recoil: ~50-100 (MP5: 52)
+	//   - Medium: ~100-200 (AK-74M: 145, M4A1: 165)
+	//   - High: ~200-400 (AKM: 280, SA-58: 350)
 	//
 	// Conversion: RecoilPoints × 0.002 = Degrees
-	//   - 100 points → 0.2° (low kick)
-	//   - 145 points → 0.29° (medium, e.g., AK-74M)
-	//   - 350 points → 0.7° (heavy kick)
-	//   - 500 points → 1.0° (maximum)
-	//
-	// This is a TEMPORARY linear conversion. For full Tarkov-style recoil, see:
-	// Documentation/Plans/TarkovStyle_Recoil_System_Design.md
+	//   - 145 points → 0.29° per shot (AK-74M base)
+	//   - With PBS-1 suppressor (0.85): 145 × 0.85 × 0.002 = 0.25°
+	//   - With full mods (0.727): 145 × 0.727 × 0.002 = 0.21°
 	// ===================================================================================
 	constexpr float RecoilPointsToDegrees = 0.002f;
 
@@ -678,21 +685,37 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 		float BaseVertical = WeaponAttrs->GetVerticalRecoil();
 		float BaseHorizontal = WeaponAttrs->GetHorizontalRecoil();
 
-		// Apply ammo modifier if available (heavy ammo = more recoil)
-		// AmmoRecoilModifier range: 0.5 (subsonic) - 2.0 (hot loads)
+		// Apply ammo modifier (0.5 subsonic - 2.0 hot loads)
 		float AmmoModifier = 1.0f;
 		if (AmmoAttrs)
 		{
 			AmmoModifier = AmmoAttrs->GetRecoilModifier();
 		}
 
-		// Calculate final recoil with all modifiers
-		// Formula: Base × AmmoMod × PointsToDegrees × ProgressiveMod × ADSMod
-		VerticalRecoil = BaseVertical * AmmoModifier * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
-		HorizontalRecoil = BaseHorizontal * AmmoModifier * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
+		// Apply attachment modifiers (multiplicative stack)
+		// e.g., Muzzle brake 0.85 × Stock 0.90 × Grip 0.95 = 0.727 total
+		float AttachmentModifier = CalculateAttachmentRecoilModifier();
 
-		// Add random horizontal variation (recoil kicks left or right randomly)
-		HorizontalRecoil *= FMath::FRandRange(-1.0f, 1.0f);
+		// Calculate final recoil with all modifiers
+		// Formula: Base × AmmoMod × AttachMod × PointsToDegrees × ProgressiveMod × ADSMod
+		VerticalRecoil = BaseVertical * AmmoModifier * AttachmentModifier * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
+		HorizontalRecoil = BaseHorizontal * AmmoModifier * AttachmentModifier * RecoilPointsToDegrees * RecoilMultiplier * ADSMultiplier;
+
+		// Apply horizontal recoil bias from weapon (some weapons kick left/right consistently)
+		// RecoilAngleBias: -1.0 (always left) to 1.0 (always right), 0 = random
+		float Bias = RecoilState.CachedRecoilBias;
+		if (FMath::Abs(Bias) > 0.01f)
+		{
+			// Blend between full random and biased direction
+			float RandomComponent = FMath::FRandRange(-1.0f, 1.0f);
+			float BiasedComponent = (Bias > 0.0f) ? FMath::FRandRange(0.0f, 1.0f) : FMath::FRandRange(-1.0f, 0.0f);
+			HorizontalRecoil *= FMath::Lerp(RandomComponent, BiasedComponent, FMath::Abs(Bias));
+		}
+		else
+		{
+			// Pure random horizontal direction
+			HorizontalRecoil *= FMath::FRandRange(-1.0f, 1.0f);
+		}
 	}
 	else
 	{
@@ -701,19 +724,170 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 		HorizontalRecoil = FMath::FRandRange(-0.1f, 0.1f) * RecoilMultiplier * ADSMultiplier;
 	}
 
-	// Apply view punch (smooth camera rotation)
-	// Use AddPitchInput/AddYawInput for smooth recoil that can be controlled
+	// ===================================================================================
+	// APPLY RECOIL IMPULSE
+	// ===================================================================================
+	// Apply view punch immediately (camera rotation)
 	PC->AddPitchInput(-VerticalRecoil);
 	PC->AddYawInput(HorizontalRecoil);
+
+	// ===================================================================================
+	// CONVERGENCE TRACKING
+	// ===================================================================================
+	// Track accumulated offset for convergence system to return to aim point
+	RecoilState.AccumulatedPitch += VerticalRecoil;
+	RecoilState.AccumulatedYaw += HorizontalRecoil;
+	RecoilState.TimeSinceLastShot = 0.0f;
+	RecoilState.bWaitingForConvergence = true;
+	RecoilState.bIsConverging = false;
+
+	// Start convergence delay timer
+	StartConvergenceTimer();
 
 	// Play camera shake if configured
 	if (RecoilCameraShake)
 	{
 		PC->ClientStartCameraShake(RecoilCameraShake, RecoilMultiplier * ADSMultiplier);
 	}
+}
 
-	// Start recoil recovery timer
-	StartRecoilRecovery();
+void USuspenseCoreBaseFireAbility::TickConvergence(float DeltaTime)
+{
+	// Skip if no offset to converge
+	if (!RecoilState.HasOffset())
+	{
+		// Convergence complete - unbind from tick to save performance
+		if (bBoundToWorldTick)
+		{
+			UnbindFromWorldTick();
+		}
+		return;
+	}
+
+	// Update time since last shot
+	RecoilState.TimeSinceLastShot += DeltaTime;
+
+	// Wait for convergence delay before starting recovery
+	if (RecoilState.bWaitingForConvergence)
+	{
+		if (RecoilState.TimeSinceLastShot >= RecoilState.CachedConvergenceDelay)
+		{
+			RecoilState.bWaitingForConvergence = false;
+			RecoilState.bIsConverging = true;
+		}
+		return;
+	}
+
+	// Get player controller
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
+	{
+		return;
+	}
+
+	APawn* Pawn = Cast<APawn>(Avatar);
+	if (!Pawn)
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+	if (!PC)
+	{
+		return;
+	}
+
+	// ===================================================================================
+	// CONVERGENCE CALCULATION
+	// ===================================================================================
+	// Formula: ConvergenceRate = Speed × ErgoBonus × DeltaTime
+	// ErgoBonus = 1 + Ergonomics/100 (42 ergo = 1.42× speed)
+	//
+	// Each frame, move AccumulatedOffset toward zero (TargetOffset)
+	// This creates the "kick and return" feel of Tarkov
+	// ===================================================================================
+
+	float EffectiveSpeed = RecoilState.GetEffectiveConvergenceSpeed();
+	float ConvergenceRate = EffectiveSpeed * DeltaTime;
+
+	// Calculate recovery amounts (converge toward target, usually zero)
+	float PitchDelta = RecoilState.TargetPitch - RecoilState.AccumulatedPitch;
+	float YawDelta = RecoilState.TargetYaw - RecoilState.AccumulatedYaw;
+
+	// Calculate how much to recover this frame
+	float PitchRecovery = 0.0f;
+	float YawRecovery = 0.0f;
+
+	if (FMath::Abs(PitchDelta) > 0.01f)
+	{
+		// Move toward target by ConvergenceRate degrees
+		PitchRecovery = FMath::Sign(PitchDelta) * FMath::Min(ConvergenceRate, FMath::Abs(PitchDelta));
+	}
+
+	if (FMath::Abs(YawDelta) > 0.01f)
+	{
+		YawRecovery = FMath::Sign(YawDelta) * FMath::Min(ConvergenceRate, FMath::Abs(YawDelta));
+	}
+
+	// Apply recovery to camera (inverse of recoil direction)
+	if (!FMath::IsNearlyZero(PitchRecovery) || !FMath::IsNearlyZero(YawRecovery))
+	{
+		// Note: Pitch is inverted because AddPitchInput(-value) pushes camera up
+		PC->AddPitchInput(PitchRecovery);
+		PC->AddYawInput(-YawRecovery);
+
+		// Update accumulated offset
+		RecoilState.AccumulatedPitch += PitchRecovery;
+		RecoilState.AccumulatedYaw -= YawRecovery;
+	}
+
+	// Check if convergence is complete
+	if (!RecoilState.HasOffset())
+	{
+		RecoilState.bIsConverging = false;
+		RecoilState.Reset();
+	}
+}
+
+void USuspenseCoreBaseFireAbility::InitializeRecoilStateFromWeapon()
+{
+	const USuspenseCoreWeaponAttributeSet* WeaponAttrs = GetWeaponAttributes();
+
+	if (WeaponAttrs)
+	{
+		// Cache values from weapon SSOT for performance
+		RecoilState.CachedConvergenceSpeed = WeaponAttrs->GetConvergenceSpeed();
+		RecoilState.CachedConvergenceDelay = WeaponAttrs->GetConvergenceDelay();
+		RecoilState.CachedErgonomics = WeaponAttrs->GetErgonomics();
+		RecoilState.CachedRecoilBias = WeaponAttrs->GetRecoilAngleBias();
+	}
+	else
+	{
+		// Use defaults if no weapon attributes available
+		RecoilState.CachedConvergenceSpeed = 5.0f;
+		RecoilState.CachedConvergenceDelay = 0.1f;
+		RecoilState.CachedErgonomics = 42.0f;
+		RecoilState.CachedRecoilBias = 0.0f;
+	}
+}
+
+float USuspenseCoreBaseFireAbility::CalculateAttachmentRecoilModifier() const
+{
+	// TODO: Phase 3 - Get installed attachments from weapon and multiply their RecoilModifiers
+	// For now, return 1.0 (no modification)
+	//
+	// Future implementation:
+	// ISuspenseCoreWeapon* Weapon = GetWeaponInterface();
+	// TArray<FSuspenseCoreAttachmentInstance> Attachments = Weapon->GetInstalledAttachments();
+	// float TotalModifier = 1.0f;
+	// for (const auto& Attachment : Attachments)
+	// {
+	//     const FSuspenseCoreAttachmentAttributeRow* Row = GetAttachmentData(Attachment.AttachmentID);
+	//     if (Row) TotalModifier *= Row->RecoilModifier;
+	// }
+	// return TotalModifier;
+
+	return 1.0f;
 }
 
 float USuspenseCoreBaseFireAbility::GetCurrentRecoilMultiplier() const
@@ -738,31 +912,64 @@ void USuspenseCoreBaseFireAbility::ResetShotCounter()
 	ConsecutiveShotsCount = 0;
 }
 
-void USuspenseCoreBaseFireAbility::StartRecoilRecovery()
+void USuspenseCoreBaseFireAbility::StartConvergenceTimer()
 {
-	if (!GetWorld())
+	// Clear any existing convergence delay timer
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ConvergenceDelayTimerHandle);
+	}
+
+	// Convergence is now handled by world tick, not timer
+	// The delay is managed in TickConvergence via TimeSinceLastShot
+}
+
+void USuspenseCoreBaseFireAbility::BindToWorldTick()
+{
+	if (bBoundToWorldTick)
 	{
 		return;
 	}
 
-	// Clear existing timer
-	GetWorld()->GetTimerManager().ClearTimer(RecoilRecoveryTimerHandle);
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
 
-	// Start recovery after delay
-	GetWorld()->GetTimerManager().SetTimer(
-		RecoilRecoveryTimerHandle,
+	// Bind to world tick for convergence updates
+	WorldTickDelegateHandle = World->OnWorldPostActorTick.AddUObject(
 		this,
-		&USuspenseCoreBaseFireAbility::RecoverRecoil,
-		0.1f, // Recovery tick interval
-		true, // Looping
-		RecoilConfig.RecoveryDelay // Initial delay
+		&USuspenseCoreBaseFireAbility::OnWorldTick
 	);
+
+	bBoundToWorldTick = true;
 }
 
-void USuspenseCoreBaseFireAbility::RecoverRecoil()
+void USuspenseCoreBaseFireAbility::UnbindFromWorldTick()
 {
-	// Recovery is handled by natural recoil decay
-	// This could be extended to add gradual view recovery
+	if (!bBoundToWorldTick)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		World->OnWorldPostActorTick.Remove(WorldTickDelegateHandle);
+	}
+
+	WorldTickDelegateHandle.Reset();
+	bBoundToWorldTick = false;
+}
+
+void USuspenseCoreBaseFireAbility::OnWorldTick(float DeltaTime)
+{
+	// Only tick convergence on locally controlled character
+	if (IsLocallyControlled())
+	{
+		TickConvergence(DeltaTime);
+	}
 }
 
 //========================================================================

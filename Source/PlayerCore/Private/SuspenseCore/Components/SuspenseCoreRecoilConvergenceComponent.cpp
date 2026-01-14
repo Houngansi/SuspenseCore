@@ -4,11 +4,11 @@
 
 #include "SuspenseCore/Components/SuspenseCoreRecoilConvergenceComponent.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
-#include "Engine/World.h"
 
 USuspenseCoreRecoilConvergenceComponent::USuspenseCoreRecoilConvergenceComponent()
 	: AccumulatedPitch(0.0f)
@@ -164,14 +164,13 @@ void USuspenseCoreRecoilConvergenceComponent::OnRecoilImpulseEvent(
 
 USuspenseCoreEventBus* USuspenseCoreRecoilConvergenceComponent::GetEventBus() const
 {
-	UWorld* World = GetWorld();
-	if (!World)
+	// Get EventBus via EventManager (proper SuspenseCore pattern)
+	if (USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetOwner()))
 	{
-		return nullptr;
+		return Manager->GetEventBus();
 	}
 
-	// Get EventBus from world subsystem
-	return World->GetSubsystem<USuspenseCoreEventBus>();
+	return nullptr;
 }
 
 //========================================================================

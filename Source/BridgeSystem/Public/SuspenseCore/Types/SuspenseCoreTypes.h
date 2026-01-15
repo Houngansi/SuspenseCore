@@ -502,6 +502,7 @@ public:
 
 private:
 	FSuspenseCoreEventData* Data;
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STRUCTS - INTERNAL

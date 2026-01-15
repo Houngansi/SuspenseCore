@@ -93,6 +93,30 @@ public:
     float ChamberOnlyTime = 0.8f;
 
     //==================================================================
+    // Reload Sounds
+    //==================================================================
+
+    /** Sound to play when reload starts */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Sounds")
+    TObjectPtr<USoundBase> ReloadStartSound;
+
+    /** Sound to play when magazine is ejected */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Sounds")
+    TObjectPtr<USoundBase> MagOutSound;
+
+    /** Sound to play when new magazine is inserted */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Sounds")
+    TObjectPtr<USoundBase> MagInSound;
+
+    /** Sound to play when bolt/slide is racked */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Sounds")
+    TObjectPtr<USoundBase> ChamberSound;
+
+    /** Sound to play when reload completes successfully */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Sounds")
+    TObjectPtr<USoundBase> ReloadCompleteSound;
+
+    //==================================================================
     // Runtime Accessors
     //==================================================================
 
@@ -189,12 +213,9 @@ protected:
     bool Server_ExecuteReload_Validate(ESuspenseCoreReloadType ReloadType, int32 MagazineSlotIndex, const FSuspenseCoreMagazineInstance& Magazine);
     void Server_ExecuteReload_Implementation(ESuspenseCoreReloadType ReloadType, int32 MagazineSlotIndex, const FSuspenseCoreMagazineInstance& Magazine);
 
-    /**
-     * Multicast RPC to play reload effects on all clients
-     * @param ReloadType Type of reload being performed
-     */
-    UFUNCTION(NetMulticast, Unreliable)
-    void Multicast_PlayReloadEffects(ESuspenseCoreReloadType ReloadType);
+    // NOTE: NetMulticast removed - GameplayAbilities are not replicated to Simulated Proxies.
+    // Animation replication is handled by UE AnimMontage replication system automatically.
+    // Sounds are played locally via notify handlers which fire on each client running the ability.
 
     //==================================================================
     // Animation Notify Handlers
@@ -264,6 +285,12 @@ private:
      * Fallback when AnimNotifies (MagOut/MagIn) don't fire in the montage
      */
     void ExecuteReloadOnMontageComplete();
+
+    /**
+     * Play reload sound at owner location
+     * @param Sound Sound to play
+     */
+    void PlayReloadSound(USoundBase* Sound);
 
     //==================================================================
     // Runtime State

@@ -4,6 +4,7 @@
 //
 // Pattern-based camera shake for weapon recoil effects.
 // Uses oscillator system for pitch, yaw, and location shake.
+// Supports both Sin-wave and Perlin Noise modes for organic feel.
 //
 // Usage:
 //   PlayerController->ClientStartCameraShake(USuspenseCoreWeaponCameraShake::StaticClass(), Scale);
@@ -15,8 +16,23 @@
 #include "SuspenseCoreWeaponCameraShake.generated.h"
 
 /**
- * Simple oscillator for camera shake calculations.
- * Produces sin-wave oscillation with configurable amplitude and frequency.
+ * Oscillator mode for camera shake
+ */
+UENUM(BlueprintType)
+enum class ESuspenseCoreOscillatorMode : uint8
+{
+	/** Classic sin-wave oscillation */
+	SinWave,
+	/** Perlin noise for organic feel (AAA standard) */
+	PerlinNoise,
+	/** Combined: Sin + Perlin for complex movement */
+	Combined
+};
+
+/**
+ * Advanced oscillator for camera shake calculations.
+ * Supports Sin-wave, Perlin Noise, and Combined modes.
+ * Perlin Noise provides more organic, less "mechanical" feel (Battlefield/CoD style).
  */
 USTRUCT(BlueprintType)
 struct PLAYERCORE_API FSuspenseCoreOscillator
@@ -31,12 +47,27 @@ struct PLAYERCORE_API FSuspenseCoreOscillator
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Oscillator")
 	float Frequency;
 
+	/** Oscillator mode */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Oscillator")
+	ESuspenseCoreOscillatorMode Mode;
+
+	/** Perlin noise scale (higher = more detail) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Oscillator|Perlin", meta = (EditCondition = "Mode != ESuspenseCoreOscillatorMode::SinWave"))
+	float NoiseScale;
+
+	/** Random seed for unique noise pattern per instance */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Oscillator|Perlin", meta = (EditCondition = "Mode != ESuspenseCoreOscillatorMode::SinWave"))
+	float NoiseSeed;
+
 	/** Current time accumulator */
 	float Time;
 
 	FSuspenseCoreOscillator()
 		: Amplitude(0.0f)
 		, Frequency(0.0f)
+		, Mode(ESuspenseCoreOscillatorMode::SinWave)
+		, NoiseScale(1.0f)
+		, NoiseSeed(0.0f)
 		, Time(0.0f)
 	{
 	}
@@ -44,6 +75,19 @@ struct PLAYERCORE_API FSuspenseCoreOscillator
 	FSuspenseCoreOscillator(float InAmplitude, float InFrequency)
 		: Amplitude(InAmplitude)
 		, Frequency(InFrequency)
+		, Mode(ESuspenseCoreOscillatorMode::SinWave)
+		, NoiseScale(1.0f)
+		, NoiseSeed(FMath::FRand() * 1000.0f)
+		, Time(0.0f)
+	{
+	}
+
+	FSuspenseCoreOscillator(float InAmplitude, float InFrequency, ESuspenseCoreOscillatorMode InMode)
+		: Amplitude(InAmplitude)
+		, Frequency(InFrequency)
+		, Mode(InMode)
+		, NoiseScale(1.0f)
+		, NoiseSeed(FMath::FRand() * 1000.0f)
 		, Time(0.0f)
 	{
 	}
@@ -57,13 +101,57 @@ struct PLAYERCORE_API FSuspenseCoreOscillator
 	float Update(float DeltaTime, float Scale = 1.0f)
 	{
 		Time += DeltaTime;
-		return FMath::Sin(Time * Frequency * 2.0f * PI) * Amplitude * Scale;
+
+		float Result = 0.0f;
+
+		switch (Mode)
+		{
+		case ESuspenseCoreOscillatorMode::SinWave:
+			Result = CalculateSinWave();
+			break;
+
+		case ESuspenseCoreOscillatorMode::PerlinNoise:
+			Result = CalculatePerlinNoise();
+			break;
+
+		case ESuspenseCoreOscillatorMode::Combined:
+			// Mix 60% Perlin + 40% Sin for organic but rhythmic feel
+			Result = CalculatePerlinNoise() * 0.6f + CalculateSinWave() * 0.4f;
+			break;
+		}
+
+		return Result * Amplitude * Scale;
 	}
 
 	/** Reset oscillator state */
 	void Reset()
 	{
 		Time = 0.0f;
+	}
+
+	/** Randomize seed for unique pattern */
+	void RandomizeSeed()
+	{
+		NoiseSeed = FMath::FRand() * 1000.0f;
+	}
+
+private:
+	/** Classic sin-wave calculation */
+	float CalculateSinWave() const
+	{
+		return FMath::Sin(Time * Frequency * 2.0f * PI);
+	}
+
+	/** Perlin noise calculation - more organic feel */
+	float CalculatePerlinNoise() const
+	{
+		// 2D Perlin noise using time and seed
+		// This creates smooth, organic movement unlike mechanical sin waves
+		const float NoiseX = Time * Frequency * NoiseScale;
+		const float NoiseY = NoiseSeed;
+
+		// FMath::PerlinNoise2D returns -1 to 1
+		return FMath::PerlinNoise2D(FVector2D(NoiseX, NoiseY));
 	}
 };
 

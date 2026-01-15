@@ -334,7 +334,7 @@ void USuspenseCoreCrosshairWidget::OnWeaponFiredEvent(FGameplayTag EventTag, con
 	float NewSpread = (SpreadDegrees * EffectiveMultiplier) + RecoilKick;
 	TargetSpreadRadius = FMath::Clamp(NewSpread, MinimumSpread, MaximumSpread);
 
-	UE_LOG(LogTemp, Warning, TEXT("CrosshairWidget: Fired - Spread=%.2f°, Kick=%.2f, Target=%.2fpx, ADS=%s"),
+	UE_LOG(LogTemp, Verbose, TEXT("CrosshairWidget: Fired - Spread=%.2f°, Kick=%.2f, Target=%.2fpx, ADS=%s"),
 		SpreadDegrees, RecoilKick, TargetSpreadRadius, bIsAiming ? TEXT("YES") : TEXT("NO"));
 }
 
@@ -360,7 +360,7 @@ void USuspenseCoreCrosshairWidget::OnAimStartedEvent(FGameplayTag EventTag, cons
 {
 	bIsAiming = true;
 
-	UE_LOG(LogTemp, Warning, TEXT("CrosshairWidget: ADS Started - bHideCrosshairWhenAiming=%s"),
+	UE_LOG(LogTemp, Verbose, TEXT("CrosshairWidget: ADS Started - bHideCrosshairWhenAiming=%s"),
 		bHideCrosshairWhenAiming ? TEXT("true") : TEXT("false"));
 
 	if (bHideCrosshairWhenAiming)
@@ -379,7 +379,7 @@ void USuspenseCoreCrosshairWidget::OnAimEndedEvent(FGameplayTag EventTag, const 
 {
 	bIsAiming = false;
 
-	UE_LOG(LogTemp, Warning, TEXT("CrosshairWidget: ADS Ended"));
+	UE_LOG(LogTemp, Verbose, TEXT("CrosshairWidget: ADS Ended"));
 
 	if (bHideCrosshairWhenAiming)
 	{

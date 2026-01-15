@@ -278,7 +278,230 @@ struct BRIDGESYSTEM_API FSuspenseCoreEventData
 		Data.Priority = InPriority;
 		return Data;
 	}
+
+	/** Reset all fields for pool reuse */
+	void Reset()
+	{
+		Source = nullptr;
+		Timestamp = 0.0;
+		Priority = ESuspenseCoreEventPriority::Normal;
+		StringPayload.Reset();
+		FloatPayload.Reset();
+		IntPayload.Reset();
+		BoolPayload.Reset();
+		ObjectPayload.Reset();
+		VectorPayload.Reset();
+		Tags.Reset();
+	}
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OBJECT POOL FOR EVENT DATA
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * FSuspenseCoreEventDataPool
+ *
+ * Thread-safe object pool for FSuspenseCoreEventData.
+ * Reduces GC pressure from frequent event allocations.
+ *
+ * Usage:
+ *   FSuspenseCoreEventData* Data = FSuspenseCoreEventDataPool::Get().Acquire();
+ *   Data->Source = this;
+ *   EventBus->Publish(Tag, *Data);
+ *   FSuspenseCoreEventDataPool::Get().Release(Data);
+ *
+ * Or use RAII wrapper:
+ *   FSuspenseCorePooledEventData PooledData;
+ *   PooledData->Source = this;
+ *   EventBus->Publish(Tag, *PooledData);
+ */
+class BRIDGESYSTEM_API FSuspenseCoreEventDataPool
+{
+public:
+	/** Default pool size */
+	static constexpr int32 DefaultPoolSize = 64;
+
+	/** Max pool size (prevents unbounded growth) */
+	static constexpr int32 MaxPoolSize = 256;
+
+	/** Get singleton instance */
+	static FSuspenseCoreEventDataPool& Get()
+	{
+		static FSuspenseCoreEventDataPool Instance;
+		return Instance;
+	}
+
+	/** Acquire an event data instance from pool (or create new if empty) */
+	FSuspenseCoreEventData* Acquire()
+	{
+		FScopeLock Lock(&PoolLock);
+
+		if (Pool.Num() > 0)
+		{
+			FSuspenseCoreEventData* Data = Pool.Pop(false);
+			++AcquiredCount;
+			return Data;
+		}
+
+		// Pool empty - allocate new
+		FSuspenseCoreEventData* NewData = new FSuspenseCoreEventData();
+		++AllocatedCount;
+		++AcquiredCount;
+		return NewData;
+	}
+
+	/** Release event data back to pool */
+	void Release(FSuspenseCoreEventData* Data)
+	{
+		if (!Data)
+		{
+			return;
+		}
+
+		// Reset for reuse
+		Data->Reset();
+
+		FScopeLock Lock(&PoolLock);
+
+		// Return to pool if not at max size
+		if (Pool.Num() < MaxPoolSize)
+		{
+			Pool.Add(Data);
+		}
+		else
+		{
+			// Pool full - delete
+			delete Data;
+		}
+
+		++ReleasedCount;
+	}
+
+	/** Pre-allocate pool entries */
+	void PreAllocate(int32 Count = DefaultPoolSize)
+	{
+		FScopeLock Lock(&PoolLock);
+
+		const int32 ToAllocate = FMath::Min(Count, MaxPoolSize - Pool.Num());
+		for (int32 i = 0; i < ToAllocate; ++i)
+		{
+			Pool.Add(new FSuspenseCoreEventData());
+			++AllocatedCount;
+		}
+	}
+
+	/** Get pool statistics */
+	void GetStats(int32& OutPoolSize, int32& OutAllocated, int32& OutAcquired, int32& OutReleased) const
+	{
+		FScopeLock Lock(&PoolLock);
+		OutPoolSize = Pool.Num();
+		OutAllocated = AllocatedCount;
+		OutAcquired = AcquiredCount;
+		OutReleased = ReleasedCount;
+	}
+
+	/** Clear pool and free memory */
+	void Clear()
+	{
+		FScopeLock Lock(&PoolLock);
+
+		for (FSuspenseCoreEventData* Data : Pool)
+		{
+			delete Data;
+		}
+		Pool.Empty();
+	}
+
+private:
+	FSuspenseCoreEventDataPool() = default;
+	~FSuspenseCoreEventDataPool() { Clear(); }
+
+	// Non-copyable
+	FSuspenseCoreEventDataPool(const FSuspenseCoreEventDataPool&) = delete;
+	FSuspenseCoreEventDataPool& operator=(const FSuspenseCoreEventDataPool&) = delete;
+
+	mutable FCriticalSection PoolLock;
+	TArray<FSuspenseCoreEventData*> Pool;
+
+	// Statistics
+	int32 AllocatedCount = 0;
+	int32 AcquiredCount = 0;
+	int32 ReleasedCount = 0;
+};
+
+/**
+ * FSuspenseCorePooledEventData
+ *
+ * RAII wrapper for pooled event data.
+ * Automatically releases back to pool on destruction.
+ *
+ * Usage:
+ *   {
+ *       FSuspenseCorePooledEventData EventData;
+ *       EventData->Source = this;
+ *       EventData->SetFloat(TEXT("Value"), 1.0f);
+ *       EventBus->Publish(Tag, *EventData);
+ *   } // Auto-released here
+ */
+class BRIDGESYSTEM_API FSuspenseCorePooledEventData
+{
+public:
+	FSuspenseCorePooledEventData()
+		: Data(FSuspenseCoreEventDataPool::Get().Acquire())
+	{
+	}
+
+	~FSuspenseCorePooledEventData()
+	{
+		if (Data)
+		{
+			FSuspenseCoreEventDataPool::Get().Release(Data);
+		}
+	}
+
+	// Move-only
+	FSuspenseCorePooledEventData(FSuspenseCorePooledEventData&& Other) noexcept
+		: Data(Other.Data)
+	{
+		Other.Data = nullptr;
+	}
+
+	FSuspenseCorePooledEventData& operator=(FSuspenseCorePooledEventData&& Other) noexcept
+	{
+		if (this != &Other)
+		{
+			if (Data)
+			{
+				FSuspenseCoreEventDataPool::Get().Release(Data);
+			}
+			Data = Other.Data;
+			Other.Data = nullptr;
+		}
+		return *this;
+	}
+
+	// Non-copyable
+	FSuspenseCorePooledEventData(const FSuspenseCorePooledEventData&) = delete;
+	FSuspenseCorePooledEventData& operator=(const FSuspenseCorePooledEventData&) = delete;
+
+	/** Access underlying data */
+	FSuspenseCoreEventData* operator->() { return Data; }
+	const FSuspenseCoreEventData* operator->() const { return Data; }
+
+	FSuspenseCoreEventData& operator*() { return *Data; }
+	const FSuspenseCoreEventData& operator*() const { return *Data; }
+
+	/** Get raw pointer */
+	FSuspenseCoreEventData* Get() { return Data; }
+	const FSuspenseCoreEventData* Get() const { return Data; }
+
+	/** Check validity */
+	bool IsValid() const { return Data != nullptr; }
+	explicit operator bool() const { return IsValid(); }
+
+private:
+	FSuspenseCoreEventData* Data;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STRUCTS - INTERNAL

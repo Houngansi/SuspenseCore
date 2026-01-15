@@ -27,6 +27,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/CameraShake/SuspenseCoreCameraShakeTypes.h"
 #include "GameFramework/Character.h"
 #include "SuspenseCoreCameraShakeComponent.generated.h"
 
@@ -36,6 +37,7 @@ class USuspenseCoreWeaponCameraShake;
 class USuspenseCoreMovementCameraShake;
 class USuspenseCoreDamageCameraShake;
 class USuspenseCoreExplosionCameraShake;
+class USuspenseCoreCameraShakeManager;
 
 /**
  * USuspenseCoreCameraShakeComponent
@@ -93,6 +95,14 @@ public:
 	/** Bind directly to Character's LandedDelegate for landing shake (independent of abilities) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|CameraShake")
 	bool bBindToLandedDelegate = true;
+
+	/** Use layered shake manager for priority-based shake blending (AAA pattern) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|CameraShake")
+	bool bUseLayeredShakeManager = false;
+
+	/** Enable priority-based weight reduction in layered manager */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|CameraShake", meta = (EditCondition = "bUseLayeredShakeManager"))
+	bool bEnablePriorityBlending = true;
 
 	//========================================================================
 	// Camera Shake Classes
@@ -200,6 +210,10 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
+	/** Layered shake manager (created when bUseLayeredShakeManager is true) */
+	UPROPERTY()
+	TObjectPtr<USuspenseCoreCameraShakeManager> ShakeManager;
+
 	/** Subscription handles for cleanup */
 	FSuspenseCoreSubscriptionHandle WeaponShakeHandle;
 	FSuspenseCoreSubscriptionHandle MovementShakeHandle;
@@ -218,6 +232,16 @@ private:
 
 	/** Start camera shake via player controller */
 	void StartCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, float Scale);
+
+	/** Start camera shake via layered manager with priority */
+	void StartLayeredCameraShake(
+		TSubclassOf<UCameraShakeBase> ShakeClass,
+		float Scale,
+		ESuspenseCoreShakePriority Priority,
+		FName Category);
+
+	/** Initialize layered shake manager */
+	void InitializeShakeManager();
 
 	/** Called when character lands (via LandedDelegate) */
 	UFUNCTION()

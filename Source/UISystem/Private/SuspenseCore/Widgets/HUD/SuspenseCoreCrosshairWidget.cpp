@@ -399,11 +399,17 @@ void USuspenseCoreCrosshairWidget::UpdateCrosshairPositions()
 {
 	float Radius = CurrentSpreadRadius;
 
+	// Center anchor for all crosshair elements
+	const FAnchors CenterAnchor(0.5f, 0.5f);
+	const FVector2D CenterAlignment(0.5f, 0.5f);
+
 	// Update top crosshair
 	if (TopCrosshair)
 	{
 		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(TopCrosshair->Slot))
 		{
+			CanvasSlot->SetAnchors(CenterAnchor);
+			CanvasSlot->SetAlignment(CenterAlignment);
 			CanvasSlot->SetPosition(FVector2D(0.0f, -Radius - CrosshairLength / 2.0f));
 		}
 	}
@@ -413,6 +419,8 @@ void USuspenseCoreCrosshairWidget::UpdateCrosshairPositions()
 	{
 		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(BottomCrosshair->Slot))
 		{
+			CanvasSlot->SetAnchors(CenterAnchor);
+			CanvasSlot->SetAlignment(CenterAlignment);
 			CanvasSlot->SetPosition(FVector2D(0.0f, Radius + CrosshairLength / 2.0f));
 		}
 	}
@@ -422,6 +430,8 @@ void USuspenseCoreCrosshairWidget::UpdateCrosshairPositions()
 	{
 		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(LeftCrosshair->Slot))
 		{
+			CanvasSlot->SetAnchors(CenterAnchor);
+			CanvasSlot->SetAlignment(CenterAlignment);
 			CanvasSlot->SetPosition(FVector2D(-Radius - CrosshairLength / 2.0f, 0.0f));
 		}
 	}
@@ -431,6 +441,8 @@ void USuspenseCoreCrosshairWidget::UpdateCrosshairPositions()
 	{
 		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(RightCrosshair->Slot))
 		{
+			CanvasSlot->SetAnchors(CenterAnchor);
+			CanvasSlot->SetAlignment(CenterAlignment);
 			CanvasSlot->SetPosition(FVector2D(Radius + CrosshairLength / 2.0f, 0.0f));
 		}
 	}

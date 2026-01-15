@@ -26,10 +26,13 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Camera/CameraShakeBase.h"
 #include "TimerManager.h"
 #include "Engine/CollisionProfile.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 
 //==================================================================
 // Collision Profile Configuration
@@ -144,6 +147,8 @@ bool USuspenseCoreBaseFireAbility::CanActivateAbility(
 	// Check via ISuspenseCoreWeapon interface for proper Tarkov-style ammo state
 	if (!HasAmmo())
 	{
+		// Play empty magazine click sound
+		const_cast<USuspenseCoreBaseFireAbility*>(this)->PlayEmptySound();
 		return false;
 	}
 
@@ -543,37 +548,60 @@ void USuspenseCoreBaseFireAbility::PlayLocalFireEffects()
 		}
 	}
 
-	// Play sound
+	// Play fire sound at muzzle location
 	if (FireSound)
 	{
+		FVector MuzzleLocation = GetWeaponSocketLocation(MuzzleSocketName);
 		UGameplayStatics::PlaySoundAtLocation(
 			Avatar,
 			FireSound,
-			GetMuzzleLocation()
+			MuzzleLocation
 		);
 	}
 
-	// Spawn muzzle flash
+	// Spawn muzzle flash - Niagara (preferred)
 	if (MuzzleFlashEffect)
 	{
+		FTransform MuzzleTransform = GetWeaponSocketTransform(MuzzleSocketName);
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			Avatar,
 			MuzzleFlashEffect,
-			GetMuzzleLocation(),
-			GetAvatarActorFromActorInfo()->GetActorRotation()
+			MuzzleTransform.GetLocation(),
+			MuzzleTransform.GetRotation().Rotator()
 		);
+	}
+	// Spawn muzzle flash - Cascade (fallback/alternative)
+	else if (MuzzleFlashCascade)
+	{
+		SpawnMuzzleFlashCascade();
+	}
+
+	// Schedule shell casing sound with slight delay (realistic timing)
+	if (ShellSound)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(
+				ShellSoundTimerHandle,
+				this,
+				&USuspenseCoreBaseFireAbility::PlayShellSound,
+				0.1f,  // 100ms delay for shell to eject and hit ground
+				false
+			);
+		}
 	}
 }
 
 void USuspenseCoreBaseFireAbility::PlayImpactEffects(const TArray<FHitResult>& HitResults)
 {
-	if (!ImpactEffect)
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
 	{
 		return;
 	}
 
-	AActor* Avatar = GetAvatarActorFromActorInfo();
-	if (!Avatar)
+	// Need at least one effect type
+	if (!ImpactEffect && !ImpactCascade)
 	{
 		return;
 	}
@@ -585,23 +613,26 @@ void USuspenseCoreBaseFireAbility::PlayImpactEffects(const TArray<FHitResult>& H
 			continue;
 		}
 
-		// Spawn impact effect
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			Avatar,
-			ImpactEffect,
-			Hit.ImpactPoint,
-			Hit.ImpactNormal.Rotation()
-		);
+		// Spawn impact effect - Niagara (preferred)
+		if (ImpactEffect)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				Avatar,
+				ImpactEffect,
+				Hit.ImpactPoint,
+				Hit.ImpactNormal.Rotation()
+			);
+		}
+		// Spawn impact effect - Cascade (fallback)
+		else if (ImpactCascade)
+		{
+			SpawnImpactCascade(Hit.ImpactPoint, Hit.ImpactNormal);
+		}
 	}
 }
 
 void USuspenseCoreBaseFireAbility::SpawnTracer(const FVector& Start, const FVector& End)
 {
-	if (!TracerEffect)
-	{
-		return;
-	}
-
 	AActor* Avatar = GetAvatarActorFromActorInfo();
 	if (!Avatar)
 	{
@@ -612,15 +643,24 @@ void USuspenseCoreBaseFireAbility::SpawnTracer(const FVector& Start, const FVect
 	const FVector Direction = (End - Start).GetSafeNormal();
 	const FRotator Rotation = Direction.Rotation();
 
-	if (UNiagaraComponent* Tracer = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-		Avatar,
-		TracerEffect,
-		Start,
-		Rotation
-	))
+	// Spawn tracer - Niagara (preferred)
+	if (TracerEffect)
 	{
-		// Set tracer end point if system supports it
-		Tracer->SetVectorParameter(FName("EndPoint"), End);
+		if (UNiagaraComponent* Tracer = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			Avatar,
+			TracerEffect,
+			Start,
+			Rotation
+		))
+		{
+			// Set tracer end point if system supports it
+			Tracer->SetVectorParameter(FName("EndPoint"), End);
+		}
+	}
+	// Spawn tracer - Cascade (fallback)
+	else if (TracerCascade)
+	{
+		SpawnTracerCascade(Start, End);
 	}
 }
 
@@ -1154,6 +1194,230 @@ FVector USuspenseCoreBaseFireAbility::GetAimDirection() const
 
 	// Fallback to actor forward
 	return Avatar->GetActorForwardVector();
+}
+
+//========================================================================
+// New Audio/Visual Effect Methods
+//========================================================================
+
+void USuspenseCoreBaseFireAbility::PlayEmptySound()
+{
+	if (!EmptySound)
+	{
+		return;
+	}
+
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
+	{
+		return;
+	}
+
+	// Play empty click at weapon location
+	FVector MuzzleLocation = GetWeaponSocketLocation(MuzzleSocketName);
+	UGameplayStatics::PlaySoundAtLocation(
+		Avatar,
+		EmptySound,
+		MuzzleLocation,
+		FRotator::ZeroRotator,
+		1.0f,  // Volume
+		1.0f,  // Pitch
+		0.0f,  // Start time
+		nullptr,
+		nullptr,
+		Avatar
+	);
+}
+
+void USuspenseCoreBaseFireAbility::PlayShellSound()
+{
+	if (!ShellSound)
+	{
+		return;
+	}
+
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
+	{
+		return;
+	}
+
+	// Play shell casing sound at Shells socket location
+	FVector ShellLocation = GetWeaponSocketLocation(ShellSocketName);
+	UGameplayStatics::PlaySoundAtLocation(
+		Avatar,
+		ShellSound,
+		ShellLocation,
+		FRotator::ZeroRotator,
+		0.7f,  // Volume (quieter than gunshot)
+		FMath::FRandRange(0.9f, 1.1f),  // Random pitch for variety
+		0.0f,
+		nullptr,
+		nullptr,
+		Avatar
+	);
+}
+
+void USuspenseCoreBaseFireAbility::SpawnMuzzleFlashCascade()
+{
+	if (!MuzzleFlashCascade)
+	{
+		return;
+	}
+
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
+	{
+		return;
+	}
+
+	// Get muzzle socket transform
+	FTransform MuzzleTransform = GetWeaponSocketTransform(MuzzleSocketName);
+
+	// Spawn Cascade particle at Muzzle socket
+	UGameplayStatics::SpawnEmitterAtLocation(
+		Avatar->GetWorld(),
+		MuzzleFlashCascade,
+		MuzzleTransform.GetLocation(),
+		MuzzleTransform.GetRotation().Rotator(),
+		MuzzleTransform.GetScale3D(),
+		true,  // Auto destroy
+		EPSCPoolMethod::AutoRelease
+	);
+}
+
+void USuspenseCoreBaseFireAbility::SpawnTracerCascade(const FVector& Start, const FVector& End)
+{
+	if (!TracerCascade)
+	{
+		return;
+	}
+
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
+	{
+		return;
+	}
+
+	// Calculate direction
+	const FVector Direction = (End - Start).GetSafeNormal();
+	const FRotator Rotation = Direction.Rotation();
+
+	// Spawn Cascade tracer
+	if (UParticleSystemComponent* TracerComp = UGameplayStatics::SpawnEmitterAtLocation(
+		Avatar->GetWorld(),
+		TracerCascade,
+		Start,
+		Rotation,
+		FVector::OneVector,
+		true,
+		EPSCPoolMethod::AutoRelease
+	))
+	{
+		// Set beam end point if supported
+		TracerComp->SetBeamEndPoint(0, End);
+	}
+}
+
+void USuspenseCoreBaseFireAbility::SpawnImpactCascade(const FVector& Location, const FVector& Normal)
+{
+	if (!ImpactCascade)
+	{
+		return;
+	}
+
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar)
+	{
+		return;
+	}
+
+	// Spawn Cascade impact effect
+	UGameplayStatics::SpawnEmitterAtLocation(
+		Avatar->GetWorld(),
+		ImpactCascade,
+		Location,
+		Normal.Rotation(),
+		FVector::OneVector,
+		true,
+		EPSCPoolMethod::AutoRelease
+	);
+}
+
+UMeshComponent* USuspenseCoreBaseFireAbility::GetWeaponMeshComponent() const
+{
+	ISuspenseCoreWeapon* Weapon = const_cast<USuspenseCoreBaseFireAbility*>(this)->GetWeaponInterface();
+	if (!Weapon)
+	{
+		return nullptr;
+	}
+
+	AActor* WeaponActor = Cast<AActor>(Cast<UObject>(Weapon));
+	if (!WeaponActor)
+	{
+		return nullptr;
+	}
+
+	// Try skeletal mesh first (most weapons)
+	if (USkeletalMeshComponent* SkelMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>())
+	{
+		return SkelMesh;
+	}
+
+	// Fallback to static mesh
+	return WeaponActor->FindComponentByClass<UStaticMeshComponent>();
+}
+
+FVector USuspenseCoreBaseFireAbility::GetWeaponSocketLocation(FName SocketName) const
+{
+	if (UMeshComponent* Mesh = GetWeaponMeshComponent())
+	{
+		if (Mesh->DoesSocketExist(SocketName))
+		{
+			return Mesh->GetSocketLocation(SocketName);
+		}
+	}
+
+	// Fallback to weapon actor location
+	ISuspenseCoreWeapon* Weapon = const_cast<USuspenseCoreBaseFireAbility*>(this)->GetWeaponInterface();
+	if (Weapon)
+	{
+		if (AActor* WeaponActor = Cast<AActor>(Cast<UObject>(Weapon)))
+		{
+			return WeaponActor->GetActorLocation();
+		}
+	}
+
+	// Ultimate fallback - avatar forward
+	if (AActor* Avatar = GetAvatarActorFromActorInfo())
+	{
+		return Avatar->GetActorLocation() + Avatar->GetActorForwardVector() * 50.0f;
+	}
+
+	return FVector::ZeroVector;
+}
+
+FTransform USuspenseCoreBaseFireAbility::GetWeaponSocketTransform(FName SocketName) const
+{
+	if (UMeshComponent* Mesh = GetWeaponMeshComponent())
+	{
+		if (Mesh->DoesSocketExist(SocketName))
+		{
+			return Mesh->GetSocketTransform(SocketName);
+		}
+	}
+
+	// Fallback to weapon actor transform
+	ISuspenseCoreWeapon* Weapon = const_cast<USuspenseCoreBaseFireAbility*>(this)->GetWeaponInterface();
+	if (Weapon)
+	{
+		if (AActor* WeaponActor = Cast<AActor>(Cast<UObject>(Weapon)))
+		{
+			return WeaponActor->GetActorTransform();
+		}
+	}
+
+	return FTransform::Identity;
 }
 
 //========================================================================

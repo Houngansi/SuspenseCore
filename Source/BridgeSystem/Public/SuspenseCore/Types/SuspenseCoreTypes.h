@@ -339,7 +339,7 @@ public:
 
 		if (Pool.Num() > 0)
 		{
-			FSuspenseCoreEventData* Data = Pool.Pop(false);
+			FSuspenseCoreEventData* Data = Pool.Pop(EAllowShrinking::No);
 			++AcquiredCount;
 			return Data;
 		}

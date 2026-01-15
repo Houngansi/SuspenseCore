@@ -219,6 +219,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Crosshair|HitMarker")
 	float HitMarkerOffset = 8.0f;
 
+	/** Spread multiplier when aiming (lower = tighter crosshair in ADS) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Crosshair|ADS")
+	float AimingSpreadMultiplier = 0.5f;
+
+	/** Hide crosshair completely when aiming (for scope-based aiming) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Crosshair|ADS")
+	bool bHideCrosshairWhenAiming = false;
+
 private:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTBUS
@@ -233,6 +241,8 @@ private:
 	void OnSpreadChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnWeaponFiredEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnHitConfirmedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnAimStartedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnAimEndedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL HELPERS
@@ -253,6 +263,8 @@ private:
 	FSuspenseCoreSubscriptionHandle SpreadChangedHandle;
 	FSuspenseCoreSubscriptionHandle WeaponFiredHandle;
 	FSuspenseCoreSubscriptionHandle HitConfirmedHandle;
+	FSuspenseCoreSubscriptionHandle AimStartedHandle;
+	FSuspenseCoreSubscriptionHandle AimEndedHandle;
 
 	float CurrentSpreadRadius = 0.0f;
 	float TargetSpreadRadius = 0.0f;
@@ -261,6 +273,7 @@ private:
 	bool bCurrentlyFiring = false;
 	bool bWasFiring = false;
 	bool bCrosshairVisible = true;
+	bool bIsAiming = false;
 
 	/** Time since last shot for recovery detection */
 	float TimeSinceLastShot = 0.0f;

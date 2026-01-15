@@ -221,7 +221,22 @@ void USuspenseCoreCrosshairWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("CrosshairWidget: Subscribed to weapon events"));
+	// Subscribe to ADS events
+	AimStartedHandle = EventBus->SubscribeNative(
+		SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_AimStarted,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreCrosshairWidget::OnAimStartedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	AimEndedHandle = EventBus->SubscribeNative(
+		SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_AimEnded,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreCrosshairWidget::OnAimEndedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("CrosshairWidget: Subscribed to weapon and ADS events"));
 }
 
 void USuspenseCoreCrosshairWidget::TeardownEventSubscriptions()
@@ -236,6 +251,8 @@ void USuspenseCoreCrosshairWidget::TeardownEventSubscriptions()
 	EventBus->Unsubscribe(WeaponFiredHandle);
 	EventBus->Unsubscribe(HitConfirmedHandle);
 	EventBus->Unsubscribe(SpreadChangedHandle);
+	EventBus->Unsubscribe(AimStartedHandle);
+	EventBus->Unsubscribe(AimEndedHandle);
 }
 
 USuspenseCoreEventBus* USuspenseCoreCrosshairWidget::GetEventBus() const
@@ -279,9 +296,12 @@ void USuspenseCoreCrosshairWidget::OnSpreadChangedEvent(FGameplayTag EventTag, c
 	// GAS publishes spread in degrees - convert to pixels
 	float SpreadDegrees = EventData.GetFloat(TEXT("Spread"), 0.0f);
 
+	// Apply aiming multiplier if in ADS
+	float EffectiveMultiplier = bIsAiming ? (SpreadMultiplier * AimingSpreadMultiplier) : SpreadMultiplier;
+
 	// Update target spread (with multiplier for visual scaling)
 	TargetSpreadRadius = FMath::Clamp(
-		SpreadDegrees * SpreadMultiplier,
+		SpreadDegrees * EffectiveMultiplier,
 		MinimumSpread,
 		MaximumSpread
 	);
@@ -307,12 +327,15 @@ void USuspenseCoreCrosshairWidget::OnWeaponFiredEvent(FGameplayTag EventTag, con
 	// Add recoil kick for visual feedback
 	float RecoilKick = EventData.GetFloat(TEXT("RecoilKick"), 2.0f);
 
+	// Apply aiming multiplier if in ADS
+	float EffectiveMultiplier = bIsAiming ? (SpreadMultiplier * AimingSpreadMultiplier) : SpreadMultiplier;
+
 	// Calculate new target spread
-	float NewSpread = (SpreadDegrees * SpreadMultiplier) + RecoilKick;
+	float NewSpread = (SpreadDegrees * EffectiveMultiplier) + RecoilKick;
 	TargetSpreadRadius = FMath::Clamp(NewSpread, MinimumSpread, MaximumSpread);
 
-	UE_LOG(LogTemp, Warning, TEXT("CrosshairWidget: Fired - Spread=%.2f°, Kick=%.2f, Target=%.2fpx"),
-		SpreadDegrees, RecoilKick, TargetSpreadRadius);
+	UE_LOG(LogTemp, Warning, TEXT("CrosshairWidget: Fired - Spread=%.2f°, Kick=%.2f, Target=%.2fpx, ADS=%s"),
+		SpreadDegrees, RecoilKick, TargetSpreadRadius, bIsAiming ? TEXT("YES") : TEXT("NO"));
 }
 
 void USuspenseCoreCrosshairWidget::OnHitConfirmedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -331,6 +354,41 @@ void USuspenseCoreCrosshairWidget::OnHitConfirmedEvent(FGameplayTag EventTag, co
 
 		DisplayHitMarker(bHeadshot, bKill);
 	}
+}
+
+void USuspenseCoreCrosshairWidget::OnAimStartedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	bIsAiming = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("CrosshairWidget: ADS Started - bHideCrosshairWhenAiming=%s"),
+		bHideCrosshairWhenAiming ? TEXT("true") : TEXT("false"));
+
+	if (bHideCrosshairWhenAiming)
+	{
+		// Hide crosshair for scope-based aiming
+		SetVisibility(ESlateVisibility::Collapsed);
+	}
+	else
+	{
+		// Tighten crosshair for ADS
+		TargetSpreadRadius = BaseSpreadRadius * AimingSpreadMultiplier;
+	}
+}
+
+void USuspenseCoreCrosshairWidget::OnAimEndedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	bIsAiming = false;
+
+	UE_LOG(LogTemp, Warning, TEXT("CrosshairWidget: ADS Ended"));
+
+	if (bHideCrosshairWhenAiming)
+	{
+		// Show crosshair again
+		SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+
+	// Return to base spread
+	TargetSpreadRadius = BaseSpreadRadius;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

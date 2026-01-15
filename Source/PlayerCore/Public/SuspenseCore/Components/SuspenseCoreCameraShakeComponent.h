@@ -38,6 +38,7 @@ class USuspenseCoreMovementCameraShake;
 class USuspenseCoreDamageCameraShake;
 class USuspenseCoreExplosionCameraShake;
 class USuspenseCoreCameraShakeManager;
+class USuspenseCoreCameraShakeDataAsset;
 
 /**
  * USuspenseCoreCameraShakeComponent
@@ -103,6 +104,14 @@ public:
 	/** Enable priority-based weight reduction in layered manager */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|CameraShake", meta = (EditCondition = "bUseLayeredShakeManager"))
 	bool bEnablePriorityBlending = true;
+
+	/**
+	 * Override settings from SSOT.
+	 * If true, component will use its own settings instead of USuspenseCoreSettings.
+	 * Useful for testing or special cases.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|CameraShake|SSOT")
+	bool bOverrideSSOTSettings = false;
 
 	//========================================================================
 	// Camera Shake Classes
@@ -214,6 +223,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<USuspenseCoreCameraShakeManager> ShakeManager;
 
+	/** Cached camera shake DataAsset from SSOT settings */
+	UPROPERTY()
+	TObjectPtr<USuspenseCoreCameraShakeDataAsset> CachedShakeDataAsset;
+
 	/** Subscription handles for cleanup */
 	FSuspenseCoreSubscriptionHandle WeaponShakeHandle;
 	FSuspenseCoreSubscriptionHandle MovementShakeHandle;
@@ -242,6 +255,12 @@ private:
 
 	/** Initialize layered shake manager */
 	void InitializeShakeManager();
+
+	/** Apply settings from SSOT (USuspenseCoreSettings) */
+	void ApplySSOTSettings();
+
+	/** Load and cache the DataAsset from settings */
+	void LoadDataAssetFromSettings();
 
 	/** Called when character lands (via LandedDelegate) */
 	UFUNCTION()

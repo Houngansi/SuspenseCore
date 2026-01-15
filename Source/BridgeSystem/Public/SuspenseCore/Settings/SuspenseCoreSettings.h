@@ -303,6 +303,34 @@ public:
 	TSoftObjectPtr<UDataTable> WeaponAnimationsTable;
 
 	//========================================================================
+	// Camera Shake Configuration
+	//========================================================================
+
+	/**
+	 * DataAsset containing camera shake presets for all shake types.
+	 * If not set, uses programmatic defaults in shake classes.
+	 *
+	 * Create via: Content Browser → Miscellaneous → Data Asset → USuspenseCoreCameraShakeDataAsset
+	 *
+	 * @see USuspenseCoreCameraShakeDataAsset
+	 * @see USuspenseCoreCameraShakeComponent
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Camera Shake",
+		meta = (AllowedClasses = "/Script/PlayerCore.SuspenseCoreCameraShakeDataAsset",
+				ToolTip = "Camera shake presets DataAsset (optional - fallback to code defaults if not set)"))
+	TSoftObjectPtr<UDataAsset> CameraShakePresetsAsset;
+
+	/** Use layered camera shake manager (AAA-style priority blending) */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Camera Shake",
+		meta = (ToolTip = "Enable priority-based shake blending for AAA-quality camera feedback"))
+	bool bUseLayeredCameraShakes = false;
+
+	/** Enable Perlin Noise oscillators for organic shake feel (Battlefield/CoD style) */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Camera Shake",
+		meta = (ToolTip = "Use Perlin Noise instead of Sin waves for more organic camera shake"))
+	bool bUsePerlinNoiseShakes = true;
+
+	//========================================================================
 	// EventBus Configuration
 	//========================================================================
 

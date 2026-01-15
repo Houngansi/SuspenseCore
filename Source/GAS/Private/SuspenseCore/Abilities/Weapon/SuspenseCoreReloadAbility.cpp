@@ -14,6 +14,8 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreReload, Log, All);
 
@@ -490,6 +492,9 @@ void USuspenseCoreReloadAbility::OnMagOutNotify()
 {
     RELOAD_LOG(Verbose, TEXT("MagOut notify fired"));
 
+    // Play magazine out sound
+    PlayReloadSound(MagOutSound);
+
     ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
     if (!MagProvider)
     {
@@ -516,6 +521,9 @@ void USuspenseCoreReloadAbility::OnMagOutNotify()
 void USuspenseCoreReloadAbility::OnMagInNotify()
 {
     RELOAD_LOG(Verbose, TEXT("MagIn notify fired"));
+
+    // Play magazine insert sound
+    PlayReloadSound(MagInSound);
 
     ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
     if (!MagProvider)
@@ -594,7 +602,9 @@ void USuspenseCoreReloadAbility::OnMagInNotify()
 void USuspenseCoreReloadAbility::OnRackStartNotify()
 {
     RELOAD_LOG(Verbose, TEXT("RackStart notify fired"));
-    // Visual/audio feedback here if needed
+
+    // Play chamber/rack sound at start of chambering
+    PlayReloadSound(ChamberSound);
 }
 
 void USuspenseCoreReloadAbility::OnRackEndNotify()
@@ -1037,6 +1047,9 @@ void USuspenseCoreReloadAbility::StopReloadMontage()
 
 void USuspenseCoreReloadAbility::BroadcastReloadStarted()
 {
+    // Play reload start sound
+    PlayReloadSound(ReloadStartSound);
+
     ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
     if (MagProvider)
     {
@@ -1050,6 +1063,9 @@ void USuspenseCoreReloadAbility::BroadcastReloadStarted()
 
 void USuspenseCoreReloadAbility::BroadcastReloadCompleted()
 {
+    // Play reload complete sound
+    PlayReloadSound(ReloadCompleteSound);
+
     ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
     if (MagProvider)
     {
@@ -1142,38 +1158,41 @@ void USuspenseCoreReloadAbility::Server_ExecuteReload_Implementation(
         ISuspenseCoreMagazineProvider::Execute_ChamberRound(ProviderObj);
     }
 
-    // Notify all clients to play effects
-    Multicast_PlayReloadEffects(ReloadType);
+    // NOTE: Removed Multicast_PlayReloadEffects - GameplayAbilities don't replicate to Simulated Proxies.
+    // Animation replication is handled automatically by UE's AnimMontage replication system.
+    // Sounds play locally via notify handlers on the client running the ability.
 
     RELOAD_LOG(Log, TEXT("Server_ExecuteReload: Completed, Type=%d"), static_cast<int32>(ReloadType));
 }
 
-void USuspenseCoreReloadAbility::Multicast_PlayReloadEffects_Implementation(ESuspenseCoreReloadType ReloadType)
+void USuspenseCoreReloadAbility::PlayReloadSound(USoundBase* Sound)
 {
-    // Skip on server (already handled) and owning client (plays locally)
-    AActor* Avatar = GetAvatarActorFromActorInfo();
-    if (!Avatar)
+    if (!Sound)
     {
         return;
     }
 
-    // Only play on simulated proxies (other clients)
-    if (Avatar->GetLocalRole() == ROLE_SimulatedProxy)
+    AActor* AvatarActor = GetAvatarActorFromActorInfo();
+    if (!AvatarActor)
     {
-        // Play montage for other clients
-        ACharacter* Character = Cast<ACharacter>(Avatar);
-        if (Character)
-        {
-            UAnimMontage* Montage = GetMontageForReloadType(ReloadType);
-            if (Montage)
-            {
-                if (UAnimInstance* AnimInstance = Character->GetMesh()->GetAnimInstance())
-                {
-                    AnimInstance->Montage_Play(Montage);
-                }
-            }
-        }
+        return;
     }
+
+    // Play sound at character location (3D positional audio)
+    UGameplayStatics::PlaySoundAtLocation(
+        AvatarActor,
+        Sound,
+        AvatarActor->GetActorLocation(),
+        AvatarActor->GetActorRotation(),
+        1.0f,  // Volume multiplier
+        1.0f,  // Pitch multiplier
+        0.0f,  // Start time
+        nullptr,  // Attenuation settings (use default from SoundBase)
+        nullptr,  // Concurrency settings
+        AvatarActor  // Owning actor
+    );
+
+    RELOAD_LOG(Verbose, TEXT("PlayReloadSound: %s"), *Sound->GetName());
 }
 
 #undef RELOAD_LOG

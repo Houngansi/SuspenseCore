@@ -6,11 +6,13 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Settings/SuspenseCoreSettings.h"
 #include "SuspenseCore/CameraShake/SuspenseCoreWeaponCameraShake.h"
 #include "SuspenseCore/CameraShake/SuspenseCoreMovementCameraShake.h"
 #include "SuspenseCore/CameraShake/SuspenseCoreDamageCameraShake.h"
 #include "SuspenseCore/CameraShake/SuspenseCoreExplosionCameraShake.h"
 #include "SuspenseCore/CameraShake/SuspenseCoreCameraShakeManager.h"
+#include "SuspenseCore/CameraShake/SuspenseCoreCameraShakeDataAsset.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 
@@ -29,6 +31,9 @@ USuspenseCoreCameraShakeComponent::USuspenseCoreCameraShakeComponent()
 void USuspenseCoreCameraShakeComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Apply SSOT settings first (before other initialization)
+	ApplySSOTSettings();
 
 	// Subscribe to camera shake events
 	SubscribeToEvents();
@@ -550,6 +555,75 @@ void USuspenseCoreCameraShakeComponent::InitializeShakeManager()
 		ShakeManager->bEnablePriorityBlending = bEnablePriorityBlending;
 
 		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Layered ShakeManager initialized"));
+	}
+}
+
+void USuspenseCoreCameraShakeComponent::ApplySSOTSettings()
+{
+	// Skip if component should use its own settings
+	if (bOverrideSSOTSettings)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Using override settings (SSOT bypass)"));
+		return;
+	}
+
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: No SSOT settings found, using defaults"));
+		return;
+	}
+
+	// Apply global settings from SSOT
+	bUseLayeredShakeManager = Settings->bUseLayeredCameraShakes;
+
+	UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Applied SSOT settings - LayeredShakes=%s, PerlinNoise=%s"),
+		bUseLayeredShakeManager ? TEXT("true") : TEXT("false"),
+		Settings->bUsePerlinNoiseShakes ? TEXT("true") : TEXT("false"));
+
+	// Load DataAsset if configured
+	LoadDataAssetFromSettings();
+
+	// Apply DataAsset settings if loaded
+	if (CachedShakeDataAsset)
+	{
+		// Apply global scale from DataAsset
+		MasterShakeScale = CachedShakeDataAsset->MasterScale;
+		bEnablePriorityBlending = CachedShakeDataAsset->bEnablePriorityBlending;
+
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Applied DataAsset settings - MasterScale=%.2f, PriorityBlending=%s"),
+			MasterShakeScale, bEnablePriorityBlending ? TEXT("true") : TEXT("false"));
+	}
+}
+
+void USuspenseCoreCameraShakeComponent::LoadDataAssetFromSettings()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return;
+	}
+
+	// Load DataAsset from SSOT
+	if (Settings->CameraShakePresetsAsset.IsValid())
+	{
+		UDataAsset* LoadedAsset = Settings->CameraShakePresetsAsset.LoadSynchronous();
+		CachedShakeDataAsset = Cast<USuspenseCoreCameraShakeDataAsset>(LoadedAsset);
+
+		if (CachedShakeDataAsset)
+		{
+			UE_LOG(LogTemp, Log, TEXT("CameraShakeComponent: Loaded camera shake DataAsset from SSOT: %s"),
+				*CachedShakeDataAsset->GetName());
+		}
+		else if (LoadedAsset)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: SSOT DataAsset is not of type USuspenseCoreCameraShakeDataAsset: %s"),
+				*LoadedAsset->GetClass()->GetName());
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: No camera shake DataAsset configured in SSOT"));
 	}
 }
 

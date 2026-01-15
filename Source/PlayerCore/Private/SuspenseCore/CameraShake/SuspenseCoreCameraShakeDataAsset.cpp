@@ -3,6 +3,18 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/CameraShake/SuspenseCoreCameraShakeDataAsset.h"
+#include "SuspenseCore/Settings/SuspenseCoreSettings.h"
+
+USuspenseCoreCameraShakeDataAsset* USuspenseCoreCameraShakeDataAsset::Get()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (Settings && Settings->CameraShakePresetsAsset.IsValid())
+	{
+		UDataAsset* LoadedAsset = Settings->CameraShakePresetsAsset.LoadSynchronous();
+		return Cast<USuspenseCoreCameraShakeDataAsset>(LoadedAsset);
+	}
+	return nullptr;
+}
 
 USuspenseCoreCameraShakeDataAsset::USuspenseCoreCameraShakeDataAsset()
 	: MasterScale(1.0f)

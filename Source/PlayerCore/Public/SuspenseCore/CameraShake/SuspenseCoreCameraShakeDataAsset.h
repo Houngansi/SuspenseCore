@@ -177,6 +177,24 @@ public:
 	USuspenseCoreCameraShakeDataAsset();
 
 	// =========================================================================
+	// Static Access (via SSOT)
+	// =========================================================================
+
+	/**
+	 * Get the camera shake DataAsset from SSOT settings.
+	 * Returns nullptr if not configured.
+	 *
+	 * Usage:
+	 *   if (auto* ShakeData = USuspenseCoreCameraShakeDataAsset::Get())
+	 *   {
+	 *       FSuspenseCoreWeaponShakePreset Preset;
+	 *       if (ShakeData->FindWeaponPreset(TEXT("Rifle"), Preset)) { ... }
+	 *   }
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|CameraShake", meta = (DisplayName = "Get Camera Shake Data Asset"))
+	static USuspenseCoreCameraShakeDataAsset* Get();
+
+	// =========================================================================
 	// Global Configuration
 	// =========================================================================
 

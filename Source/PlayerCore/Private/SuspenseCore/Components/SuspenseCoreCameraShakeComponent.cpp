@@ -10,6 +10,7 @@
 #include "SuspenseCore/CameraShake/SuspenseCoreMovementCameraShake.h"
 #include "SuspenseCore/CameraShake/SuspenseCoreDamageCameraShake.h"
 #include "SuspenseCore/CameraShake/SuspenseCoreExplosionCameraShake.h"
+#include "SuspenseCore/CameraShake/SuspenseCoreCameraShakeManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 
@@ -32,17 +33,23 @@ void USuspenseCoreCameraShakeComponent::BeginPlay()
 	// Subscribe to camera shake events
 	SubscribeToEvents();
 
+	// Initialize layered shake manager if enabled
+	if (bUseLayeredShakeManager)
+	{
+		InitializeShakeManager();
+	}
+
 	// Bind directly to Character's LandedDelegate for reliable landing detection
 	if (bBindToLandedDelegate)
 	{
 		if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
 		{
 			Character->LandedDelegate.AddDynamic(this, &USuspenseCoreCameraShakeComponent::OnCharacterLanded);
-			UE_LOG(LogTemp, Log, TEXT("CameraShakeComponent: Bound to LandedDelegate"));
+			UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Bound to LandedDelegate"));
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("CameraShakeComponent: Initialized on %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Initialized on %s"),
 		*GetOwner()->GetName());
 }
 
@@ -69,7 +76,7 @@ void USuspenseCoreCameraShakeComponent::SubscribeToEvents()
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: No EventBus found, cannot subscribe"));
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: No EventBus found, cannot subscribe"));
 		return;
 	}
 
@@ -162,20 +169,20 @@ void USuspenseCoreCameraShakeComponent::OnMovementShakeEvent(
 	FGameplayTag EventTag,
 	const FSuspenseCoreEventData& EventData)
 {
-	UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Received ShakeMovement event from %s (Owner: %s)"),
+	UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Received ShakeMovement event from %s (Owner: %s)"),
 		EventData.Source ? *EventData.Source->GetName() : TEXT("NULL"),
 		GetOwner() ? *GetOwner()->GetName() : TEXT("NULL"));
 
 	// Only respond to events from our owner
 	if (EventData.Source != GetOwner())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Source mismatch, ignoring event"));
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Source mismatch, ignoring event"));
 		return;
 	}
 
 	if (!bEnableCameraShakes)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Camera shakes disabled"));
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Camera shakes disabled"));
 		return;
 	}
 
@@ -287,7 +294,15 @@ void USuspenseCoreCameraShakeComponent::PlayWeaponShake(const FString& WeaponTyp
 
 	if (FinalScale > KINDA_SMALL_NUMBER)
 	{
-		StartCameraShake(WeaponShakeClass, FinalScale);
+		if (bUseLayeredShakeManager && ShakeManager)
+		{
+			FName Category = FName(*FString::Printf(TEXT("Weapon.%s"), *WeaponType));
+			StartLayeredCameraShake(WeaponShakeClass, FinalScale, ESuspenseCoreShakePriority::Weapon, Category);
+		}
+		else
+		{
+			StartCameraShake(WeaponShakeClass, FinalScale);
+		}
 
 		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Playing weapon shake Type=%s, Scale=%.2f"),
 			*WeaponType, FinalScale);
@@ -296,12 +311,12 @@ void USuspenseCoreCameraShakeComponent::PlayWeaponShake(const FString& WeaponTyp
 
 void USuspenseCoreCameraShakeComponent::PlayMovementShake(const FString& MovementType, float Scale)
 {
-	UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: PlayMovementShake called - Type=%s, Scale=%.2f, ShakeClass=%s"),
+	UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: PlayMovementShake called - Type=%s, Scale=%.2f, ShakeClass=%s"),
 		*MovementType, Scale, MovementShakeClass ? *MovementShakeClass->GetName() : TEXT("NULL"));
 
 	if (!bEnableCameraShakes || !MovementShakeClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: PlayMovementShake aborted - EnableShakes=%d, Class=%s"),
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: PlayMovementShake aborted - EnableShakes=%d, Class=%s"),
 			bEnableCameraShakes, MovementShakeClass ? TEXT("Valid") : TEXT("NULL"));
 		return;
 	}
@@ -310,9 +325,18 @@ void USuspenseCoreCameraShakeComponent::PlayMovementShake(const FString& Movemen
 
 	if (FinalScale > KINDA_SMALL_NUMBER)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Starting movement shake FinalScale=%.2f (Base=%.2f * Movement=%.2f * Master=%.2f)"),
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Starting movement shake FinalScale=%.2f (Base=%.2f * Movement=%.2f * Master=%.2f)"),
 			FinalScale, Scale, MovementShakeScale, MasterShakeScale);
-		StartCameraShake(MovementShakeClass, FinalScale);
+
+		if (bUseLayeredShakeManager && ShakeManager)
+		{
+			FName Category = FName(*FString::Printf(TEXT("Movement.%s"), *MovementType));
+			StartLayeredCameraShake(MovementShakeClass, FinalScale, ESuspenseCoreShakePriority::Movement, Category);
+		}
+		else
+		{
+			StartCameraShake(MovementShakeClass, FinalScale);
+		}
 	}
 }
 
@@ -327,7 +351,15 @@ void USuspenseCoreCameraShakeComponent::PlayDamageShake(const FString& DamageTyp
 
 	if (FinalScale > KINDA_SMALL_NUMBER)
 	{
-		StartCameraShake(DamageShakeClass, FinalScale);
+		if (bUseLayeredShakeManager && ShakeManager)
+		{
+			FName Category = FName(*FString::Printf(TEXT("Damage.%s"), *DamageType));
+			StartLayeredCameraShake(DamageShakeClass, FinalScale, ESuspenseCoreShakePriority::Combat, Category);
+		}
+		else
+		{
+			StartCameraShake(DamageShakeClass, FinalScale);
+		}
 
 		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Playing damage shake Type=%s, Scale=%.2f"),
 			*DamageType, FinalScale);
@@ -345,7 +377,15 @@ void USuspenseCoreCameraShakeComponent::PlayExplosionShake(const FString& Explos
 
 	if (FinalScale > KINDA_SMALL_NUMBER)
 	{
-		StartCameraShake(ExplosionShakeClass, FinalScale);
+		if (bUseLayeredShakeManager && ShakeManager)
+		{
+			FName Category = FName(*FString::Printf(TEXT("Explosion.%s"), *ExplosionType));
+			StartLayeredCameraShake(ExplosionShakeClass, FinalScale, ESuspenseCoreShakePriority::Environmental, Category);
+		}
+		else
+		{
+			StartCameraShake(ExplosionShakeClass, FinalScale);
+		}
 
 		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Playing explosion shake Type=%s, Scale=%.2f"),
 			*ExplosionType, FinalScale);
@@ -376,7 +416,17 @@ void USuspenseCoreCameraShakeComponent::PlayExplosionShakeByDistance(float Dista
 
 	if (FinalScale > KINDA_SMALL_NUMBER)
 	{
-		StartCameraShake(ExplosionShakeClass, FinalScale);
+		if (bUseLayeredShakeManager && ShakeManager)
+		{
+			// Categorize by distance
+			FString DistanceCategory = Distance < 500.0f ? TEXT("Nearby") : (Distance < 1500.0f ? TEXT("Medium") : TEXT("Distant"));
+			FName Category = FName(*FString::Printf(TEXT("Explosion.%s"), *DistanceCategory));
+			StartLayeredCameraShake(ExplosionShakeClass, FinalScale, ESuspenseCoreShakePriority::Environmental, Category);
+		}
+		else
+		{
+			StartCameraShake(ExplosionShakeClass, FinalScale);
+		}
 
 		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Playing explosion shake Distance=%.0fcm, Scale=%.2f"),
 			Distance, FinalScale);
@@ -385,14 +435,21 @@ void USuspenseCoreCameraShakeComponent::PlayExplosionShakeByDistance(float Dista
 
 void USuspenseCoreCameraShakeComponent::StopAllShakes(bool bImmediately)
 {
-	APlayerController* PC = GetOwnerPlayerController();
-	if (PC && PC->PlayerCameraManager)
+	if (bUseLayeredShakeManager && ShakeManager)
 	{
-		PC->PlayerCameraManager->StopAllCameraShakes(bImmediately);
-
-		UE_LOG(LogTemp, Log, TEXT("CameraShakeComponent: Stopped all shakes (immediate=%s)"),
-			bImmediately ? TEXT("true") : TEXT("false"));
+		ShakeManager->StopAllShakes(bImmediately);
 	}
+	else
+	{
+		APlayerController* PC = GetOwnerPlayerController();
+		if (PC && PC->PlayerCameraManager)
+		{
+			PC->PlayerCameraManager->StopAllCameraShakes(bImmediately);
+		}
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Stopped all shakes (immediate=%s)"),
+		bImmediately ? TEXT("true") : TEXT("false"));
 }
 
 //========================================================================
@@ -427,26 +484,78 @@ void USuspenseCoreCameraShakeComponent::StartCameraShake(TSubclassOf<UCameraShak
 	APlayerController* PC = GetOwnerPlayerController();
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: No PlayerController found for %s"),
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: No PlayerController found for %s"),
 			GetOwner() ? *GetOwner()->GetName() : TEXT("NULL"));
 		return;
 	}
 
 	if (!ShakeClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: ShakeClass is NULL"));
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: ShakeClass is NULL"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: >>> ClientStartCameraShake(%s, Scale=%.2f) via PC=%s"),
+	UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: >>> ClientStartCameraShake(%s, Scale=%.2f) via PC=%s"),
 		*ShakeClass->GetName(), Scale, *PC->GetName());
 
 	PC->ClientStartCameraShake(ShakeClass, Scale);
 }
 
+void USuspenseCoreCameraShakeComponent::StartLayeredCameraShake(
+	TSubclassOf<UCameraShakeBase> ShakeClass,
+	float Scale,
+	ESuspenseCoreShakePriority Priority,
+	FName Category)
+{
+	if (!ShakeClass)
+	{
+		return;
+	}
+
+	// Use layered manager if available
+	if (ShakeManager)
+	{
+		FSuspenseCoreShakeConfig Config;
+		Config.ShakeClass = ShakeClass;
+		Config.Scale = Scale;
+		Config.Priority = Priority;
+		Config.Category = Category;
+		Config.BlendMode = FSuspenseCoreShakeLayerUtils::GetRecommendedBlendMode(Category);
+		Config.BlendWeight = 1.0f;
+
+		ShakeManager->PlayShake(Config);
+	}
+	else
+	{
+		// Fallback to simple shake
+		StartCameraShake(ShakeClass, Scale);
+	}
+}
+
+void USuspenseCoreCameraShakeComponent::InitializeShakeManager()
+{
+	APlayerController* PC = GetOwnerPlayerController();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: Cannot init ShakeManager - no PlayerController"));
+		return;
+	}
+
+	// Create manager
+	ShakeManager = NewObject<USuspenseCoreCameraShakeManager>(this);
+	if (ShakeManager)
+	{
+		ShakeManager->Initialize(PC);
+		ShakeManager->GlobalShakeScale = MasterShakeScale;
+		ShakeManager->bEnablePriorityBlending = bEnablePriorityBlending;
+
+		UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: Layered ShakeManager initialized"));
+	}
+}
+
 void USuspenseCoreCameraShakeComponent::OnCharacterLanded(const FHitResult& Hit)
 {
-	UE_LOG(LogTemp, Warning, TEXT("CameraShakeComponent: OnCharacterLanded triggered!"));
+	UE_LOG(LogTemp, Verbose, TEXT("CameraShakeComponent: OnCharacterLanded triggered!"));
 
 	// Play landing shake directly - independent of ability system
 	PlayMovementShake(TEXT("Landing"), 1.0f);

@@ -3,6 +3,7 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Async/Async.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreEventBus, Log, All);
 
@@ -47,6 +48,82 @@ void USuspenseCoreEventBus::PublishSimple(FGameplayTag EventTag, UObject* Source
 {
 	FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(Source);
 	Publish(EventTag, Data);
+}
+
+void USuspenseCoreEventBus::PublishAsync(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (!EventTag.IsValid())
+	{
+		UE_LOG(LogSuspenseCoreEventBus, Verbose, TEXT("PublishAsync: Invalid EventTag"));
+		return;
+	}
+
+	// Check if we're already on game thread
+	if (IsInGameThread())
+	{
+		// On game thread - just publish directly
+		PublishInternal(EventTag, EventData);
+		return;
+	}
+
+	// On background thread - dispatch to game thread
+	// Copy the data to ensure it survives the async dispatch
+	FSuspenseCoreEventData DataCopy = EventData;
+	FGameplayTag TagCopy = EventTag;
+
+	// Weak reference to self for safety
+	TWeakObjectPtr<USuspenseCoreEventBus> WeakThis(this);
+
+	AsyncTask(ENamedThreads::GameThread, [WeakThis, TagCopy, DataCopy]()
+	{
+		if (USuspenseCoreEventBus* StrongThis = WeakThis.Get())
+		{
+			StrongThis->PublishInternal(TagCopy, DataCopy);
+		}
+	});
+}
+
+void USuspenseCoreEventBus::PublishBatchAsync(const TArray<TPair<FGameplayTag, FSuspenseCoreEventData>>& Events)
+{
+	if (Events.Num() == 0)
+	{
+		return;
+	}
+
+	// Check if we're already on game thread
+	if (IsInGameThread())
+	{
+		// On game thread - publish all directly
+		for (const auto& Pair : Events)
+		{
+			if (Pair.Key.IsValid())
+			{
+				PublishInternal(Pair.Key, Pair.Value);
+			}
+		}
+		return;
+	}
+
+	// On background thread - dispatch batch to game thread
+	// Copy events to ensure they survive
+	TArray<TPair<FGameplayTag, FSuspenseCoreEventData>> EventsCopy = Events;
+
+	// Weak reference to self for safety
+	TWeakObjectPtr<USuspenseCoreEventBus> WeakThis(this);
+
+	AsyncTask(ENamedThreads::GameThread, [WeakThis, EventsCopy]()
+	{
+		if (USuspenseCoreEventBus* StrongThis = WeakThis.Get())
+		{
+			for (const auto& Pair : EventsCopy)
+			{
+				if (Pair.Key.IsValid())
+				{
+					StrongThis->PublishInternal(Pair.Key, Pair.Value);
+				}
+			}
+		}
+	});
 }
 
 void USuspenseCoreEventBus::PublishInternal(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)

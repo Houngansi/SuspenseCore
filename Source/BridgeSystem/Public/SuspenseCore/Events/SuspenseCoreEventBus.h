@@ -119,6 +119,19 @@ public:
 	 */
 	void PublishSimple(FGameplayTag EventTag, UObject* Source);
 
+	/**
+	 * Async publish - dispatches to game thread from any thread.
+	 * Safe to call from background threads for non-critical events.
+	 * Useful for: analytics, logging, state updates that don't need immediate response.
+	 */
+	void PublishAsync(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/**
+	 * Batch publish multiple events asynchronously.
+	 * More efficient than multiple individual PublishAsync calls.
+	 */
+	void PublishBatchAsync(const TArray<TPair<FGameplayTag, FSuspenseCoreEventData>>& Events);
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// ПОДПИСКА (Blueprint)
 	// ═══════════════════════════════════════════════════════════════════════════

@@ -30,6 +30,7 @@ class USuspenseCoreWeaponAttributeSet;
 // NOTE: RecoilConvergenceComponent is in PlayerCore module
 // Fire ability communicates via EventBus::RecoilImpulse event (decoupled)
 class UNiagaraSystem;
+class UParticleSystem;
 class USoundBase;
 class UAnimMontage;
 class UCameraShakeBase;
@@ -449,17 +450,57 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Audio")
 	TObjectPtr<USoundBase> FireSound;
 
-	/** Muzzle flash effect */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects")
+	/** Empty magazine click sound (played when trying to fire without ammo) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Audio")
+	TObjectPtr<USoundBase> EmptySound;
+
+	/** Shell casing drop sound (played after each shot) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Audio")
+	TObjectPtr<USoundBase> ShellSound;
+
+	//========================================================================
+	// Niagara Effects
+	//========================================================================
+
+	/** Muzzle flash effect (Niagara) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects|Niagara")
 	TObjectPtr<UNiagaraSystem> MuzzleFlashEffect;
 
-	/** Bullet tracer effect */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects")
+	/** Bullet tracer effect (Niagara) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects|Niagara")
 	TObjectPtr<UNiagaraSystem> TracerEffect;
 
-	/** Impact effect (generic) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects")
+	/** Impact effect (Niagara) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects|Niagara")
 	TObjectPtr<UNiagaraSystem> ImpactEffect;
+
+	//========================================================================
+	// Cascade Effects (Legacy Particle System)
+	//========================================================================
+
+	/** Muzzle flash effect (Cascade) - spawns at Muzzle socket */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects|Cascade")
+	TObjectPtr<UParticleSystem> MuzzleFlashCascade;
+
+	/** Bullet tracer effect (Cascade) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects|Cascade")
+	TObjectPtr<UParticleSystem> TracerCascade;
+
+	/** Impact effect (Cascade) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects|Cascade")
+	TObjectPtr<UParticleSystem> ImpactCascade;
+
+	//========================================================================
+	// Socket Names
+	//========================================================================
+
+	/** Muzzle socket name on weapon mesh (for muzzle flash spawn) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects|Sockets")
+	FName MuzzleSocketName = FName("Muzzle");
+
+	/** Shell ejection socket name on weapon mesh (for shell casing sound/effect) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects|Sockets")
+	FName ShellSocketName = FName("Shells");
 
 	/** Camera shake class for recoil */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Effects")
@@ -607,6 +648,58 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Effects")
 	void SpawnTracer(const FVector& Start, const FVector& End);
 
+	/**
+	 * Play empty magazine click sound.
+	 * Called when trying to fire without ammo.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Effects")
+	void PlayEmptySound();
+
+	/**
+	 * Play shell casing sound at Shells socket.
+	 * Called after each shot with slight delay for realism.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Effects")
+	void PlayShellSound();
+
+	/**
+	 * Spawn Cascade muzzle flash effect at Muzzle socket.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Effects")
+	void SpawnMuzzleFlashCascade();
+
+	/**
+	 * Spawn Cascade tracer effect.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Effects")
+	void SpawnTracerCascade(const FVector& Start, const FVector& End);
+
+	/**
+	 * Spawn Cascade impact effect.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Effects")
+	void SpawnImpactCascade(const FVector& Location, const FVector& Normal);
+
+	/**
+	 * Get weapon mesh component for socket lookups.
+	 * @return Skeletal or static mesh component, or nullptr
+	 */
+	UMeshComponent* GetWeaponMeshComponent() const;
+
+	/**
+	 * Get socket location on weapon mesh.
+	 * @param SocketName Name of the socket
+	 * @return Socket world location, or weapon location if socket not found
+	 */
+	FVector GetWeaponSocketLocation(FName SocketName) const;
+
+	/**
+	 * Get socket transform on weapon mesh.
+	 * @param SocketName Name of the socket
+	 * @return Socket world transform
+	 */
+	FTransform GetWeaponSocketTransform(FName SocketName) const;
+
 	//========================================================================
 	// Recoil System (Tarkov-Style with Convergence)
 	// @see Documentation/Plans/TarkovStyle_Recoil_System_Design.md
@@ -744,6 +837,9 @@ protected:
 
 	/** Recoil reset timer handle */
 	FTimerHandle RecoilResetTimerHandle;
+
+	/** Shell sound timer handle (for delayed playback) */
+	FTimerHandle ShellSoundTimerHandle;
 
 	//========================================================================
 	// Recoil State (Tarkov-Style)

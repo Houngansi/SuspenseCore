@@ -5,6 +5,7 @@
 #include "SuspenseCore/Widgets/Inventory/SuspenseCoreInventoryWidget.h"
 #include "SuspenseCore/Widgets/Inventory/SuspenseCoreInventorySlotWidget.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreOptimisticUIManager.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragVisualWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
@@ -51,6 +52,9 @@ void USuspenseCoreInventoryWidget::NativeConstruct()
 	// Make widget focusable for mouse/keyboard input
 	SetIsFocusable(true);
 
+	// Setup EventBus subscription for Optimistic UI rollback events
+	SetupOptimisticUIEventSubscription();
+
 	// Create initial slot widgets if we have a bound provider AND slots don't exist yet
 	// IMPORTANT: Don't recreate if RefreshFromProvider already created them!
 	if (IsBoundToProvider() && SlotWidgets.Num() == 0)
@@ -61,6 +65,9 @@ void USuspenseCoreInventoryWidget::NativeConstruct()
 
 void USuspenseCoreInventoryWidget::NativeDestruct()
 {
+	// Teardown EventBus subscription for Optimistic UI
+	TeardownOptimisticUIEventSubscription();
+
 	ClearSlotWidgets();
 	Super::NativeDestruct();
 }
@@ -97,6 +104,13 @@ FReply USuspenseCoreInventoryWidget::NativeOnMouseButtonDown(const FGeometry& In
 		bool bRightClick = InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
 		bool bLeftClick = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
 
+		// EDGE CASE: Block interaction on slots with pending predictions (AAA-level protection)
+		if (HasPendingPredictionForSlot(SlotIndex))
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("NativeOnMouseButtonDown: Blocked - slot %d has pending prediction"), SlotIndex);
+			return FReply::Handled();
+		}
+
 		// Check for double click
 		double CurrentTime = FPlatformTime::Seconds();
 		if (SlotIndex == LastClickedSlot && (CurrentTime - LastClickTime) < DoubleClickThreshold)
@@ -106,6 +120,14 @@ FReply USuspenseCoreInventoryWidget::NativeOnMouseButtonDown(const FGeometry& In
 			K2_OnSlotDoubleClicked(SlotIndex);
 			LastClickedSlot = INDEX_NONE;
 			DragSourceSlot = INDEX_NONE;
+			return FReply::Handled();
+		}
+
+		// EDGE CASE: Rapid click guard - minimum time between actions to prevent accidental double-operations
+		static constexpr double MinActionInterval = 0.1; // 100ms minimum between actions
+		if ((CurrentTime - LastClickTime) < MinActionInterval && SlotIndex == LastClickedSlot)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("NativeOnMouseButtonDown: Blocked - rapid click on slot %d"), SlotIndex);
 			return FReply::Handled();
 		}
 
@@ -1386,4 +1408,441 @@ bool USuspenseCoreInventoryWidget::IsAmmoItem(const FSuspenseCoreItemUIData& Ite
 	}
 
 	return false;
+}
+
+//==================================================================
+// Optimistic UI (AAA-Level Client Prediction)
+//==================================================================
+
+int32 USuspenseCoreInventoryWidget::RequestMoveOptimistic(
+	const FGuid& ItemInstanceID,
+	int32 SourceSlotIndex,
+	int32 TargetSlotIndex,
+	bool bRotate)
+{
+	// Validate inputs
+	if (!ItemInstanceID.IsValid() || SourceSlotIndex == INDEX_NONE || TargetSlotIndex == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestMoveOptimistic: Invalid parameters"));
+		return INDEX_NONE;
+	}
+
+	// Same slot = no-op
+	if (SourceSlotIndex == TargetSlotIndex && !bRotate)
+	{
+		return INDEX_NONE;
+	}
+
+	// Check for existing prediction on either slot
+	if (HasPendingPredictionForSlot(SourceSlotIndex) || HasPendingPredictionForSlot(TargetSlotIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestMoveOptimistic: Pending prediction exists for affected slots"));
+		return INDEX_NONE;
+	}
+
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (!OptimisticManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestMoveOptimistic: OptimisticUIManager not available"));
+		return INDEX_NONE;
+	}
+
+	if (!IsBoundToProvider())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestMoveOptimistic: No bound provider"));
+		return INDEX_NONE;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		return INDEX_NONE;
+	}
+
+	// Get item data
+	FSuspenseCoreItemUIData ItemData;
+	if (!ProviderInterface->GetItemUIDataAtSlot(SourceSlotIndex, ItemData))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestMoveOptimistic: No item at source slot %d"), SourceSlotIndex);
+		return INDEX_NONE;
+	}
+
+	// Create prediction with snapshots of affected slots
+	FGuid ContainerID = ProviderInterface->GetProviderID();
+	FSuspenseCoreUIPrediction Prediction = FSuspenseCoreUIPrediction::CreateMoveItem(
+		ItemInstanceID,
+		ContainerID,
+		SourceSlotIndex,
+		TargetSlotIndex
+	);
+
+	// Add source slot snapshot
+	FSuspenseCoreSlotSnapshot SourceSnapshot;
+	SourceSnapshot.SlotIndex = SourceSlotIndex;
+	SourceSnapshot.bWasOccupied = true;
+	SourceSnapshot.ItemData = ItemData;
+	SourceSnapshot.SlotData = ProviderInterface->GetSlotUIData(SourceSlotIndex);
+	Prediction.AffectedSlotSnapshots.Add(SourceSnapshot);
+
+	// Add target slot snapshot (might have item if swapping)
+	FSuspenseCoreSlotSnapshot TargetSnapshot;
+	TargetSnapshot.SlotIndex = TargetSlotIndex;
+	FSuspenseCoreItemUIData TargetItemData;
+	TargetSnapshot.bWasOccupied = ProviderInterface->GetItemUIDataAtSlot(TargetSlotIndex, TargetItemData);
+	if (TargetSnapshot.bWasOccupied)
+	{
+		TargetSnapshot.ItemData = TargetItemData;
+	}
+	TargetSnapshot.SlotData = ProviderInterface->GetSlotUIData(TargetSlotIndex);
+	Prediction.AffectedSlotSnapshots.Add(TargetSnapshot);
+
+	// Register prediction
+	int32 PredictionKey = OptimisticManager->CreatePrediction(Prediction);
+	if (PredictionKey == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestMoveOptimistic: Failed to create prediction"));
+		return INDEX_NONE;
+	}
+
+	// Track affected slots
+	TArray<int32> AffectedSlots;
+	AffectedSlots.Add(SourceSlotIndex);
+	AffectedSlots.Add(TargetSlotIndex);
+	PendingPredictionSlots.Add(PredictionKey, AffectedSlots);
+
+	// Apply optimistic visual update - item moves immediately
+	FSuspenseCoreItemUIData MovedItemData = ItemData;
+	MovedItemData.bIsRotated = bRotate ? !ItemData.bIsRotated : ItemData.bIsRotated;
+	ApplyOptimisticMove(SourceSlotIndex, TargetSlotIndex, MovedItemData, bRotate);
+
+	UE_LOG(LogTemp, Log, TEXT("RequestMoveOptimistic: Created prediction %d for move %d -> %d"),
+		PredictionKey, SourceSlotIndex, TargetSlotIndex);
+
+	return PredictionKey;
+}
+
+int32 USuspenseCoreInventoryWidget::RequestTransferOptimistic(
+	const FGuid& ItemInstanceID,
+	int32 SourceSlotIndex,
+	const FGuid& TargetContainerID,
+	int32 TargetSlotIndex,
+	bool bRotate)
+{
+	// Validate inputs
+	if (!ItemInstanceID.IsValid() || SourceSlotIndex == INDEX_NONE || !TargetContainerID.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestTransferOptimistic: Invalid parameters"));
+		return INDEX_NONE;
+	}
+
+	// Check for existing prediction on source slot
+	if (HasPendingPredictionForSlot(SourceSlotIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestTransferOptimistic: Pending prediction exists for source slot"));
+		return INDEX_NONE;
+	}
+
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (!OptimisticManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestTransferOptimistic: OptimisticUIManager not available"));
+		return INDEX_NONE;
+	}
+
+	if (!IsBoundToProvider())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestTransferOptimistic: No bound provider"));
+		return INDEX_NONE;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		return INDEX_NONE;
+	}
+
+	// Get item data
+	FSuspenseCoreItemUIData ItemData;
+	if (!ProviderInterface->GetItemUIDataAtSlot(SourceSlotIndex, ItemData))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestTransferOptimistic: No item at source slot %d"), SourceSlotIndex);
+		return INDEX_NONE;
+	}
+
+	// Create prediction
+	FGuid SourceContainerID = ProviderInterface->GetProviderID();
+	FSuspenseCoreUIPrediction Prediction = FSuspenseCoreUIPrediction::CreateTransferItem(
+		ItemInstanceID,
+		SourceContainerID,
+		SourceSlotIndex,
+		TargetContainerID,
+		TargetSlotIndex
+	);
+
+	// Add source slot snapshot
+	FSuspenseCoreSlotSnapshot SourceSnapshot;
+	SourceSnapshot.SlotIndex = SourceSlotIndex;
+	SourceSnapshot.bWasOccupied = true;
+	SourceSnapshot.ItemData = ItemData;
+	SourceSnapshot.SlotData = ProviderInterface->GetSlotUIData(SourceSlotIndex);
+	Prediction.AffectedSlotSnapshots.Add(SourceSnapshot);
+
+	// Register prediction
+	int32 PredictionKey = OptimisticManager->CreatePrediction(Prediction);
+	if (PredictionKey == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RequestTransferOptimistic: Failed to create prediction"));
+		return INDEX_NONE;
+	}
+
+	// Track affected slots (only source for transfer out)
+	TArray<int32> AffectedSlots;
+	AffectedSlots.Add(SourceSlotIndex);
+	PendingPredictionSlots.Add(PredictionKey, AffectedSlots);
+
+	// Apply optimistic visual - source slot becomes empty
+	ApplyOptimisticTransferOut(SourceSlotIndex);
+
+	UE_LOG(LogTemp, Log, TEXT("RequestTransferOptimistic: Created prediction %d for transfer from slot %d"),
+		PredictionKey, SourceSlotIndex);
+
+	return PredictionKey;
+}
+
+void USuspenseCoreInventoryWidget::ConfirmPrediction(int32 PredictionKey)
+{
+	if (PredictionKey == INDEX_NONE)
+	{
+		return;
+	}
+
+	// Remove from our tracking
+	PendingPredictionSlots.Remove(PredictionKey);
+
+	// Confirm in manager
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (OptimisticManager)
+	{
+		OptimisticManager->ConfirmPrediction(PredictionKey);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("ConfirmPrediction: Confirmed prediction %d"), PredictionKey);
+}
+
+void USuspenseCoreInventoryWidget::RollbackPrediction(int32 PredictionKey, const FText& ErrorMessage)
+{
+	if (PredictionKey == INDEX_NONE)
+	{
+		return;
+	}
+
+	// Get affected slots before removing
+	TArray<int32>* AffectedSlots = PendingPredictionSlots.Find(PredictionKey);
+	if (!AffectedSlots)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RollbackPrediction: No tracked slots for prediction %d"), PredictionKey);
+		return;
+	}
+
+	// Get prediction data from manager to restore snapshots
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (OptimisticManager)
+	{
+		const FSuspenseCoreUIPrediction* Prediction = OptimisticManager->GetPrediction(PredictionKey);
+		if (Prediction)
+		{
+			// Restore all slot snapshots
+			for (const FSuspenseCoreSlotSnapshot& Snapshot : Prediction->AffectedSlotSnapshots)
+			{
+				RestoreSlotFromSnapshot(Snapshot);
+			}
+		}
+
+		// Rollback in manager (removes prediction)
+		OptimisticManager->RollbackPrediction(PredictionKey);
+	}
+
+	// Remove from our tracking
+	PendingPredictionSlots.Remove(PredictionKey);
+
+	// Notify Blueprint
+	K2_OnPredictionRolledBack(PredictionKey, ErrorMessage);
+
+	UE_LOG(LogTemp, Log, TEXT("RollbackPrediction: Rolled back prediction %d: %s"),
+		PredictionKey, *ErrorMessage.ToString());
+}
+
+bool USuspenseCoreInventoryWidget::HasPendingPredictionForSlot(int32 SlotIndex) const
+{
+	for (const auto& Pair : PendingPredictionSlots)
+	{
+		if (Pair.Value.Contains(SlotIndex))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void USuspenseCoreInventoryWidget::ApplyOptimisticMove(
+	int32 SourceSlotIndex,
+	int32 TargetSlotIndex,
+	const FSuspenseCoreItemUIData& ItemData,
+	bool bRotate)
+{
+	// Clear source slot visual
+	if (SourceSlotIndex >= 0 && SourceSlotIndex < SlotWidgets.Num() && SlotWidgets[SourceSlotIndex])
+	{
+		FSuspenseCoreSlotUIData EmptySlotData;
+		EmptySlotData.SlotIndex = SourceSlotIndex;
+		EmptySlotData.State = ESuspenseCoreUISlotState::Empty;
+
+		FSuspenseCoreItemUIData EmptyItemData;
+		SlotWidgets[SourceSlotIndex]->UpdateSlotData(EmptySlotData, EmptyItemData);
+
+		// Reset grid slot span if multi-cell
+		ResetGridSlotSpan(SourceSlotIndex);
+	}
+
+	// Show item at target slot
+	if (TargetSlotIndex >= 0 && TargetSlotIndex < SlotWidgets.Num() && SlotWidgets[TargetSlotIndex])
+	{
+		FSuspenseCoreSlotUIData TargetSlotData;
+		TargetSlotData.SlotIndex = TargetSlotIndex;
+		TargetSlotData.State = ESuspenseCoreUISlotState::Occupied;
+		TargetSlotData.bIsAnchor = true;
+		TargetSlotData.bIsPartOfItem = true;
+
+		FSuspenseCoreItemUIData MovedItem = ItemData;
+		MovedItem.AnchorSlot = TargetSlotIndex;
+		MovedItem.bIsRotated = bRotate ? !ItemData.bIsRotated : ItemData.bIsRotated;
+
+		SlotWidgets[TargetSlotIndex]->UpdateSlotData(TargetSlotData, MovedItem);
+		SlotWidgets[TargetSlotIndex]->SetMultiCellItemSize(MovedItem.GetEffectiveSize());
+
+		// Update grid slot span for multi-cell items
+		UpdateGridSlotSpan(TargetSlotIndex, MovedItem.GridSize, MovedItem.bIsRotated);
+	}
+
+	// Update anchor map
+	UpdateSlotToAnchorMap();
+}
+
+void USuspenseCoreInventoryWidget::ApplyOptimisticTransferOut(int32 SourceSlotIndex)
+{
+	// Clear source slot visual
+	if (SourceSlotIndex >= 0 && SourceSlotIndex < SlotWidgets.Num() && SlotWidgets[SourceSlotIndex])
+	{
+		FSuspenseCoreSlotUIData EmptySlotData;
+		EmptySlotData.SlotIndex = SourceSlotIndex;
+		EmptySlotData.State = ESuspenseCoreUISlotState::Empty;
+
+		FSuspenseCoreItemUIData EmptyItemData;
+		SlotWidgets[SourceSlotIndex]->UpdateSlotData(EmptySlotData, EmptyItemData);
+
+		// Reset grid slot span
+		ResetGridSlotSpan(SourceSlotIndex);
+		SlotWidgets[SourceSlotIndex]->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	// Update anchor map
+	UpdateSlotToAnchorMap();
+}
+
+void USuspenseCoreInventoryWidget::RestoreSlotFromSnapshot(const FSuspenseCoreSlotSnapshot& Snapshot)
+{
+	int32 SlotIndex = Snapshot.SlotIndex;
+	if (SlotIndex < 0 || SlotIndex >= SlotWidgets.Num() || !SlotWidgets[SlotIndex])
+	{
+		return;
+	}
+
+	// Restore slot data
+	SlotWidgets[SlotIndex]->UpdateSlotData(Snapshot.SlotData, Snapshot.ItemData);
+	SlotWidgets[SlotIndex]->SetVisibility(ESlateVisibility::Visible);
+
+	// Update grid slot span if item was present
+	if (Snapshot.bWasOccupied && Snapshot.ItemData.InstanceID.IsValid())
+	{
+		SlotWidgets[SlotIndex]->SetMultiCellItemSize(Snapshot.ItemData.GetEffectiveSize());
+		UpdateGridSlotSpan(SlotIndex, Snapshot.ItemData.GridSize, Snapshot.ItemData.bIsRotated);
+	}
+	else
+	{
+		SlotWidgets[SlotIndex]->SetMultiCellItemSize(FIntPoint(1, 1));
+		ResetGridSlotSpan(SlotIndex);
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("RestoreSlotFromSnapshot: Restored slot %d (wasOccupied=%d)"),
+		SlotIndex, Snapshot.bWasOccupied ? 1 : 0);
+}
+
+USuspenseCoreOptimisticUIManager* USuspenseCoreInventoryWidget::GetOptimisticUIManager() const
+{
+	if (!CachedOptimisticUIManager.IsValid())
+	{
+		UGameInstance* GameInstance = GetGameInstance();
+		if (GameInstance)
+		{
+			CachedOptimisticUIManager = GameInstance->GetSubsystem<USuspenseCoreOptimisticUIManager>();
+		}
+	}
+	return CachedOptimisticUIManager.Get();
+}
+
+//==================================================================
+// EventBus Rollback Subscription
+//==================================================================
+
+void USuspenseCoreInventoryWidget::SetupOptimisticUIEventSubscription()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	// Subscribe to rollback events from OptimisticUIManager
+	static const FGameplayTag RollbackTag = FGameplayTag::RequestGameplayTag(
+		FName("SuspenseCore.Event.OptimisticUI.Rollback"), false);
+
+	if (RollbackTag.IsValid())
+	{
+		RollbackSubscriptionHandle = EventBus->Subscribe(
+			RollbackTag,
+			FSuspenseCoreEventDelegate::CreateUObject(this, &USuspenseCoreInventoryWidget::OnPredictionRollbackEvent)
+		);
+	}
+}
+
+void USuspenseCoreInventoryWidget::TeardownOptimisticUIEventSubscription()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus && RollbackSubscriptionHandle.IsValid())
+	{
+		EventBus->Unsubscribe(RollbackSubscriptionHandle);
+		RollbackSubscriptionHandle = FSuspenseCoreSubscriptionHandle();
+	}
+}
+
+void USuspenseCoreInventoryWidget::OnPredictionRollbackEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Extract prediction key from event
+	int32 PredictionKey = EventData.GetInt(TEXT("PredictionKey"), INDEX_NONE);
+	if (PredictionKey == INDEX_NONE)
+	{
+		return;
+	}
+
+	// Check if this prediction belongs to us
+	if (!PendingPredictionSlots.Contains(PredictionKey))
+	{
+		return; // Not our prediction
+	}
+
+	// Extract error message
+	FText ErrorMessage = FText::FromString(EventData.GetString(TEXT("ErrorMessage"), TEXT("Server rejected operation")));
+
+	// Perform rollback
+	RollbackPrediction(PredictionKey, ErrorMessage);
 }

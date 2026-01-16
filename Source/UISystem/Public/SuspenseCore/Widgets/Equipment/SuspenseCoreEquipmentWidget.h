@@ -391,6 +391,7 @@ private:
 	void OnProviderDataChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnQuickSlotAssignedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnQuickSlotClearedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnPredictionRollbackEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/** Active EventBus subscriptions */
 	TArray<FSuspenseCoreSubscriptionHandle> SubscriptionHandles;

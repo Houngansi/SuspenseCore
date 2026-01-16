@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreOptimisticUITypes.h"
 #include "SuspenseCoreInventoryWidget.generated.h"
 
 // Forward declarations
@@ -15,6 +16,7 @@ class UGridSlot;
 class UUniformGridPanel;
 class UCanvasPanel;
 class UTextBlock;
+class USuspenseCoreOptimisticUIManager;
 
 /**
  * FSuspenseCoreGridUpdateBatch
@@ -259,6 +261,74 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Inventory", meta = (DisplayName = "On Rotation Toggled"))
 	void K2_OnRotationToggled(bool bIsRotated);
 
+	/** Called when prediction is rolled back (server rejected) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Inventory", meta = (DisplayName = "On Prediction Rolled Back"))
+	void K2_OnPredictionRolledBack(int32 PredictionKey, const FText& ErrorMessage);
+
+	//==================================================================
+	// Optimistic UI API (AAA-Level Client Prediction)
+	//==================================================================
+
+	/**
+	 * Request item move within same container with optimistic visual update.
+	 * Updates UI immediately, then confirms/rollbacks based on server response.
+	 *
+	 * @param ItemInstanceID Item to move
+	 * @param SourceSlotIndex Source slot index
+	 * @param TargetSlotIndex Target slot index
+	 * @param bRotate Whether to rotate the item
+	 * @return Prediction key for tracking, or INDEX_NONE if failed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Inventory|OptimisticUI")
+	int32 RequestMoveOptimistic(
+		const FGuid& ItemInstanceID,
+		int32 SourceSlotIndex,
+		int32 TargetSlotIndex,
+		bool bRotate = false);
+
+	/**
+	 * Request item transfer to another container with optimistic visual update.
+	 *
+	 * @param ItemInstanceID Item to transfer
+	 * @param SourceSlotIndex Source slot in this container
+	 * @param TargetContainerID Target container ID
+	 * @param TargetSlotIndex Target slot in target container
+	 * @param bRotate Whether to rotate the item
+	 * @return Prediction key for tracking, or INDEX_NONE if failed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Inventory|OptimisticUI")
+	int32 RequestTransferOptimistic(
+		const FGuid& ItemInstanceID,
+		int32 SourceSlotIndex,
+		const FGuid& TargetContainerID,
+		int32 TargetSlotIndex,
+		bool bRotate = false);
+
+	/**
+	 * Confirm a pending prediction (server accepted).
+	 * Removes prediction - visual state is already correct.
+	 * @param PredictionKey Key from Request*Optimistic
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Inventory|OptimisticUI")
+	void ConfirmPrediction(int32 PredictionKey);
+
+	/**
+	 * Rollback a pending prediction (server rejected).
+	 * Restores visual state from snapshot.
+	 * @param PredictionKey Key from Request*Optimistic
+	 * @param ErrorMessage Error message for feedback
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Inventory|OptimisticUI")
+	void RollbackPrediction(int32 PredictionKey, const FText& ErrorMessage);
+
+	/**
+	 * Check if there's a pending prediction for a slot
+	 * @param SlotIndex Slot to check
+	 * @return true if slot has pending prediction
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Inventory|OptimisticUI")
+	bool HasPendingPredictionForSlot(int32 SlotIndex) const;
+
 protected:
 	//==================================================================
 	// Override Points from Base
@@ -490,4 +560,59 @@ private:
 	 */
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<UGridSlot>> CachedGridSlots;
+
+	//==================================================================
+	// Optimistic UI (AAA-Level Client Prediction)
+	//==================================================================
+
+	/**
+	 * Apply optimistic move visual.
+	 * Called immediately on user action before server confirmation.
+	 * @param SourceSlotIndex Source slot to clear
+	 * @param TargetSlotIndex Target slot to show item
+	 * @param ItemData Item data to display
+	 * @param bRotate Whether item is rotated
+	 */
+	void ApplyOptimisticMove(int32 SourceSlotIndex, int32 TargetSlotIndex, const FSuspenseCoreItemUIData& ItemData, bool bRotate);
+
+	/**
+	 * Apply optimistic transfer out visual.
+	 * Clears source slot visually.
+	 * @param SourceSlotIndex Slot to clear
+	 */
+	void ApplyOptimisticTransferOut(int32 SourceSlotIndex);
+
+	/**
+	 * Restore slot from snapshot (rollback).
+	 * @param Snapshot Slot snapshot to restore
+	 */
+	void RestoreSlotFromSnapshot(const FSuspenseCoreSlotSnapshot& Snapshot);
+
+	/**
+	 * Get Optimistic UI Manager.
+	 * @return Manager or nullptr
+	 */
+	USuspenseCoreOptimisticUIManager* GetOptimisticUIManager() const;
+
+	/** Cached OptimisticUIManager reference */
+	mutable TWeakObjectPtr<USuspenseCoreOptimisticUIManager> CachedOptimisticUIManager;
+
+	/** Map of prediction key to affected slots (source, target) */
+	TMap<int32, TArray<int32>> PendingPredictionSlots;
+
+	//==================================================================
+	// EventBus Rollback Subscription
+	//==================================================================
+
+	/** Setup subscription for rollback events */
+	void SetupOptimisticUIEventSubscription();
+
+	/** Teardown rollback subscription */
+	void TeardownOptimisticUIEventSubscription();
+
+	/** Handle rollback event from OptimisticUIManager */
+	void OnPredictionRollbackEvent(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
+
+	/** Rollback subscription handle */
+	struct FSuspenseCoreSubscriptionHandle RollbackSubscriptionHandle;
 };

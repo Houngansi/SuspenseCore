@@ -168,7 +168,7 @@ bool USuspenseCoreWeaponFireModeComponent::CycleToNextFireMode_Implementation()
 
     while (NextIndex != StartIndex)
     {
-        if (FireModes[NextIndex].bIsAvailable && !IsFireModeBlocked(FireModes[NextIndex].FireModeTag))
+        if (FireModes[NextIndex].bIsAvailable && !ISuspenseCoreFireModeProvider::Execute_IsFireModeBlocked(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), FireModes[NextIndex].FireModeTag))
         {
             return SetFireModeByIndex(NextIndex);
         }
@@ -192,7 +192,7 @@ bool USuspenseCoreWeaponFireModeComponent::CycleToPreviousFireMode_Implementatio
 
     while (PrevIndex != StartIndex)
     {
-        if (FireModes[PrevIndex].bIsAvailable && !IsFireModeBlocked(FireModes[PrevIndex].FireModeTag))
+        if (FireModes[PrevIndex].bIsAvailable && !ISuspenseCoreFireModeProvider::Execute_IsFireModeBlocked(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), FireModes[PrevIndex].FireModeTag))
         {
             return SetFireModeByIndex(PrevIndex);
         }
@@ -232,7 +232,7 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireModeByIndex_Implementation(int
 
     // Check availability
     const FSuspenseCoreFireModeRuntimeData& NewMode = FireModes[Index];
-    if (!NewMode.bIsAvailable || IsFireModeBlocked(NewMode.FireModeTag))
+    if (!NewMode.bIsAvailable || ISuspenseCoreFireModeProvider::Execute_IsFireModeBlocked(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), NewMode.FireModeTag))
     {
         EQUIPMENT_LOG(Warning, TEXT("SetFireModeByIndex: Fire mode not available: %s"),
             *NewMode.FireModeTag.ToString());
@@ -300,7 +300,7 @@ bool USuspenseCoreWeaponFireModeComponent::IsFireModeAvailable_Implementation(co
         return false;
     }
 
-    return FireModes[Index].bIsAvailable && !IsFireModeBlocked(FireModeTag);
+    return FireModes[Index].bIsAvailable && !ISuspenseCoreFireModeProvider::Execute_IsFireModeBlocked(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), FireModeTag);
 }
 
 TArray<FSuspenseCoreFireModeRuntimeData> USuspenseCoreWeaponFireModeComponent::GetAllFireModes_Implementation() const

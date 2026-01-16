@@ -314,7 +314,7 @@ TArray<FGameplayTag> USuspenseCoreWeaponFireModeComponent::GetAvailableFireModes
 
     for (const FSuspenseCoreFireModeRuntimeData& Mode : FireModes)
     {
-        if (Mode.bIsAvailable && !IsFireModeBlocked(Mode.FireModeTag))
+        if (Mode.bIsAvailable && !ISuspenseCoreFireModeProvider::Execute_IsFireModeBlocked(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), Mode.FireModeTag))
         {
             Available.Add(Mode.FireModeTag);
         }
@@ -329,7 +329,7 @@ int32 USuspenseCoreWeaponFireModeComponent::GetAvailableFireModeCount_Implementa
 
     for (const FSuspenseCoreFireModeRuntimeData& Mode : FireModes)
     {
-        if (Mode.bIsAvailable && !IsFireModeBlocked(Mode.FireModeTag))
+        if (Mode.bIsAvailable && !ISuspenseCoreFireModeProvider::Execute_IsFireModeBlocked(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), Mode.FireModeTag))
         {
             Count++;
         }

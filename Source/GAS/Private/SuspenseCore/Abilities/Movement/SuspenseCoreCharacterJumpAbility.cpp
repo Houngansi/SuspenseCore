@@ -13,6 +13,8 @@
 #include "TimerManager.h"
 #include "SuspenseCore/Input/SuspenseCoreAbilityInputID.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreJump, Log, All);
+
 USuspenseCoreCharacterJumpAbility::USuspenseCoreCharacterJumpAbility()
 {
 	JumpPowerMultiplier = 1.0f;
@@ -223,21 +225,17 @@ bool USuspenseCoreCharacterJumpAbility::IsCharacterGrounded(
 bool USuspenseCoreCharacterJumpAbility::ApplyStaminaCost(
 	const FGameplayAbilityActorInfo* ActorInfo)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] ApplyStaminaCost called"));
-
 	if (!JumpStaminaCostEffectClass)
 	{
 		// No cost effect configured, allow jump
-		UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] JumpStaminaCostEffectClass is NULL - no stamina cost!"));
+		UE_LOG(LogSuspenseCoreJump, Verbose, TEXT("No JumpStaminaCostEffectClass configured - no stamina cost"));
 		return true;
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] JumpStaminaCostEffectClass: %s"), *JumpStaminaCostEffectClass->GetName());
 
 	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 	if (!ASC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] ASC is NULL!"));
+		UE_LOG(LogSuspenseCoreJump, Warning, TEXT("ASC is NULL in ApplyStaminaCost"));
 		return true;
 	}
 
@@ -259,18 +257,14 @@ bool USuspenseCoreCharacterJumpAbility::ApplyStaminaCost(
 	}
 
 	// Set stamina cost via SetByCaller (negative value for cost)
-	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] Setting SetByCaller Stamina cost: %.2f"), -StaminaCostPerJump);
 	SpecHandle.Data->SetSetByCallerMagnitude(
 		SuspenseCoreTags::Data::Cost::Stamina,
 		-StaminaCostPerJump
 	);
 
-	// Apply effect - NOTE: Instant effects return invalid handle but still apply!
+	// Apply effect - Instant effects are consumed immediately
 	ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-
-	// For Instant effects, the handle is always invalid after application
-	// because the effect is consumed immediately. The effect still applied successfully.
-	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] Instant effect applied successfully"));
+	UE_LOG(LogSuspenseCoreJump, Verbose, TEXT("Applied stamina cost: %.1f"), StaminaCostPerJump);
 
 	return true;
 }

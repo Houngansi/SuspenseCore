@@ -162,6 +162,20 @@ struct BRIDGESYSTEM_API FSuspenseCoreWeaponAttributeRow : public FTableRowBase
 		meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "Pattern predictability (0=random, 1=fixed)"))
 	float RecoilPatternStrength = 0.3f;
 
+	/** Recoil pattern points - defines learnable spray pattern
+	 *  Each point is [PitchMultiplier, YawMultiplier] for that shot in sequence
+	 *  Pattern loops after all points, scaled by LoopScaleFactor
+	 *  Example: [[1.0, 0.0], [0.8, -0.1], [0.7, 0.15]] = up, up-left, up-right */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Pattern",
+		meta = (ToolTip = "Pattern points as [Pitch, Yaw] pairs"))
+	TArray<FVector2D> RecoilPatternPoints;
+
+	/** Scale factor for pattern on subsequent loops (0.1-1.0)
+	 *  0.7 = 70% strength on second loop, 49% on third, etc. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil|Pattern",
+		meta = (ClampMin = "0.1", ClampMax = "1.0", ToolTip = "Pattern scale on loop"))
+	float RecoilPatternLoopScale = 0.7f;
+
 	//========================================================================
 	// Reliability Attributes
 	//========================================================================

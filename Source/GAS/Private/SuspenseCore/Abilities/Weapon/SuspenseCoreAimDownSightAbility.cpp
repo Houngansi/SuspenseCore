@@ -68,11 +68,8 @@ bool USuspenseCoreAimDownSightAbility::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility called"));
-
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: Super returned FALSE"));
 		return false;
 	}
 
@@ -80,29 +77,24 @@ bool USuspenseCoreAimDownSightAbility::CanActivateAbility(
 	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
 	if (!CombatState)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: No WeaponCombatState interface - FAILED"));
+		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: No WeaponCombatState interface"));
 		return false;
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: CombatState found, IsWeaponDrawn=%s, IsReloading=%s"),
-		CombatState->IsWeaponDrawn() ? TEXT("TRUE") : TEXT("FALSE"),
-		CombatState->IsReloading() ? TEXT("TRUE") : TEXT("FALSE"));
 
 	// Require weapon to be drawn
 	if (!CombatState->IsWeaponDrawn())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: Weapon not drawn - FAILED"));
+		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: Weapon not drawn"));
 		return false;
 	}
 
 	// Cannot aim while already reloading
 	if (CombatState->IsReloading())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: Currently reloading - FAILED"));
+		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: Currently reloading"));
 		return false;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: All checks passed - SUCCESS"));
 	return true;
 }
 
@@ -112,10 +104,7 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActivateAbility CALLED - ADS ability activating!"));
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AvatarActor: %s"),
-		ActorInfo && ActorInfo->AvatarActor.IsValid() ? *ActorInfo->AvatarActor->GetName() : TEXT("NULL"));
+	UE_LOG(LogSuspenseCoreADS, Log, TEXT("ADS ability activated"));
 
 	// Cache for EndAbility access
 	CachedActorInfo = ActorInfo;
@@ -136,14 +125,11 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
 	if (CombatState)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CombatState found, calling SetAiming(true)"));
 		CombatState->SetAiming(true);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] SetAiming(true) completed. IsAiming now: %s"),
-			CombatState->IsAiming() ? TEXT("TRUE") : TEXT("FALSE"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] ERROR: CombatState is NULL! Cannot set aiming state!"));
+		UE_LOG(LogSuspenseCoreADS, Error, TEXT("CombatState is NULL - cannot set aiming state"));
 	}
 
 	// ===================================================================
@@ -156,48 +142,13 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	// Character implementation handles getting weapon config internally
 	// ===================================================================
 	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AvatarActor class: %s"),
-		AvatarActor ? *AvatarActor->GetClass()->GetName() : TEXT("NULL"));
-
-	if (AvatarActor)
+	if (AvatarActor && AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreADSCamera::StaticClass()))
 	{
-		bool bImplementsInterface = AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreADSCamera::StaticClass());
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Implements ISuspenseCoreADSCamera: %s"),
-			bImplementsInterface ? TEXT("TRUE") : TEXT("FALSE"));
-
-		if (bImplementsInterface)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Calling Execute_ADSSwitchCamera(true)..."));
-			ISuspenseCoreADSCamera::Execute_ADSSwitchCamera(AvatarActor, true);
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Execute_ADSSwitchCamera(true) returned"));
-
-			// DEBUG: Check if Cast to interface works
-			ISuspenseCoreADSCamera* DirectInterface = Cast<ISuspenseCoreADSCamera>(AvatarActor);
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Cast<ISuspenseCoreADSCamera> = %s"),
-				DirectInterface ? TEXT("SUCCESS - vtable should have _Implementation") : TEXT("FAILED - no vtable"));
-
-			// DEBUG: Check parent class chain and if Blueprint
-			UClass* ActorClass = AvatarActor->GetClass();
-			bool bIsBlueprintClass = ActorClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint);
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Is Blueprint class: %s"),
-				bIsBlueprintClass ? TEXT("YES - check BP Event ADSSwitchCamera!") : TEXT("NO - pure C++"));
-
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Class hierarchy:"));
-			for (UClass* Class = ActorClass; Class; Class = Class->GetSuperClass())
-			{
-				bool bBP = Class->HasAnyClassFlags(CLASS_CompiledFromBlueprint);
-				UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   -> %s %s"),
-					*Class->GetName(), bBP ? TEXT("[BP]") : TEXT("[C++]"));
-				if (Class->GetName() == TEXT("Actor"))
-				{
-					break;
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] AvatarActor does NOT implement ISuspenseCoreADSCamera interface!"));
-		}
+		ISuspenseCoreADSCamera::Execute_ADSSwitchCamera(AvatarActor, true);
+	}
+	else if (AvatarActor)
+	{
+		UE_LOG(LogSuspenseCoreADS, Warning, TEXT("AvatarActor does not implement ISuspenseCoreADSCamera interface"));
 	}
 
 	// ===================================================================
@@ -210,8 +161,6 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	// 2. External cancel via CancelAbilitiesByTag when bPressed=false
 	// The ability stays active until one of these is triggered.
 	// ===================================================================
-
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ADS ability now ACTIVE - waiting for release/cancel"));
 }
 
 void USuspenseCoreAimDownSightAbility::EndAbility(
@@ -221,9 +170,8 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] EndAbility CALLED - ADS ability ending! (Cancelled: %s)"),
-		bWasCancelled ? TEXT("TRUE") : TEXT("FALSE"));
+	UE_LOG(LogSuspenseCoreADS, Log, TEXT("ADS ability ended (Cancelled: %s)"),
+		bWasCancelled ? TEXT("true") : TEXT("false"));
 
 	// ===================================================================
 	// Clear Aiming State on SSOT
@@ -236,14 +184,11 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
 	if (CombatState)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CombatState found, calling SetAiming(false)"));
 		CombatState->SetAiming(false);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] SetAiming(false) completed. IsAiming now: %s"),
-			CombatState->IsAiming() ? TEXT("TRUE") : TEXT("FALSE"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] ERROR: CombatState is NULL in EndAbility!"));
+		UE_LOG(LogSuspenseCoreADS, Error, TEXT("CombatState is NULL in EndAbility"));
 	}
 
 	// ===================================================================
@@ -256,21 +201,9 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	// Character implementation handles getting weapon config internally
 	// ===================================================================
 	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] EndAbility: AvatarActor class: %s"),
-		AvatarActor ? *AvatarActor->GetClass()->GetName() : TEXT("NULL"));
-
-	if (AvatarActor)
+	if (AvatarActor && AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreADSCamera::StaticClass()))
 	{
-		bool bImplementsInterface = AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreADSCamera::StaticClass());
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] EndAbility: Implements ISuspenseCoreADSCamera: %s"),
-			bImplementsInterface ? TEXT("TRUE") : TEXT("FALSE"));
-
-		if (bImplementsInterface)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Calling Execute_ADSSwitchCamera(false)..."));
-			ISuspenseCoreADSCamera::Execute_ADSSwitchCamera(AvatarActor, false);
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Execute_ADSSwitchCamera(false) returned"));
-		}
+		ISuspenseCoreADSCamera::Execute_ADSSwitchCamera(AvatarActor, false);
 	}
 
 	// Clear cached state

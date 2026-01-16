@@ -174,6 +174,12 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 			EnhancedInput->BindAction(IA_Reload, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleReload);
 		}
 
+		if (IA_SwitchFireMode)
+		{
+			// Activate on release (Completed) to prevent accidental switches during scroll
+			EnhancedInput->BindAction(IA_SwitchFireMode, ETriggerEvent::Completed, this, &ASuspenseCorePlayerController::HandleSwitchFireMode);
+		}
+
 		// WeaponSlot Inputs (Direct weapon slot switching - keys 1-3, V)
 		if (IA_WeaponSlot1)
 		{
@@ -436,6 +442,11 @@ void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
 	}
 
 	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Reload, true);
+}
+
+void ASuspenseCorePlayerController::HandleSwitchFireMode(const FInputActionValue& Value)
+{
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::FireModeSwitch, true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

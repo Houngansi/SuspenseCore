@@ -269,6 +269,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|Weapon")
 	UInputAction* IA_Reload;
 
+	/** Switch fire mode (Middle Mouse Button) - activates on release */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|Weapon")
+	UInputAction* IA_SwitchFireMode;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// WEAPON SLOT INPUT ACTIONS (Direct weapon slot switching via keys 1-3, V)
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -374,6 +378,7 @@ protected:
 	void HandleFirePressed(const FInputActionValue& Value);
 	void HandleFireReleased(const FInputActionValue& Value);
 	void HandleReload(const FInputActionValue& Value);
+	void HandleSwitchFireMode(const FInputActionValue& Value);
 
 	// WeaponSlot Input Handlers (Direct weapon slot switching)
 	void HandleWeaponSlot1(const FInputActionValue& Value);

@@ -746,24 +746,11 @@ bool USuspenseCoreQuickSlotComponent::ExecuteMagazineSwap(int32 SlotIndex, bool 
     return bSuccess;
 }
 
-bool USuspenseCoreQuickSlotComponent::ExecuteConsumableUse(int32 SlotIndex)
-{
-    // TODO: Implement consumable use through ability system
-    QUICKSLOT_LOG(Log, TEXT("ExecuteConsumableUse: Slot %d (not implemented)"), SlotIndex);
-    return false;
-}
-
-bool USuspenseCoreQuickSlotComponent::ExecuteGrenadePrepare(int32 SlotIndex)
-{
-    // TODO: Implement grenade preparation through ability system
-    QUICKSLOT_LOG(Log, TEXT("ExecuteGrenadePrepare: Slot %d (not implemented)"), SlotIndex);
-    return false;
-}
-
 bool USuspenseCoreQuickSlotComponent::ExecuteQuickSlotDirect(int32 SlotIndex)
 {
     // Direct execution fallback - used when ItemUseService is not available
-    // This preserves the original behavior for backwards compatibility
+    // NOTE: Only magazine swap is supported in fallback mode.
+    // Consumables and grenades require ItemUseService (GAS-based system).
 
     if (!IsValidSlotIndex(SlotIndex))
     {
@@ -783,8 +770,9 @@ bool USuspenseCoreQuickSlotComponent::ExecuteQuickSlotDirect(int32 SlotIndex)
         return ExecuteMagazineSwap(SlotIndex, false);
     }
 
-    // Default: treat as consumable
-    return ExecuteConsumableUse(SlotIndex);
+    // Non-magazine items require ItemUseService (GAS handlers: MedicalUseHandler, GrenadeHandler)
+    QUICKSLOT_LOG(Warning, TEXT("ExecuteQuickSlotDirect: Slot %d contains non-magazine item - ItemUseService required for consumables/grenades"), SlotIndex);
+    return false;
 }
 
 void USuspenseCoreQuickSlotComponent::NotifySlotChanged(int32 SlotIndex, const FGuid& OldItemID, const FGuid& NewItemID)

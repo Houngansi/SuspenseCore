@@ -92,6 +92,13 @@ bool USuspenseCoreMagazineSwapHandler::CanHandle(const FSuspenseCoreItemUseReque
 		return false;
 	}
 
+	// CRITICAL: Must be a magazine - allows Medical/Grenade handlers to process other item types
+	// Without this check, MagazineSwapHandler (HIGH priority) would catch ALL QuickSlot requests
+	if (!Request.SourceItem.IsMagazine())
+	{
+		return false;
+	}
+
 	return true;
 }
 

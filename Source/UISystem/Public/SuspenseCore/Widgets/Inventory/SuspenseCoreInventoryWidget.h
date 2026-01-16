@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreOptimisticUITypes.h"
+#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCoreInventoryWidget.generated.h"
 
 // Forward declarations
@@ -614,5 +615,5 @@ private:
 	void OnPredictionRollbackEvent(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
 
 	/** Rollback subscription handle */
-	struct FSuspenseCoreSubscriptionHandle RollbackSubscriptionHandle;
+	FSuspenseCoreSubscriptionHandle RollbackSubscriptionHandle;
 };

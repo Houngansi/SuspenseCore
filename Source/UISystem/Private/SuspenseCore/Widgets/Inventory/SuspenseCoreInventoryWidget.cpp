@@ -1467,38 +1467,32 @@ int32 USuspenseCoreInventoryWidget::RequestMoveOptimistic(
 		return INDEX_NONE;
 	}
 
+	// Generate prediction key
+	int32 PredictionKey = OptimisticManager->GeneratePredictionKey();
+
 	// Create prediction with snapshots of affected slots
 	FGuid ContainerID = ProviderInterface->GetProviderID();
 	FSuspenseCoreUIPrediction Prediction = FSuspenseCoreUIPrediction::CreateMoveItem(
-		ItemInstanceID,
+		PredictionKey,
 		ContainerID,
 		SourceSlotIndex,
-		TargetSlotIndex
+		TargetSlotIndex,
+		ItemInstanceID,
+		bRotate
 	);
 
-	// Add source slot snapshot
-	FSuspenseCoreSlotSnapshot SourceSnapshot;
-	SourceSnapshot.SlotIndex = SourceSlotIndex;
-	SourceSnapshot.bWasOccupied = true;
-	SourceSnapshot.ItemData = ItemData;
-	SourceSnapshot.SlotData = ProviderInterface->GetSlotUIData(SourceSlotIndex);
-	Prediction.AffectedSlotSnapshots.Add(SourceSnapshot);
+	// Snapshot source slot
+	FSuspenseCoreSlotUIData SourceSlotData = ProviderInterface->GetSlotUIData(SourceSlotIndex);
+	Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(SourceSlotIndex, SourceSlotData, ItemData));
 
-	// Add target slot snapshot (might have item if swapping)
-	FSuspenseCoreSlotSnapshot TargetSnapshot;
-	TargetSnapshot.SlotIndex = TargetSlotIndex;
+	// Snapshot target slot (might have item if swapping)
+	FSuspenseCoreSlotUIData TargetSlotData = ProviderInterface->GetSlotUIData(TargetSlotIndex);
 	FSuspenseCoreItemUIData TargetItemData;
-	TargetSnapshot.bWasOccupied = ProviderInterface->GetItemUIDataAtSlot(TargetSlotIndex, TargetItemData);
-	if (TargetSnapshot.bWasOccupied)
-	{
-		TargetSnapshot.ItemData = TargetItemData;
-	}
-	TargetSnapshot.SlotData = ProviderInterface->GetSlotUIData(TargetSlotIndex);
-	Prediction.AffectedSlotSnapshots.Add(TargetSnapshot);
+	ProviderInterface->GetItemUIDataAtSlot(TargetSlotIndex, TargetItemData);
+	Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(TargetSlotIndex, TargetSlotData, TargetItemData));
 
 	// Register prediction
-	int32 PredictionKey = OptimisticManager->CreatePrediction(Prediction);
-	if (PredictionKey == INDEX_NONE)
+	if (!OptimisticManager->CreatePrediction(Prediction))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("RequestMoveOptimistic: Failed to create prediction"));
 		return INDEX_NONE;
@@ -1569,27 +1563,27 @@ int32 USuspenseCoreInventoryWidget::RequestTransferOptimistic(
 		return INDEX_NONE;
 	}
 
+	// Generate prediction key
+	int32 PredictionKey = OptimisticManager->GeneratePredictionKey();
+
 	// Create prediction
 	FGuid SourceContainerID = ProviderInterface->GetProviderID();
 	FSuspenseCoreUIPrediction Prediction = FSuspenseCoreUIPrediction::CreateTransferItem(
-		ItemInstanceID,
+		PredictionKey,
 		SourceContainerID,
-		SourceSlotIndex,
 		TargetContainerID,
-		TargetSlotIndex
+		SourceSlotIndex,
+		TargetSlotIndex,
+		ItemInstanceID,
+		ItemData.Quantity > 0 ? ItemData.Quantity : 1
 	);
 
-	// Add source slot snapshot
-	FSuspenseCoreSlotSnapshot SourceSnapshot;
-	SourceSnapshot.SlotIndex = SourceSlotIndex;
-	SourceSnapshot.bWasOccupied = true;
-	SourceSnapshot.ItemData = ItemData;
-	SourceSnapshot.SlotData = ProviderInterface->GetSlotUIData(SourceSlotIndex);
-	Prediction.AffectedSlotSnapshots.Add(SourceSnapshot);
+	// Snapshot source slot
+	FSuspenseCoreSlotUIData SourceSlotData = ProviderInterface->GetSlotUIData(SourceSlotIndex);
+	Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(SourceSlotIndex, SourceSlotData, ItemData));
 
 	// Register prediction
-	int32 PredictionKey = OptimisticManager->CreatePrediction(Prediction);
-	if (PredictionKey == INDEX_NONE)
+	if (!OptimisticManager->CreatePrediction(Prediction))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("RequestTransferOptimistic: Failed to create prediction"));
 		return INDEX_NONE;
@@ -1808,9 +1802,12 @@ void USuspenseCoreInventoryWidget::SetupOptimisticUIEventSubscription()
 
 	if (RollbackTag.IsValid())
 	{
-		RollbackSubscriptionHandle = EventBus->Subscribe(
+		RollbackSubscriptionHandle = EventBus->SubscribeNative(
 			RollbackTag,
-			FSuspenseCoreEventDelegate::CreateUObject(this, &USuspenseCoreInventoryWidget::OnPredictionRollbackEvent)
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(
+				this, &USuspenseCoreInventoryWidget::OnPredictionRollbackEvent),
+			ESuspenseCoreEventPriority::Normal
 		);
 	}
 }

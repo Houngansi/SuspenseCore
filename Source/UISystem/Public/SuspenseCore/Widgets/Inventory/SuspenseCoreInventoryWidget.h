@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreOptimisticUITypes.h"
-#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreInventoryWidget.generated.h"
 
 // Forward declarations

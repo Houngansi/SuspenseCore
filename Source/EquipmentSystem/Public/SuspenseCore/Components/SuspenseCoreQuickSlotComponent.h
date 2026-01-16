@@ -286,15 +286,10 @@ protected:
     /** Execute magazine swap with MagazineComponent */
     bool ExecuteMagazineSwap(int32 SlotIndex, bool bEmergencyDrop);
 
-    /** Execute consumable use */
-    bool ExecuteConsumableUse(int32 SlotIndex);
-
-    /** Execute grenade preparation */
-    bool ExecuteGrenadePrepare(int32 SlotIndex);
-
     /**
      * Direct execution fallback when ItemUseService is not available.
-     * Delegates to appropriate Execute* method based on item type.
+     * NOTE: Only magazine swap is supported in fallback mode.
+     * Consumables/grenades require ItemUseService (GAS handlers).
      */
     bool ExecuteQuickSlotDirect(int32 SlotIndex);
 

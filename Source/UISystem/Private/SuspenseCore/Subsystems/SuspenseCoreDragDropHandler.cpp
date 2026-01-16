@@ -150,6 +150,10 @@ USuspenseCoreDragDropOperation* USuspenseCoreDragDropHandler::StartDragOperation
 	if (DragOperation)
 	{
 		ActiveOperation = DragOperation;
+
+		// Publish drag start feedback via EventBus
+		PublishDragStartFeedback(DragData);
+
 		UE_LOG(LogTemp, Log, TEXT("StartDragOperation: Started drag for item '%s' from slot %d"),
 			*ItemData.DisplayName.ToString(), SourceSlot);
 	}
@@ -197,6 +201,9 @@ FSuspenseCoreDropResult USuspenseCoreDragDropHandler::ProcessDrop(
 	// Process the request
 	FSuspenseCoreDropResult Result = ProcessDropRequest(Request);
 
+	// Publish feedback via EventBus (AAA-level responsiveness)
+	PublishDropFeedback(Result, Request);
+
 	// Clear active operation
 	if (ActiveOperation.Get() == DragOperation)
 	{
@@ -219,6 +226,9 @@ void USuspenseCoreDragDropHandler::CancelDragOperation()
 {
 	if (ActiveOperation.IsValid())
 	{
+		// Publish cancel feedback via EventBus
+		PublishDragCancelFeedback();
+
 		// Notify operation cancelled
 		// (The operation itself handles visual cleanup)
 		ActiveOperation.Reset();
@@ -641,6 +651,80 @@ USuspenseCoreEventBus* USuspenseCoreDragDropHandler::GetEventBus() const
 	}
 
 	return nullptr;
+}
+
+//==================================================================
+// EventBus Feedback (AAA-Level UI Responsiveness)
+//==================================================================
+
+void USuspenseCoreDragDropHandler::PublishDropFeedback(
+	const FSuspenseCoreDropResult& Result,
+	const FSuspenseCoreDropRequest& Request)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	FSuspenseCoreEventData EventData;
+	EventData.SetBool(FName("Success"), Result.bSuccess);
+
+	if (!Result.ResultMessage.IsEmpty())
+	{
+		EventData.SetString(FName("Message"), Result.ResultMessage.ToString());
+	}
+
+	// Add context about the operation
+	EventData.SetInt(FName("SourceSlot"), Request.SourceSlot);
+	EventData.SetInt(FName("TargetSlot"), Request.TargetSlot);
+
+	if (Request.DragData.ItemData.InstanceID.IsValid())
+	{
+		EventData.SetString(FName("ItemName"), Request.DragData.ItemData.DisplayName.ToString());
+	}
+
+	// Publish to appropriate tag
+	FGameplayTag FeedbackTag = Result.bSuccess
+		? TAG_SuspenseCore_Event_UIFeedback_Success
+		: TAG_SuspenseCore_Event_UIFeedback_Error;
+
+	EventBus->Publish(FeedbackTag, EventData);
+
+	UE_LOG(LogTemp, Log, TEXT("PublishDropFeedback: %s - %s"),
+		Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+		*Result.ResultMessage.ToString());
+}
+
+void USuspenseCoreDragDropHandler::PublishDragStartFeedback(const FSuspenseCoreDragData& DragData)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	FSuspenseCoreEventData EventData;
+	EventData.SetString(FName("ItemName"), DragData.ItemData.DisplayName.ToString());
+	EventData.SetInt(FName("SourceSlot"), DragData.SourceSlot);
+	EventData.SetInt(FName("Quantity"), DragData.DragQuantity);
+
+	// Use generic UIFeedback tag for drag start
+	EventBus->Publish(TAG_SuspenseCore_Event_UIFeedback, EventData);
+}
+
+void USuspenseCoreDragDropHandler::PublishDragCancelFeedback()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	FSuspenseCoreEventData EventData;
+	EventData.SetBool(FName("Cancelled"), true);
+
+	EventBus->Publish(TAG_SuspenseCore_Event_UIFeedback, EventData);
 }
 
 bool USuspenseCoreDragDropHandler::CalculateOccupiedSlots(

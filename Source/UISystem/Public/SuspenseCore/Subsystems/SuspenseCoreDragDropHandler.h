@@ -442,6 +442,29 @@ protected:
 	FSuspenseCoreDropResult ExecuteDrop(const FSuspenseCoreDropRequest& Request);
 
 	//==================================================================
+	// EventBus Feedback (AAA-Level UI Responsiveness)
+	//==================================================================
+
+	/**
+	 * Publish drop result feedback via EventBus
+	 * Provides immediate user feedback for all drop operations.
+	 * @param Result Drop result to publish
+	 * @param Request Original drop request (for context)
+	 */
+	void PublishDropFeedback(const FSuspenseCoreDropResult& Result, const FSuspenseCoreDropRequest& Request);
+
+	/**
+	 * Publish drag start feedback
+	 * @param DragData Data being dragged
+	 */
+	void PublishDragStartFeedback(const FSuspenseCoreDragData& DragData);
+
+	/**
+	 * Publish drag cancel feedback
+	 */
+	void PublishDragCancelFeedback();
+
+	//==================================================================
 	// Internal Helpers
 	//==================================================================
 

@@ -8,6 +8,7 @@
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreOptimisticUITypes.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCoreEquipmentWidget.generated.h"
@@ -17,6 +18,7 @@ class USuspenseCoreEquipmentSlotWidget;
 class UCanvasPanel;
 class UOverlay;
 class USuspenseCoreEventBus;
+class USuspenseCoreOptimisticUIManager;
 class ASuspenseCoreCharacterPreviewActor;
 
 /**
@@ -156,6 +158,70 @@ public:
 	/** Called when a slot receives an unequip request */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Equipment", meta = (DisplayName = "On Unequip Requested"))
 	void K2_OnUnequipRequested(EEquipmentSlotType SlotType);
+
+	/** Called when prediction is rolled back (server rejected) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Equipment", meta = (DisplayName = "On Prediction Rolled Back"))
+	void K2_OnPredictionRolledBack(int32 PredictionKey, const FText& ErrorMessage);
+
+	//==================================================================
+	// Optimistic UI API (AAA-Level Client Prediction)
+	//==================================================================
+
+	/**
+	 * Request equip with optimistic visual update.
+	 * Updates UI immediately, then confirms/rollbacks based on server response.
+	 * Follows pattern from USuspenseCoreMagazineComponent::PredictStartReload.
+	 *
+	 * @param ItemInstanceID Item to equip
+	 * @param TargetSlotIndex Target equipment slot index
+	 * @param SourceContainerID Source container (inventory) ID
+	 * @param SourceSlotIndex Source slot in inventory
+	 * @return Prediction key for tracking, or INDEX_NONE if failed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Equipment|OptimisticUI")
+	int32 RequestEquipOptimistic(
+		const FGuid& ItemInstanceID,
+		int32 TargetSlotIndex,
+		const FGuid& SourceContainerID,
+		int32 SourceSlotIndex);
+
+	/**
+	 * Request unequip with optimistic visual update.
+	 * @param SourceSlotIndex Equipment slot to unequip from
+	 * @param TargetContainerID Target container (inventory) ID
+	 * @param TargetSlotIndex Target slot in inventory
+	 * @return Prediction key for tracking, or INDEX_NONE if failed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Equipment|OptimisticUI")
+	int32 RequestUnequipOptimistic(
+		int32 SourceSlotIndex,
+		const FGuid& TargetContainerID,
+		int32 TargetSlotIndex);
+
+	/**
+	 * Confirm a pending prediction (server accepted).
+	 * Removes prediction - visual state is already correct.
+	 * @param PredictionKey Key from Request*Optimistic
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Equipment|OptimisticUI")
+	void ConfirmPrediction(int32 PredictionKey);
+
+	/**
+	 * Rollback a pending prediction (server rejected).
+	 * Restores visual state from snapshot.
+	 * @param PredictionKey Key from Request*Optimistic
+	 * @param ErrorMessage Error message for feedback
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Equipment|OptimisticUI")
+	void RollbackPrediction(int32 PredictionKey, const FText& ErrorMessage);
+
+	/**
+	 * Check if there's a pending prediction for a slot
+	 * @param SlotIndex Slot to check
+	 * @return true if slot has pending prediction
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Equipment|OptimisticUI")
+	bool HasPendingPredictionForSlot(int32 SlotIndex) const;
 
 protected:
 	//==================================================================
@@ -331,4 +397,40 @@ private:
 
 	/** Cached EventBus reference */
 	mutable TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+
+	//==================================================================
+	// Optimistic UI (AAA-Level Client Prediction)
+	//==================================================================
+
+	/**
+	 * Apply optimistic equip visual.
+	 * Called immediately on user action before server confirmation.
+	 * @param SlotIndex Target slot
+	 * @param ItemData Item to show
+	 */
+	void ApplyOptimisticEquip(int32 SlotIndex, const FSuspenseCoreItemUIData& ItemData);
+
+	/**
+	 * Apply optimistic unequip visual.
+	 * @param SlotIndex Slot to clear
+	 */
+	void ApplyOptimisticUnequip(int32 SlotIndex);
+
+	/**
+	 * Restore slot from snapshot (rollback).
+	 * @param Snapshot Slot snapshot to restore
+	 */
+	void RestoreSlotFromSnapshot(const FSuspenseCoreSlotSnapshot& Snapshot);
+
+	/**
+	 * Get Optimistic UI Manager.
+	 * @return Manager or nullptr
+	 */
+	USuspenseCoreOptimisticUIManager* GetOptimisticUIManager() const;
+
+	/** Cached OptimisticUIManager reference */
+	mutable TWeakObjectPtr<USuspenseCoreOptimisticUIManager> CachedOptimisticUIManager;
+
+	/** Map of prediction key to affected slot */
+	TMap<int32, int32> PendingPredictionSlots;
 };

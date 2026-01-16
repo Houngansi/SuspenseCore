@@ -10,6 +10,8 @@
 #include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreOptimisticUIManager.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Data/SuspenseCoreEquipmentSlotPresets.h"
 #include "SuspenseCore/Settings/SuspenseCoreSettings.h"
@@ -1158,4 +1160,343 @@ void USuspenseCoreEquipmentWidget::ClearSlotHighlights()
 			SlotWidget->SetHighlightState(ESuspenseCoreUISlotState::Empty);
 		}
 	}
+}
+
+//==================================================================
+// Optimistic UI API (AAA-Level Client Prediction)
+//==================================================================
+
+int32 USuspenseCoreEquipmentWidget::RequestEquipOptimistic(
+	const FGuid& ItemInstanceID,
+	int32 TargetSlotIndex,
+	const FGuid& SourceContainerID,
+	int32 SourceSlotIndex)
+{
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (!OptimisticManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestEquipOptimistic - OptimisticUIManager not available"));
+		return INDEX_NONE;
+	}
+
+	// Get provider for data access
+	TScriptInterface<ISuspenseCoreUIDataProvider> Provider = GetBoundProvider();
+	if (!Provider.GetInterface())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestEquipOptimistic - No provider bound"));
+		return INDEX_NONE;
+	}
+
+	// Get item data from UIManager (source container)
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	if (!UIManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestEquipOptimistic - UIManager not available"));
+		return INDEX_NONE;
+	}
+
+	// Find source provider
+	TScriptInterface<ISuspenseCoreUIDataProvider> SourceProvider = UIManager->FindProviderByID(SourceContainerID);
+	if (!SourceProvider.GetInterface())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestEquipOptimistic - Source provider not found"));
+		return INDEX_NONE;
+	}
+
+	// Get item data from source
+	FSuspenseCoreItemUIData ItemData;
+	if (!SourceProvider->GetItemUIDataAtSlot(SourceSlotIndex, ItemData))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestEquipOptimistic - No item at source slot %d"), SourceSlotIndex);
+		return INDEX_NONE;
+	}
+
+	// Generate prediction key
+	int32 PredictionKey = OptimisticManager->GeneratePredictionKey();
+
+	// Create prediction with snapshots
+	FSuspenseCoreUIPrediction Prediction = FSuspenseCoreUIPrediction::CreateEquipItem(
+		PredictionKey,
+		SourceContainerID,
+		Provider->GetProviderID(),
+		SourceSlotIndex,
+		TargetSlotIndex,
+		ItemInstanceID
+	);
+
+	// Snapshot target equipment slot
+	FSuspenseCoreSlotUIData TargetSlotData;
+	FSuspenseCoreItemUIData TargetItemData;
+	Provider->GetSlotUIData(TargetSlotIndex, TargetSlotData);
+	Provider->GetItemUIDataAtSlot(TargetSlotIndex, TargetItemData);
+	Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(TargetSlotIndex, TargetSlotData, TargetItemData));
+
+	// Store prediction
+	if (!OptimisticManager->CreatePrediction(Prediction))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestEquipOptimistic - Failed to create prediction"));
+		return INDEX_NONE;
+	}
+
+	// Track which slot this prediction affects
+	PendingPredictionSlots.Add(PredictionKey, TargetSlotIndex);
+
+	// OPTIMISTIC UPDATE: Apply visual immediately
+	ApplyOptimisticEquip(TargetSlotIndex, ItemData);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: RequestEquipOptimistic - Prediction %d created for slot %d (optimistic visual applied)"),
+		PredictionKey, TargetSlotIndex);
+
+	// Send actual request to server via EventBus
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.Source = this;
+		EventData.SetInt(FName("SourceSlot"), SourceSlotIndex);
+		EventData.SetInt(FName("TargetSlot"), TargetSlotIndex);
+		EventData.SetString(FName("InstanceID"), ItemInstanceID.ToString());
+		EventData.SetInt(FName("PredictionKey"), PredictionKey);
+
+		static const FGameplayTag EquipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.EquipItem"));
+		EventBus->Publish(EquipItemTag, EventData);
+	}
+
+	return PredictionKey;
+}
+
+int32 USuspenseCoreEquipmentWidget::RequestUnequipOptimistic(
+	int32 SourceSlotIndex,
+	const FGuid& TargetContainerID,
+	int32 TargetSlotIndex)
+{
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (!OptimisticManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestUnequipOptimistic - OptimisticUIManager not available"));
+		return INDEX_NONE;
+	}
+
+	// Get provider for data access
+	TScriptInterface<ISuspenseCoreUIDataProvider> Provider = GetBoundProvider();
+	if (!Provider.GetInterface())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestUnequipOptimistic - No provider bound"));
+		return INDEX_NONE;
+	}
+
+	// Get current item data at equipment slot
+	FSuspenseCoreItemUIData ItemData;
+	if (!Provider->GetItemUIDataAtSlot(SourceSlotIndex, ItemData))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestUnequipOptimistic - No item at slot %d"), SourceSlotIndex);
+		return INDEX_NONE;
+	}
+
+	// Generate prediction key
+	int32 PredictionKey = OptimisticManager->GeneratePredictionKey();
+
+	// Create prediction with snapshots
+	FSuspenseCoreUIPrediction Prediction;
+	Prediction.PredictionKey = PredictionKey;
+	Prediction.OperationType = ESuspenseCoreUIPredictionType::UnequipItem;
+	Prediction.State = ESuspenseCoreUIPredictionState::Pending;
+	Prediction.SourceContainerID = Provider->GetProviderID();
+	Prediction.TargetContainerID = TargetContainerID;
+	Prediction.SourceSlot = SourceSlotIndex;
+	Prediction.TargetSlot = TargetSlotIndex;
+	Prediction.ItemInstanceID = ItemData.InstanceID;
+	Prediction.CreationTime = FPlatformTime::Seconds();
+
+	// Snapshot equipment slot
+	FSuspenseCoreSlotUIData SlotData;
+	Provider->GetSlotUIData(SourceSlotIndex, SlotData);
+	Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(SourceSlotIndex, SlotData, ItemData));
+
+	// Store prediction
+	if (!OptimisticManager->CreatePrediction(Prediction))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RequestUnequipOptimistic - Failed to create prediction"));
+		return INDEX_NONE;
+	}
+
+	// Track which slot this prediction affects
+	PendingPredictionSlots.Add(PredictionKey, SourceSlotIndex);
+
+	// OPTIMISTIC UPDATE: Apply visual immediately
+	ApplyOptimisticUnequip(SourceSlotIndex);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: RequestUnequipOptimistic - Prediction %d created for slot %d (optimistic visual applied)"),
+		PredictionKey, SourceSlotIndex);
+
+	// Send actual request to server via EventBus
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.Source = this;
+		EventData.SetInt(FName("SourceSlot"), SourceSlotIndex);
+		EventData.SetInt(FName("TargetSlot"), TargetSlotIndex);
+		EventData.SetString(FName("InstanceID"), ItemData.InstanceID.ToString());
+		EventData.SetInt(FName("PredictionKey"), PredictionKey);
+
+		static const FGameplayTag UnequipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.UnequipItem"));
+		EventBus->Publish(UnequipItemTag, EventData);
+	}
+
+	return PredictionKey;
+}
+
+void USuspenseCoreEquipmentWidget::ConfirmPrediction(int32 PredictionKey)
+{
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (OptimisticManager)
+	{
+		OptimisticManager->ConfirmPrediction(PredictionKey);
+	}
+
+	// Remove from tracking
+	PendingPredictionSlots.Remove(PredictionKey);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: ConfirmPrediction - Prediction %d confirmed (visual already correct)"), PredictionKey);
+}
+
+void USuspenseCoreEquipmentWidget::RollbackPrediction(int32 PredictionKey, const FText& ErrorMessage)
+{
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (!OptimisticManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: RollbackPrediction - OptimisticUIManager not available"));
+		return;
+	}
+
+	// Get prediction to find affected slot
+	const FSuspenseCoreUIPrediction* Prediction = OptimisticManager->GetPrediction(PredictionKey);
+	if (Prediction)
+	{
+		// Restore all snapshots
+		for (const FSuspenseCoreSlotSnapshot& Snapshot : Prediction->AffectedSlotSnapshots)
+		{
+			RestoreSlotFromSnapshot(Snapshot);
+		}
+	}
+
+	// Rollback in manager
+	OptimisticManager->RollbackPrediction(PredictionKey, ErrorMessage);
+
+	// Remove from tracking
+	PendingPredictionSlots.Remove(PredictionKey);
+
+	// Notify Blueprint
+	K2_OnPredictionRolledBack(PredictionKey, ErrorMessage);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: RollbackPrediction - Prediction %d rolled back: %s"),
+		PredictionKey, *ErrorMessage.ToString());
+}
+
+bool USuspenseCoreEquipmentWidget::HasPendingPredictionForSlot(int32 SlotIndex) const
+{
+	USuspenseCoreOptimisticUIManager* OptimisticManager = GetOptimisticUIManager();
+	if (!OptimisticManager)
+	{
+		return false;
+	}
+
+	TScriptInterface<ISuspenseCoreUIDataProvider> Provider = GetBoundProvider();
+	if (!Provider.GetInterface())
+	{
+		return false;
+	}
+
+	return OptimisticManager->HasPendingPredictionForSlot(Provider->GetProviderID(), SlotIndex);
+}
+
+void USuspenseCoreEquipmentWidget::ApplyOptimisticEquip(int32 SlotIndex, const FSuspenseCoreItemUIData& ItemData)
+{
+	if (!SlotWidgetsArray.IsValidIndex(SlotIndex))
+	{
+		return;
+	}
+
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[SlotIndex];
+	if (!SlotWidget)
+	{
+		return;
+	}
+
+	// Update slot with new item data (optimistic)
+	FSuspenseCoreSlotUIData SlotData;
+	SlotData.SlotIndex = SlotIndex;
+	SlotData.State = ESuspenseCoreUISlotState::Occupied;
+	SlotData.bIsAnchor = true;
+
+	SlotWidget->UpdateSlotData(SlotData, ItemData);
+
+	// Notify Blueprint
+	K2_OnEquipRequested(SlotWidget->GetSlotType(), ItemData);
+
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: ApplyOptimisticEquip - Slot %d updated with item %s"),
+		SlotIndex, *ItemData.DisplayName.ToString());
+}
+
+void USuspenseCoreEquipmentWidget::ApplyOptimisticUnequip(int32 SlotIndex)
+{
+	if (!SlotWidgetsArray.IsValidIndex(SlotIndex))
+	{
+		return;
+	}
+
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[SlotIndex];
+	if (!SlotWidget)
+	{
+		return;
+	}
+
+	// Update slot to empty (optimistic)
+	FSuspenseCoreSlotUIData SlotData;
+	SlotData.SlotIndex = SlotIndex;
+	SlotData.State = ESuspenseCoreUISlotState::Empty;
+	SlotData.bIsAnchor = true;
+
+	FSuspenseCoreItemUIData EmptyItemData;
+
+	SlotWidget->UpdateSlotData(SlotData, EmptyItemData);
+
+	// Notify Blueprint
+	K2_OnUnequipRequested(SlotWidget->GetSlotType());
+
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: ApplyOptimisticUnequip - Slot %d cleared"),
+		SlotIndex);
+}
+
+void USuspenseCoreEquipmentWidget::RestoreSlotFromSnapshot(const FSuspenseCoreSlotSnapshot& Snapshot)
+{
+	if (!SlotWidgetsArray.IsValidIndex(Snapshot.SlotIndex))
+	{
+		return;
+	}
+
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[Snapshot.SlotIndex];
+	if (!SlotWidget)
+	{
+		return;
+	}
+
+	// Restore from snapshot
+	SlotWidget->UpdateSlotData(Snapshot.SlotData, Snapshot.ItemData);
+
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: RestoreSlotFromSnapshot - Slot %d restored"),
+		Snapshot.SlotIndex);
+}
+
+USuspenseCoreOptimisticUIManager* USuspenseCoreEquipmentWidget::GetOptimisticUIManager() const
+{
+	if (CachedOptimisticUIManager.IsValid())
+	{
+		return CachedOptimisticUIManager.Get();
+	}
+
+	USuspenseCoreOptimisticUIManager* Manager = USuspenseCoreOptimisticUIManager::Get(this);
+	CachedOptimisticUIManager = Manager;
+	return Manager;
 }

@@ -1225,9 +1225,8 @@ int32 USuspenseCoreEquipmentWidget::RequestEquipOptimistic(
 	);
 
 	// Snapshot target equipment slot
-	FSuspenseCoreSlotUIData TargetSlotData;
+	FSuspenseCoreSlotUIData TargetSlotData = Provider->GetSlotUIData(TargetSlotIndex);
 	FSuspenseCoreItemUIData TargetItemData;
-	Provider->GetSlotUIData(TargetSlotIndex, TargetSlotData);
 	Provider->GetItemUIDataAtSlot(TargetSlotIndex, TargetItemData);
 	Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(TargetSlotIndex, TargetSlotData, TargetItemData));
 
@@ -1309,8 +1308,7 @@ int32 USuspenseCoreEquipmentWidget::RequestUnequipOptimistic(
 	Prediction.CreationTime = FPlatformTime::Seconds();
 
 	// Snapshot equipment slot
-	FSuspenseCoreSlotUIData SlotData;
-	Provider->GetSlotUIData(SourceSlotIndex, SlotData);
+	FSuspenseCoreSlotUIData SlotData = Provider->GetSlotUIData(SourceSlotIndex);
 	Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(SourceSlotIndex, SlotData, ItemData));
 
 	// Store prediction

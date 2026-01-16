@@ -13,6 +13,8 @@
 #include "DrawDebugHelpers.h"
 #include "SuspenseCore/Input/SuspenseCoreAbilityInputID.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreInteract, Log, All);
+
 USuspenseCoreInteractAbility::USuspenseCoreInteractAbility()
 {
 	InteractDistance = FScalableFloat(300.0f);
@@ -86,16 +88,13 @@ void USuspenseCoreInteractAbility::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== USuspenseCoreInteractAbility::ActivateAbility ==="));
-	UE_LOG(LogTemp, Warning, TEXT("  Avatar: %s"), *GetNameSafe(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr));
-	UE_LOG(LogTemp, Warning, TEXT("  IsNetAuthority: %s"), ActorInfo && ActorInfo->IsNetAuthority() ? TEXT("Yes") : TEXT("No"));
-
 	// Store prediction key for networking
 	CurrentPredictionKey = ActivationInfo.GetActivationPredictionKey();
 
 	// Perform trace to find target
 	AActor* TargetActor = PerformInteractionTrace(ActorInfo);
-	UE_LOG(LogTemp, Warning, TEXT("  Trace result: %s"), TargetActor ? *TargetActor->GetName() : TEXT("NO TARGET"));
+	UE_LOG(LogSuspenseCoreInteract, Verbose, TEXT("Interaction trace result: %s"),
+		TargetActor ? *TargetActor->GetName() : TEXT("NO TARGET"));
 
 	if (!TargetActor)
 	{

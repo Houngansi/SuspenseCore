@@ -246,8 +246,8 @@ protected:
 	/** Clamp значение атрибута */
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& Value);
 
-	/** Опубликовать событие прогрессии */
-	void BroadcastProgressionEvent(FGameplayTag EventTag, float OldValue, float NewValue);
+	/** Опубликовать событие прогрессии с указанным атрибутом */
+	void BroadcastProgressionEvent(FGameplayTag EventTag, const FGameplayAttribute& Attribute, float OldValue, float NewValue);
 
 private:
 	/** Базовый опыт для уровня 2 */

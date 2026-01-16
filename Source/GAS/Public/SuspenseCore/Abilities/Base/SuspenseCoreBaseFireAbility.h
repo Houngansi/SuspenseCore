@@ -133,16 +133,29 @@ struct GAS_API FSuspenseCoreRecoilPattern
 	FSuspenseCoreRecoilPattern()
 		: LoopScaleFactor(0.7f)
 	{
-		// Default pattern: Initial strong kick, then alternating
-		// This is a placeholder - real patterns should come from SSOT
-		Points.Add(FSuspenseCoreRecoilPatternPoint(1.0f, 0.0f));   // Shot 1: Strong up
-		Points.Add(FSuspenseCoreRecoilPatternPoint(0.8f, -0.1f));  // Shot 2: Up-left
-		Points.Add(FSuspenseCoreRecoilPatternPoint(0.7f, 0.15f));  // Shot 3: Up-right
-		Points.Add(FSuspenseCoreRecoilPatternPoint(0.6f, -0.05f)); // Shot 4: Up-slight left
-		Points.Add(FSuspenseCoreRecoilPatternPoint(0.5f, 0.1f));   // Shot 5: Up-right
-		Points.Add(FSuspenseCoreRecoilPatternPoint(0.4f, 0.0f));   // Shot 6: Stabilizing
-		Points.Add(FSuspenseCoreRecoilPatternPoint(0.35f, -0.08f));// Shot 7: Left drift
-		Points.Add(FSuspenseCoreRecoilPatternPoint(0.3f, 0.12f));  // Shot 8: Right drift
+		// Empty by default - pattern loaded from SSOT via InitializeFromData()
+		// If no pattern is configured, pure random recoil is used (PatternStrength = 0)
+	}
+
+	/**
+	 * Initialize pattern from SSOT DataTable data.
+	 * @param PatternPoints Array of FVector2D where X=PitchOffset, Y=YawOffset
+	 * @param InLoopScaleFactor Scale factor for pattern loops (0.1-1.0)
+	 */
+	void InitializeFromData(const TArray<FVector2D>& PatternPoints, float InLoopScaleFactor = 0.7f)
+	{
+		Points.Reset();
+		for (const FVector2D& Point : PatternPoints)
+		{
+			Points.Add(FSuspenseCoreRecoilPatternPoint(Point.X, Point.Y));
+		}
+		LoopScaleFactor = FMath::Clamp(InLoopScaleFactor, 0.1f, 1.0f);
+	}
+
+	/** Check if pattern has data loaded */
+	bool HasPattern() const
+	{
+		return Points.Num() > 0;
 	}
 
 	/** Get pattern point for a specific shot, with loop scaling */
@@ -337,6 +350,10 @@ struct GAS_API FSuspenseCoreRecoilState
 	/** Cached pattern strength from weapon data (0=random, 1=pure pattern) */
 	float CachedPatternStrength;
 
+	/** Cached attachment recoil modifier (multiplicative stack of all attachments)
+	 *  Cached at activation to avoid recalculating every shot */
+	float CachedAttachmentModifier;
+
 	FSuspenseCoreRecoilState()
 		: VisualPitch(0.0f)
 		, VisualYaw(0.0f)
@@ -354,6 +371,7 @@ struct GAS_API FSuspenseCoreRecoilState
 		, CachedErgonomics(42.0f)
 		, CachedRecoilBias(0.0f)
 		, CachedPatternStrength(0.3f)
+		, CachedAttachmentModifier(1.0f)
 	{
 	}
 

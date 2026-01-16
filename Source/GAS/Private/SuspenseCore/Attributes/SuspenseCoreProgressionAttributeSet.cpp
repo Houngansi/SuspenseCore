@@ -157,6 +157,7 @@ void USuspenseCoreProgressionAttributeSet::AddExperience(float Amount)
 	// Broadcast XP change
 	BroadcastProgressionEvent(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Progression.Experience.Changed")),
+		GetExperienceAttribute(),
 		OldXP,
 		GetExperience()
 	);
@@ -182,6 +183,7 @@ bool USuspenseCoreProgressionAttributeSet::AddSoftCurrency(float Amount)
 
 	BroadcastProgressionEvent(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Progression.Currency.Soft.Changed")),
+		GetSoftCurrencyAttribute(),
 		OldValue,
 		GetSoftCurrency()
 	);
@@ -209,6 +211,7 @@ bool USuspenseCoreProgressionAttributeSet::SpendSoftCurrency(float Amount)
 
 	BroadcastProgressionEvent(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Progression.Currency.Soft.Changed")),
+		GetSoftCurrencyAttribute(),
 		OldValue,
 		GetSoftCurrency()
 	);
@@ -375,14 +378,14 @@ void USuspenseCoreProgressionAttributeSet::ClampAttribute(const FGameplayAttribu
 	}
 }
 
-void USuspenseCoreProgressionAttributeSet::BroadcastProgressionEvent(FGameplayTag EventTag, float OldValue, float NewValue)
+void USuspenseCoreProgressionAttributeSet::BroadcastProgressionEvent(FGameplayTag EventTag, const FGameplayAttribute& Attribute, float OldValue, float NewValue)
 {
 	USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC();
 	if (ASC)
 	{
-		// Use generic attribute change for progression events
+		// Publish attribute change event with the actual attribute that changed
 		ASC->PublishAttributeChangeEvent(
-			GetExperienceAttribute(), // Placeholder
+			Attribute,
 			OldValue,
 			NewValue
 		);

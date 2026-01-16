@@ -35,6 +35,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreFireAbility, Log, All);
+
 //==================================================================
 // Collision Profile Configuration
 // To create the "Weapon" profile in your game project:
@@ -70,7 +72,7 @@ namespace SuspenseCoreCollision
 		static bool bWarnedOnce = false;
 		if (!bWarnedOnce)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("SuspenseCore: 'Weapon' collision profile not found. Using 'BlockAllDynamic' as fallback. "
+			UE_LOG(LogSuspenseCoreFireAbility, Warning, TEXT("SuspenseCore: 'Weapon' collision profile not found. Using 'BlockAllDynamic' as fallback. "
 				"Create 'Weapon' profile in Project Settings -> Collision for optimal weapon tracing."));
 			bWarnedOnce = true;
 		}
@@ -451,7 +453,7 @@ bool USuspenseCoreBaseFireAbility::ValidateShotRequest(const FWeaponShotParams& 
 	const float OriginDistance = FVector::Dist(ShotRequest.StartLocation, ActualMuzzle);
 	if (OriginDistance > MaxAllowedOriginDistance)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Shot validation failed: Origin distance %f > %f"), OriginDistance, MaxAllowedOriginDistance);
+		UE_LOG(LogSuspenseCoreFireAbility, Warning, TEXT("Shot validation failed: Origin distance %f > %f"), OriginDistance, MaxAllowedOriginDistance);
 		return false;
 	}
 
@@ -462,7 +464,7 @@ bool USuspenseCoreBaseFireAbility::ValidateShotRequest(const FWeaponShotParams& 
 		const float TimeDiff = FMath::Abs(ServerTime - ShotRequest.Timestamp);
 		if (TimeDiff > MaxTimeDifference)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Shot validation failed: Time diff %f > %f"), TimeDiff, MaxTimeDifference);
+			UE_LOG(LogSuspenseCoreFireAbility, Warning, TEXT("Shot validation failed: Time diff %f > %f"), TimeDiff, MaxTimeDifference);
 			return false;
 		}
 	}
@@ -758,9 +760,9 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 			AmmoModifier = AmmoAttrs->GetRecoilModifier();
 		}
 
-		// Apply attachment modifiers (multiplicative stack)
+		// Use cached attachment modifier (calculated once at activation)
 		// e.g., Muzzle brake 0.85 × Stock 0.90 × Grip 0.95 = 0.727 total
-		float AttachmentModifier = CalculateAttachmentRecoilModifier();
+		float AttachmentModifier = RecoilState.CachedAttachmentModifier;
 
 		// Calculate final recoil with all modifiers
 		// Formula: Base × AmmoMod × AttachMod × PointsToDegrees × ProgressiveMod × ADSMod
@@ -881,7 +883,7 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 
 		EventBus->Publish(SuspenseCoreTags::Event::Weapon::RecoilImpulse, EventData);
 
-		UE_LOG(LogTemp, Log, TEXT("RecoilImpulse: Published via EventBus. Pitch=%.3f, Yaw=%.3f"),
+		UE_LOG(LogSuspenseCoreFireAbility, Verbose, TEXT("RecoilImpulse: Published via EventBus. Pitch=%.3f, Yaw=%.3f"),
 			VisualVertical, VisualHorizontal);
 	}
 
@@ -918,8 +920,46 @@ void USuspenseCoreBaseFireAbility::InitializeRecoilStateFromWeapon()
 		RecoilState.CachedConvergenceDelay = 0.1f;
 		RecoilState.CachedErgonomics = 42.0f;
 		RecoilState.CachedRecoilBias = 0.0f;
-		RecoilState.CachedPatternStrength = 0.3f; // Default: 30% pattern, 70% random
+		RecoilState.CachedPatternStrength = 0.3f;
 	}
+
+	// ===================================================================
+	// Load Recoil Pattern from SSOT DataTable
+	// ===================================================================
+	USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(GetAvatarActorFromActorInfo());
+	if (DataManager)
+	{
+		// Get weapon ID from weapon interface
+		ISuspenseCoreWeapon* Weapon = GetWeaponInterface();
+		if (Weapon)
+		{
+			FName WeaponID = ISuspenseCoreWeapon::Execute_GetWeaponID(Cast<UObject>(Weapon));
+
+			// Load weapon row from SSOT DataTable
+			FSuspenseCoreWeaponAttributeRow WeaponRow;
+			if (DataManager->GetWeaponAttributes(WeaponID, WeaponRow))
+			{
+				// Initialize pattern from SSOT data
+				if (WeaponRow.RecoilPatternPoints.Num() > 0)
+				{
+					RecoilPattern.InitializeFromData(
+						WeaponRow.RecoilPatternPoints,
+						WeaponRow.RecoilPatternLoopScale
+					);
+					UE_LOG(LogSuspenseCoreFireAbility, Verbose, TEXT("Loaded %d recoil pattern points from SSOT for weapon '%s'"),
+						WeaponRow.RecoilPatternPoints.Num(), *WeaponID.ToString());
+				}
+			}
+		}
+	}
+
+	// ===================================================================
+	// Cache Attachment Recoil Modifier at Activation (Performance)
+	// Instead of recalculating every shot, cache the combined modifier
+	// ===================================================================
+	RecoilState.CachedAttachmentModifier = CalculateAttachmentRecoilModifier();
+	UE_LOG(LogSuspenseCoreFireAbility, Verbose, TEXT("Cached attachment recoil modifier: %.3f"),
+		RecoilState.CachedAttachmentModifier);
 }
 
 float USuspenseCoreBaseFireAbility::CalculateAttachmentRecoilModifier() const
@@ -970,7 +1010,7 @@ float USuspenseCoreBaseFireAbility::CalculateAttachmentRecoilModifier() const
 			{
 				TotalModifier *= AttachmentData.RecoilModifier;
 
-				UE_LOG(LogTemp, Verbose, TEXT("Attachment '%s' recoil modifier: %.2f (total: %.3f)"),
+				UE_LOG(LogSuspenseCoreFireAbility, Verbose, TEXT("Attachment '%s' recoil modifier: %.2f (total: %.3f)"),
 					*Attachment.AttachmentID.ToString(), AttachmentData.RecoilModifier, TotalModifier);
 			}
 		}
@@ -978,7 +1018,7 @@ float USuspenseCoreBaseFireAbility::CalculateAttachmentRecoilModifier() const
 		{
 			// Fallback: if SSOT data not found, log warning but continue
 			// This allows the system to work even without full DataTable configuration
-			UE_LOG(LogTemp, Warning, TEXT("Attachment '%s' not found in SSOT - using default modifier 1.0"),
+			UE_LOG(LogSuspenseCoreFireAbility, Warning, TEXT("Attachment '%s' not found in SSOT - using default modifier 1.0"),
 				*Attachment.AttachmentID.ToString());
 		}
 	}

@@ -512,6 +512,14 @@ void ASuspenseCoreWeaponActor::ClearFireModes_Implementation()
     }
 }
 
+bool ASuspenseCoreWeaponActor::CycleFireMode_Implementation()
+{
+    // ISuspenseCoreWeapon::CycleFireMode delegates to ISuspenseCoreFireModeProvider::CycleToNextFireMode
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseCoreFireModeProvider::StaticClass()))
+        ? ISuspenseCoreFireModeProvider::Execute_CycleToNextFireMode(FireModeComponent)
+        : false;
+}
+
 bool ASuspenseCoreWeaponActor::CycleToNextFireMode_Implementation()
 {
     return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseCoreFireModeProvider::StaticClass()))

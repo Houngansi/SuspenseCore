@@ -123,6 +123,7 @@ public:
     virtual bool InstallAttachment_Implementation(FSuspenseCoreAttachmentInstance& Attachment, const FGameplayTag& SlotType) override;
     virtual FSuspenseCoreAttachmentInstance RemoveAttachment_Implementation(const FGameplayTag& SlotType) override;
     virtual bool HasAttachmentInSlot_Implementation(const FGameplayTag& SlotType) const override;
+    virtual bool CycleFireMode_Implementation() override;
 
     //================================================
     // ISuspenseCoreFireModeProvider (proxy to component)

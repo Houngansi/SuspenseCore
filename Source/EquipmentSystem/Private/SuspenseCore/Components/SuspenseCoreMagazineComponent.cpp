@@ -1084,8 +1084,8 @@ bool USuspenseCoreMagazineComponent::ReturnMagazineToOwner(const FSuspenseCoreMa
     if (EjectedMagazine.SourceQuickSlotIndex >= 0 &&
         EjectedMagazine.SourceQuickSlotIndex < static_cast<int32>(SUSPENSECORE_QUICKSLOT_COUNT))
     {
-        // Check if source slot is empty
-        if (!QuickSlotComp->HasItemInSlot_Implementation(EjectedMagazine.SourceQuickSlotIndex))
+        // Check if source slot is empty (use interface method)
+        if (!ISuspenseCoreQuickSlotProvider::Execute_HasItemInSlot(QuickSlotComp, EjectedMagazine.SourceQuickSlotIndex))
         {
             QuickSlotComp->AssignMagazineToSlot(EjectedMagazine.SourceQuickSlotIndex, EjectedMagazine);
             StoredSlotIndex = EjectedMagazine.SourceQuickSlotIndex;

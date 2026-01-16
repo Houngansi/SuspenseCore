@@ -170,7 +170,7 @@ bool USuspenseCoreWeaponFireModeComponent::CycleToNextFireMode_Implementation()
     {
         if (FireModes[NextIndex].bIsAvailable && !ISuspenseCoreFireModeProvider::Execute_IsFireModeBlocked(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), FireModes[NextIndex].FireModeTag))
         {
-            return SetFireModeByIndex(NextIndex);
+            return ISuspenseCoreFireModeProvider::Execute_SetFireModeByIndex(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), NextIndex);
         }
 
         NextIndex = (NextIndex + 1) % FireModes.Num();
@@ -194,7 +194,7 @@ bool USuspenseCoreWeaponFireModeComponent::CycleToPreviousFireMode_Implementatio
     {
         if (FireModes[PrevIndex].bIsAvailable && !ISuspenseCoreFireModeProvider::Execute_IsFireModeBlocked(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), FireModes[PrevIndex].FireModeTag))
         {
-            return SetFireModeByIndex(PrevIndex);
+            return ISuspenseCoreFireModeProvider::Execute_SetFireModeByIndex(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), PrevIndex);
         }
 
         PrevIndex = (PrevIndex - 1 + FireModes.Num()) % FireModes.Num();
@@ -212,7 +212,7 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireMode_Implementation(const FGam
         return false;
     }
 
-    return SetFireModeByIndex(Index);
+    return ISuspenseCoreFireModeProvider::Execute_SetFireModeByIndex(const_cast<USuspenseCoreWeaponFireModeComponent*>(this), Index);
 }
 
 bool USuspenseCoreWeaponFireModeComponent::SetFireModeByIndex_Implementation(int32 Index)
@@ -354,7 +354,7 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireModeEnabled_Implementation(con
     // If disabling current mode, switch to another
     if (!bEnabled && Index == CurrentFireModeIndex)
     {
-        CycleToNextFireMode();
+        ISuspenseCoreFireModeProvider::Execute_CycleToNextFireMode(const_cast<USuspenseCoreWeaponFireModeComponent*>(this));
     }
 
     return true;
@@ -372,9 +372,9 @@ void USuspenseCoreWeaponFireModeComponent::SetFireModeBlocked_Implementation(con
     }
 
     // If blocking current mode, switch
-    if (bBlocked && GetCurrentFireMode() == FireModeTag)
+    if (bBlocked && ISuspenseCoreFireModeProvider::Execute_GetCurrentFireMode(this) == FireModeTag)
     {
-        CycleToNextFireMode();
+        ISuspenseCoreFireModeProvider::Execute_CycleToNextFireMode(const_cast<USuspenseCoreWeaponFireModeComponent*>(this));
     }
 }
 

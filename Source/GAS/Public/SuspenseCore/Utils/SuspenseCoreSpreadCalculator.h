@@ -112,15 +112,49 @@ public:
 	/**
 	 * Calculate effective range based on weapon and ammo.
 	 * Uses minimum of weapon and ammo effective ranges.
+	 * NOTE: Returns value in METERS (for damage falloff calculations).
 	 *
 	 * @param WeaponAttributes Weapon attribute set
 	 * @param AmmoAttributes Ammo attribute set
-	 * @return Effective range in units
+	 * @return Effective range in METERS (DataTable units)
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Range")
 	static float CalculateEffectiveRange(
 		const USuspenseCoreWeaponAttributeSet* WeaponAttributes,
 		const USuspenseCoreAmmoAttributeSet* AmmoAttributes
+	);
+
+	/**
+	 * Calculate maximum trace range for weapon line traces.
+	 * Uses weapon's MaxRange attribute (maximum bullet travel distance).
+	 * Automatically converts from meters (DataTable) to UE units (trace).
+	 *
+	 * This is the PRIMARY function for determining trace endpoint distance.
+	 * DO NOT use CalculateEffectiveRange() for traces - that's for damage falloff.
+	 *
+	 * @param WeaponAttributes Weapon attribute set
+	 * @param AmmoAttributes Ammo attribute set (may limit range for certain ammo types)
+	 * @return Maximum trace range in UE UNITS (centimeters)
+	 *
+	 * @see SuspenseCoreUnits::ConvertRangeToUnits() for conversion details
+	 * @see FSuspenseCoreWeaponAttributeRow::MaxRange - Source data in meters
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Range")
+	static float CalculateMaxTraceRange(
+		const USuspenseCoreWeaponAttributeSet* WeaponAttributes,
+		const USuspenseCoreAmmoAttributeSet* AmmoAttributes
+	);
+
+	/**
+	 * Calculate maximum trace range for weapon (weapon-only variant).
+	 * Uses when ammo attributes are not available.
+	 *
+	 * @param WeaponAttributes Weapon attribute set
+	 * @return Maximum trace range in UE UNITS (centimeters)
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Range")
+	static float CalculateMaxTraceRangeFromWeapon(
+		const USuspenseCoreWeaponAttributeSet* WeaponAttributes
 	);
 
 	/**

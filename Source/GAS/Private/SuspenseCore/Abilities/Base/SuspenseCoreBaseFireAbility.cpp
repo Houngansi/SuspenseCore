@@ -8,6 +8,7 @@
 #include "SuspenseCore/Utils/SuspenseCoreTraceUtils.h"
 #include "SuspenseCore/Utils/SuspenseCoreSpreadProcessor.h"
 #include "SuspenseCore/Utils/SuspenseCoreSpreadCalculator.h"
+#include "SuspenseCore/Core/SuspenseCoreUnits.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
 #include "SuspenseCore/Effects/Weapon/SuspenseCoreDamageEffect.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponCombatState.h"
@@ -287,7 +288,15 @@ FWeaponShotParams USuspenseCoreBaseFireAbility::GenerateShotRequest()
 			0.0f  // Character damage bonus (could be fetched from character attribute set)
 		);
 
-		Params.Range = USuspenseCoreSpreadCalculator::CalculateEffectiveRange(
+		// CRITICAL: Use CalculateMaxTraceRange() for trace distance!
+		// This function:
+		// 1. Uses MaxRange (maximum bullet travel), NOT EffectiveRange (damage falloff)
+		// 2. Converts from meters (DataTable) to UE units (trace)
+		// Example: MaxRange 600m → 60000 UE units
+		//
+		// @see SuspenseCoreUnits::ConvertRangeToUnits()
+		// @see Documentation/GAS/UnitConversionSystem.md
+		Params.Range = USuspenseCoreSpreadCalculator::CalculateMaxTraceRange(
 			WeaponAttrs,
 			AmmoAttrs
 		);
@@ -304,8 +313,9 @@ FWeaponShotParams USuspenseCoreBaseFireAbility::GenerateShotRequest()
 	else
 	{
 		// Fallback defaults if no attributes
+		// Using SuspenseCoreUnits constants for consistency
 		Params.BaseDamage = 25.0f;
-		Params.Range = 10000.0f;
+		Params.Range = SuspenseCoreUnits::DefaultTraceRangeUnits; // 10km in UE units
 		Params.SpreadAngle = USuspenseCoreSpreadProcessor::CalculateCurrentSpread(
 			bIsAiming ? 1.0f : 3.0f,
 			bIsAiming,

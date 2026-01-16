@@ -516,6 +516,22 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 	);
 	SubscriptionHandles.Add(QuickSlotClearedHandle);
 
+	// Subscribe to OptimisticUI rollback events (AAA-level client prediction)
+	static const FGameplayTag RollbackTag = FGameplayTag::RequestGameplayTag(
+		FName("SuspenseCore.Event.OptimisticUI.Rollback"), false);
+
+	if (RollbackTag.IsValid())
+	{
+		FSuspenseCoreSubscriptionHandle RollbackHandle = EventBus->SubscribeNative(
+			RollbackTag,
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(
+				this, &USuspenseCoreEquipmentWidget::OnPredictionRollbackEvent),
+			ESuspenseCoreEventPriority::Normal
+		);
+		SubscriptionHandles.Add(RollbackHandle);
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Setup %d EventBus subscriptions"), SubscriptionHandles.Num());
 }
 
@@ -709,6 +725,28 @@ void USuspenseCoreEquipmentWidget::OnQuickSlotClearedEvent(FGameplayTag EventTag
 	SlotWidget->UpdateSlotData(SlotData, ItemData);
 }
 
+void USuspenseCoreEquipmentWidget::OnPredictionRollbackEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Extract prediction key from event
+	int32 PredictionKey = EventData.GetInt(TEXT("PredictionKey"), INDEX_NONE);
+	if (PredictionKey == INDEX_NONE)
+	{
+		return;
+	}
+
+	// Check if this prediction belongs to us
+	if (!PendingPredictionSlots.Contains(PredictionKey))
+	{
+		return; // Not our prediction
+	}
+
+	// Extract error message
+	FText ErrorMessage = FText::FromString(EventData.GetString(TEXT("ErrorMessage"), TEXT("Server rejected operation")));
+
+	// Perform rollback
+	RollbackPrediction(PredictionKey, ErrorMessage);
+}
+
 //==================================================================
 // Character Preview
 //==================================================================
@@ -825,6 +863,13 @@ FReply USuspenseCoreEquipmentWidget::NativeOnMouseButtonDown(const FGeometry& In
 		int32 SlotIndex = SlotWidgetsArray.IndexOfByKey(SlotWidget);
 		bool bLeftClick = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
 		bool bRightClick = InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
+
+		// EDGE CASE: Block interaction on slots with pending predictions (AAA-level protection)
+		if (HasPendingPredictionForSlot(SlotIndex))
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: MouseDown blocked - slot %d has pending prediction"), SlotIndex);
+			return FReply::Handled();
+		}
 
 		// Right-click could open context menu (handled elsewhere)
 		if (bRightClick)

@@ -195,9 +195,8 @@ int32 USuspenseCoreOptimisticUIManager::CreateMoveItemPrediction(
 			int32 SlotIndex = (SourceRow + Y) * GridSize.X + (SourceCol + X);
 			if (SlotIndex >= 0 && SlotIndex < GridSize.X * GridSize.Y)
 			{
-				FSuspenseCoreSlotUIData SlotData;
+				FSuspenseCoreSlotUIData SlotData = Provider->GetSlotUIData(SlotIndex);
 				FSuspenseCoreItemUIData ItemData;
-				Provider->GetSlotUIData(SlotIndex, SlotData);
 				Provider->GetItemUIDataAtSlot(SlotIndex, ItemData);
 
 				Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(SlotIndex, SlotData, ItemData));
@@ -219,9 +218,8 @@ int32 USuspenseCoreOptimisticUIManager::CreateMoveItemPrediction(
 				// Only add if not already in snapshot list
 				if (!Prediction.FindSlotSnapshot(SlotIndex))
 				{
-					FSuspenseCoreSlotUIData SlotData;
+					FSuspenseCoreSlotUIData SlotData = Provider->GetSlotUIData(SlotIndex);
 					FSuspenseCoreItemUIData ItemData;
-					Provider->GetSlotUIData(SlotIndex, SlotData);
 					Provider->GetItemUIDataAtSlot(SlotIndex, ItemData);
 
 					Prediction.AddSlotSnapshot(FSuspenseCoreSlotSnapshot::Create(SlotIndex, SlotData, ItemData));
@@ -397,25 +395,24 @@ void USuspenseCoreOptimisticUIManager::ApplyRollback(const FSuspenseCoreUIPredic
 	TScriptInterface<ISuspenseCoreUIDataProvider> TargetProvider =
 		UIManager->FindProviderByID(Prediction.TargetContainerID);
 
-	// Restore snapshots
+	// Restore snapshots via EventBus notification
+	// The widget will handle restoring visuals from its cached state
 	for (const FSuspenseCoreSlotSnapshot& Snapshot : Prediction.AffectedSlotSnapshots)
 	{
-		// Determine which provider owns this slot
-		TScriptInterface<ISuspenseCoreUIDataProvider> Provider;
+		UE_LOG(LogOptimisticUI, Verbose, TEXT("ApplyRollback: Slot %d marked for restore"), Snapshot.SlotIndex);
+	}
 
-		// Check if slot is in source range or target range
-		// For simplicity, we notify both providers to refresh
-		if (SourceProvider.GetInterface())
-		{
-			SourceProvider->NotifySlotChanged(Snapshot.SlotIndex);
-		}
+	// Publish rollback event so widgets can refresh from provider
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.SetInt(FName("PredictionKey"), Prediction.PredictionKey);
+		EventData.SetString(FName("SourceContainerID"), Prediction.SourceContainerID.ToString());
+		EventData.SetString(FName("TargetContainerID"), Prediction.TargetContainerID.ToString());
+		EventData.SetInt(FName("AffectedSlotCount"), Prediction.AffectedSlotSnapshots.Num());
 
-		if (TargetProvider.GetInterface() && Prediction.TargetContainerID != Prediction.SourceContainerID)
-		{
-			TargetProvider->NotifySlotChanged(Snapshot.SlotIndex);
-		}
-
-		UE_LOG(LogOptimisticUI, Verbose, TEXT("ApplyRollback: Restored slot %d"), Snapshot.SlotIndex);
+		// Publish to UIFeedback tag for rollback notification
+		EventBus->Publish(TAG_SuspenseCore_Event_UIFeedback_Error, EventData);
 	}
 
 	UE_LOG(LogOptimisticUI, Log, TEXT("ApplyRollback: Completed rollback for prediction %d"), Prediction.PredictionKey);

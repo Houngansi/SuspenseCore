@@ -679,9 +679,9 @@ void USuspenseCoreDragDropHandler::PublishDropFeedback(
 	EventData.SetInt(FName("SourceSlot"), Request.SourceSlot);
 	EventData.SetInt(FName("TargetSlot"), Request.TargetSlot);
 
-	if (Request.DragData.ItemData.InstanceID.IsValid())
+	if (Request.DragData.Item.InstanceID.IsValid())
 	{
-		EventData.SetString(FName("ItemName"), Request.DragData.ItemData.DisplayName.ToString());
+		EventData.SetString(FName("ItemName"), Request.DragData.Item.DisplayName.ToString());
 	}
 
 	// Publish to appropriate tag
@@ -705,7 +705,7 @@ void USuspenseCoreDragDropHandler::PublishDragStartFeedback(const FSuspenseCoreD
 	}
 
 	FSuspenseCoreEventData EventData;
-	EventData.SetString(FName("ItemName"), DragData.ItemData.DisplayName.ToString());
+	EventData.SetString(FName("ItemName"), DragData.Item.DisplayName.ToString());
 	EventData.SetInt(FName("SourceSlot"), DragData.SourceSlot);
 	EventData.SetInt(FName("Quantity"), DragData.DragQuantity);
 

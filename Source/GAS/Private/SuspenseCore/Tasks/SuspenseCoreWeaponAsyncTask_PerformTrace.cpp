@@ -4,10 +4,12 @@
 
 #include "SuspenseCore/Tasks/SuspenseCoreWeaponAsyncTask_PerformTrace.h"
 #include "SuspenseCore/Utils/SuspenseCoreTraceUtils.h"
+#include "SuspenseCore/Utils/SuspenseCoreSpreadCalculator.h"
 #include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponCombatState.h"
+#include "SuspenseCore/Core/SuspenseCoreUnits.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -130,7 +132,15 @@ void USuspenseCoreWeaponAsyncTask_PerformTrace::ExecuteTrace()
 	if (WeaponAttrs)
 	{
 		BaseSpread = WeaponAttrs->GetHipFireSpread();
-		MaxRange = WeaponAttrs->GetMaxRange();
+
+		// CRITICAL: Use CalculateMaxTraceRangeFromWeapon for proper unit conversion!
+		// WeaponAttrs->GetMaxRange() returns METERS (DataTable units)
+		// CalculateMaxTraceRangeFromWeapon converts to UE units (centimeters)
+		// Example: 600m → 60000 UE units
+		//
+		// @see SuspenseCoreUnits::ConvertRangeToUnits()
+		// @see Documentation/GAS/UnitConversionSystem.md
+		MaxRange = USuspenseCoreSpreadCalculator::CalculateMaxTraceRangeFromWeapon(WeaponAttrs);
 	}
 
 	// Apply overrides

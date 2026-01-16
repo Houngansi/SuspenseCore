@@ -6,6 +6,7 @@
 #include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
 #include "SuspenseCore/Utils/SuspenseCoreSpreadProcessor.h"
+#include "SuspenseCore/Core/SuspenseCoreUnits.h"
 #include "AbilitySystemComponent.h"
 
 float USuspenseCoreSpreadCalculator::CalculateSpreadWithAttributes(
@@ -150,8 +151,12 @@ float USuspenseCoreSpreadCalculator::CalculateEffectiveRange(
 	const USuspenseCoreWeaponAttributeSet* WeaponAttributes,
 	const USuspenseCoreAmmoAttributeSet* AmmoAttributes)
 {
-	float WeaponRange = 10000.0f; // Default max range
-	float AmmoRange = 10000.0f;
+	// NOTE: This function returns METERS (DataTable units)
+	// Used for damage falloff calculations, NOT for trace distance
+	// For trace distance, use CalculateMaxTraceRange() instead
+
+	float WeaponRange = 400.0f; // Default effective range (meters)
+	float AmmoRange = 400.0f;
 
 	if (WeaponAttributes)
 	{
@@ -166,6 +171,73 @@ float USuspenseCoreSpreadCalculator::CalculateEffectiveRange(
 	// Effective range is the minimum of both
 	// (e.g., pistol can't shoot rifle ammo at rifle ranges)
 	return FMath::Min(WeaponRange, AmmoRange);
+}
+
+float USuspenseCoreSpreadCalculator::CalculateMaxTraceRange(
+	const USuspenseCoreWeaponAttributeSet* WeaponAttributes,
+	const USuspenseCoreAmmoAttributeSet* AmmoAttributes)
+{
+	// =============================================================================
+	// MAXIMUM TRACE RANGE CALCULATION
+	// =============================================================================
+	// Uses MaxRange (maximum bullet travel distance) from weapon attributes.
+	// DataTable stores values in METERS, this function converts to UE units.
+	//
+	// IMPORTANT: This is the correct function for trace endpoint calculation.
+	// DO NOT use CalculateEffectiveRange() - that's for damage falloff.
+	//
+	// Data flow:
+	//   JSON: MaxRange = 600 (meters)
+	//   → WeaponAttributeSet::MaxRange = 600.0f (meters, as loaded)
+	//   → CalculateMaxTraceRange() = 60000.0f (UE units, converted)
+	//   → LineTrace endpoint = MuzzleLocation + Direction * 60000
+	//
+	// @see SuspenseCoreUnits::ConvertRangeToUnits()
+	// @see Documentation/GAS/UnitConversionSystem.md
+	// =============================================================================
+
+	float MaxRangeMeters = 0.0f;
+
+	// Get weapon's maximum range (primary source)
+	if (WeaponAttributes)
+	{
+		MaxRangeMeters = WeaponAttributes->GetMaxRange();
+	}
+
+	// Ammo may have shorter effective range (e.g., subsonic rounds)
+	// Take minimum if ammo limits range
+	if (AmmoAttributes)
+	{
+		float AmmoEffectiveRange = AmmoAttributes->GetEffectiveRange();
+
+		// Only limit if ammo has shorter range AND we have weapon data
+		// (avoids taking min with zero if weapon attrs missing)
+		if (MaxRangeMeters > 0.0f && AmmoEffectiveRange > 0.0f)
+		{
+			// Ammo effective range can limit max trace range
+			// (subsonic rounds don't fly as far as supersonic)
+			// But typically MaxRange > AmmoEffectiveRange, so this rarely triggers
+			MaxRangeMeters = FMath::Max(MaxRangeMeters, AmmoEffectiveRange);
+		}
+	}
+
+	// Convert from meters to UE units with validation
+	return SuspenseCoreUnits::ConvertRangeToUnits(MaxRangeMeters);
+}
+
+float USuspenseCoreSpreadCalculator::CalculateMaxTraceRangeFromWeapon(
+	const USuspenseCoreWeaponAttributeSet* WeaponAttributes)
+{
+	// Weapon-only variant - no ammo consideration
+	// Useful when ammo attributes aren't loaded yet (e.g., before first shot)
+
+	if (!WeaponAttributes)
+	{
+		return SuspenseCoreUnits::DefaultTraceRangeUnits;
+	}
+
+	float MaxRangeMeters = WeaponAttributes->GetMaxRange();
+	return SuspenseCoreUnits::ConvertRangeToUnits(MaxRangeMeters);
 }
 
 float USuspenseCoreSpreadCalculator::CalculateRecoil(

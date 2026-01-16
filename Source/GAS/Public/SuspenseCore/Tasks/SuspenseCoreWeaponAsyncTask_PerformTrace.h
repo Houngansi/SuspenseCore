@@ -5,16 +5,25 @@
 // Performs async weapon traces for visual effects (tracers, impacts).
 // Does NOT handle damage - that's server-authoritative via BaseFireAbility.
 //
+// UNIT CONVERSION:
+// =================
+// This task automatically converts weapon range from meters (DataTable)
+// to UE units (centimeters) for traces. Uses SuspenseCoreUnits constants.
+//
 // Usage:
 //   auto Task = USuspenseCoreWeaponAsyncTask_PerformTrace::PerformWeaponTrace(this, Config);
 //   Task->OnCompleted.AddDynamic(this, &UMyAbility::OnTraceCompleted);
 //   Task->ReadyForActivation();
+//
+// @see SuspenseCoreUnits.h for conversion constants
+// @see Documentation/GAS/UnitConversionSystem.md
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Abilities/Tasks/AbilityTask.h"
 #include "SuspenseCore/Types/Equipment/SuspenseCoreWeaponTypes.h"
+#include "SuspenseCore/Core/SuspenseCoreUnits.h"
 #include "SuspenseCoreWeaponAsyncTask_PerformTrace.generated.h"
 
 class USuspenseCoreWeaponAttributeSet;
@@ -255,6 +264,8 @@ private:
 	/** Movement speed threshold for spread penalty */
 	static constexpr float MovementThreshold = 10.0f;
 
-	/** Default max range if not specified */
-	static constexpr float DefaultMaxRange = 10000.0f;
+	/** Default max range if not specified (in UE units)
+	 *  Uses SuspenseCoreUnits constant for consistency across codebase.
+	 *  @see SuspenseCoreUnits::DefaultTraceRangeUnits */
+	static constexpr float DefaultMaxRange = SuspenseCoreUnits::DefaultTraceRangeUnits;
 };

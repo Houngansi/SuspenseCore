@@ -684,10 +684,10 @@ void USuspenseCoreDragDropHandler::PublishDropFeedback(
 		EventData.SetString(FName("ItemName"), Request.DragData.Item.DisplayName.ToString());
 	}
 
-	// Publish to appropriate tag
-	FGameplayTag FeedbackTag = Result.bSuccess
-		? TAG_SuspenseCore_Event_UIFeedback_Success
-		: TAG_SuspenseCore_Event_UIFeedback_Error;
+	// Publish to appropriate tag (use RequestGameplayTag for cross-module compatibility)
+	static const FGameplayTag SuccessTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIFeedback.Success"));
+	static const FGameplayTag ErrorTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIFeedback.Error"));
+	FGameplayTag FeedbackTag = Result.bSuccess ? SuccessTag : ErrorTag;
 
 	EventBus->Publish(FeedbackTag, EventData);
 
@@ -709,8 +709,9 @@ void USuspenseCoreDragDropHandler::PublishDragStartFeedback(const FSuspenseCoreD
 	EventData.SetInt(FName("SourceSlot"), DragData.SourceSlot);
 	EventData.SetInt(FName("Quantity"), DragData.DragQuantity);
 
-	// Use generic UIFeedback tag for drag start
-	EventBus->Publish(TAG_SuspenseCore_Event_UIFeedback, EventData);
+	// Use generic UIFeedback tag for drag start (RequestGameplayTag for cross-module)
+	static const FGameplayTag UIFeedbackTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIFeedback"));
+	EventBus->Publish(UIFeedbackTag, EventData);
 }
 
 void USuspenseCoreDragDropHandler::PublishDragCancelFeedback()
@@ -724,7 +725,8 @@ void USuspenseCoreDragDropHandler::PublishDragCancelFeedback()
 	FSuspenseCoreEventData EventData;
 	EventData.SetBool(FName("Cancelled"), true);
 
-	EventBus->Publish(TAG_SuspenseCore_Event_UIFeedback, EventData);
+	static const FGameplayTag UIFeedbackTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIFeedback"));
+	EventBus->Publish(UIFeedbackTag, EventData);
 }
 
 bool USuspenseCoreDragDropHandler::CalculateOccupiedSlots(

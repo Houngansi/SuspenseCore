@@ -411,8 +411,9 @@ void USuspenseCoreOptimisticUIManager::ApplyRollback(const FSuspenseCoreUIPredic
 		EventData.SetString(FName("TargetContainerID"), Prediction.TargetContainerID.ToString());
 		EventData.SetInt(FName("AffectedSlotCount"), Prediction.AffectedSlotSnapshots.Num());
 
-		// Publish to UIFeedback tag for rollback notification
-		EventBus->Publish(TAG_SuspenseCore_Event_UIFeedback_Error, EventData);
+		// Publish to UIFeedback tag for rollback notification (RequestGameplayTag for cross-module)
+		static const FGameplayTag ErrorTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIFeedback.Error"));
+		EventBus->Publish(ErrorTag, EventData);
 	}
 
 	UE_LOG(LogOptimisticUI, Log, TEXT("ApplyRollback: Completed rollback for prediction %d"), Prediction.PredictionKey);
@@ -448,8 +449,9 @@ void USuspenseCoreOptimisticUIManager::BroadcastStateChange(int32 PredictionKey,
 		EventData.SetInt(FName("PredictionKey"), PredictionKey);
 		EventData.SetInt(FName("State"), static_cast<int32>(NewState));
 
-		// Use UIFeedback tag for prediction events
-		EventBus->Publish(TAG_SuspenseCore_Event_UIFeedback, EventData);
+		// Use UIFeedback tag for prediction events (RequestGameplayTag for cross-module)
+		static const FGameplayTag UIFeedbackTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIFeedback"));
+		EventBus->Publish(UIFeedbackTag, EventData);
 	}
 }
 
@@ -464,9 +466,10 @@ void USuspenseCoreOptimisticUIManager::PublishFeedbackEvent(bool bSuccess, const
 			EventData.SetString(FName("Message"), Message.ToString());
 		}
 
-		FGameplayTag FeedbackTag = bSuccess
-			? TAG_SuspenseCore_Event_UIFeedback_Success
-			: TAG_SuspenseCore_Event_UIFeedback_Error;
+		// Use RequestGameplayTag for cross-module compatibility
+		static const FGameplayTag SuccessTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIFeedback.Success"));
+		static const FGameplayTag ErrorTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIFeedback.Error"));
+		FGameplayTag FeedbackTag = bSuccess ? SuccessTag : ErrorTag;
 
 		EventBus->Publish(FeedbackTag, EventData);
 	}

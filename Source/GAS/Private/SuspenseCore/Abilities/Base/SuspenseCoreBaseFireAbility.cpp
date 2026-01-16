@@ -929,15 +929,16 @@ void USuspenseCoreBaseFireAbility::InitializeRecoilStateFromWeapon()
 	USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(GetAvatarActorFromActorInfo());
 	if (DataManager)
 	{
-		// Get weapon ID from weapon interface
+		// Get weapon ID from weapon interface via item instance
 		ISuspenseCoreWeapon* Weapon = GetWeaponInterface();
 		if (Weapon)
 		{
-			FName WeaponID = ISuspenseCoreWeapon::Execute_GetWeaponID(Cast<UObject>(Weapon));
+			FSuspenseCoreInventoryItemInstance ItemInstance = ISuspenseCoreWeapon::Execute_GetItemInstance(Cast<UObject>(Weapon));
+			FName WeaponID = ItemInstance.ItemID;
 
 			// Load weapon row from SSOT DataTable
 			FSuspenseCoreWeaponAttributeRow WeaponRow;
-			if (DataManager->GetWeaponAttributes(WeaponID, WeaponRow))
+			if (WeaponID != NAME_None && DataManager->GetWeaponAttributes(WeaponID, WeaponRow))
 			{
 				// Initialize pattern from SSOT data
 				if (WeaponRow.RecoilPatternPoints.Num() > 0)

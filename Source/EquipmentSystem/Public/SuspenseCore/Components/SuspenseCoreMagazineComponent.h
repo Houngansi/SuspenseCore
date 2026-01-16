@@ -24,6 +24,7 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h" // SUSPENSECORE_QUICKSLOT_COUNT
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
+#include "GameplayEffectTypes.h" // FActiveGameplayEffectHandle for GAS integration
 #include "SuspenseCoreMagazineComponent.generated.h"
 
 // Forward declarations
@@ -34,9 +35,6 @@ class USuspenseCoreEquipmentAttributeComponent;
 class USuspenseCoreQuickSlotComponent;
 class UAbilitySystemComponent;
 class UGameplayEffect;
-
-// GAS types for effect handles
-#include "GameplayEffectTypes.h"
 
 /**
  * Delegate for magazine state changes

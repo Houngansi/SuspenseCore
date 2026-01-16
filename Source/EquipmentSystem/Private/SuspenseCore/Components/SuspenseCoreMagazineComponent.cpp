@@ -718,10 +718,15 @@ bool USuspenseCoreMagazineComponent::CanReload(const FSuspenseCoreMagazineInstan
         return false;
     }
 
-    // If checking with specific magazine, verify compatibility
+    // If checking with specific magazine, verify caliber compatibility via SSOT
     if (NewMagazine.IsValid())
     {
-        // TODO: Check caliber compatibility
+        if (!IsMagazineCompatible_Implementation(NewMagazine))
+        {
+            UE_LOG(LogMagazineComponent, Verbose, TEXT("CanReload: Magazine %s not compatible with weapon caliber"),
+                *NewMagazine.MagazineID.ToString());
+            return false;
+        }
         return true;
     }
 

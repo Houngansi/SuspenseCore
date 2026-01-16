@@ -279,8 +279,42 @@ float USuspenseCoreQuickSlotComponent::GetSlotCooldown(int32 SlotIndex) const
 
 bool USuspenseCoreQuickSlotComponent::IsItemMagazine(FName ItemID) const
 {
-    // TODO: Query DataManager to check item category
-    // For now, check if we have a stored magazine with this ID
+    if (ItemID.IsNone())
+    {
+        return false;
+    }
+
+    // Primary: Query DataManager for authoritative item category (SSOT)
+    if (USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this))
+    {
+        FSuspenseCoreUnifiedItemData ItemData;
+        if (DataManager->GetUnifiedItemData(ItemID, ItemData))
+        {
+            // Use bIsMagazine flag from SSOT data
+            if (ItemData.bIsMagazine)
+            {
+                return true;
+            }
+
+            // Also check ItemType tag as secondary validation
+            if (ItemData.ItemType.IsValid() && MagazineCategoryTag.IsValid())
+            {
+                if (ItemData.ItemType.MatchesTag(MagazineCategoryTag))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // Check if it exists in MagazineDataTable directly
+        FSuspenseCoreMagazineData MagData;
+        if (DataManager->GetMagazineData(ItemID, MagData))
+        {
+            return true;
+        }
+    }
+
+    // Fallback: Check stored magazines array
     for (const FSuspenseCoreMagazineInstance& Mag : StoredMagazines)
     {
         if (Mag.MagazineID == ItemID)
@@ -289,9 +323,7 @@ bool USuspenseCoreQuickSlotComponent::IsItemMagazine(FName ItemID) const
         }
     }
 
-    // Check if item name contains "mag" or "magazine" (temporary heuristic)
-    FString ItemStr = ItemID.ToString().ToLower();
-    return ItemStr.Contains(TEXT("mag")) || ItemStr.Contains(TEXT("stanag")) || ItemStr.Contains(TEXT("pmag"));
+    return false;
 }
 
 bool USuspenseCoreQuickSlotComponent::FindSlotWithItem(const FGuid& ItemInstanceID, int32& OutSlotIndex) const

@@ -409,6 +409,7 @@ namespace SuspenseCoreTags
 	{
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ItemID);
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage);  // SetByCaller damage value
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ErgonomicsPenalty);  // SetByCaller ergonomics penalty (magazine/attachment)
 
 		// Cost tags for SetByCaller in GameplayEffects
 		namespace Cost

@@ -428,6 +428,7 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine_Ejected, "SuspenseCore.Event.Equipment.Magazine.Ejected");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine_Swapped, "SuspenseCore.Event.Equipment.Magazine.Swapped");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine_RoundsChanged, "SuspenseCore.Event.Equipment.Magazine.RoundsChanged");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine_ReturnedToStorage, "SuspenseCore.Event.Equipment.Magazine.ReturnedToStorage");
 
         // Ammo loading events (Tarkov-style drag&drop / quick load)
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ammo_LoadRequested, "SuspenseCore.Event.Equipment.Ammo.LoadRequested");

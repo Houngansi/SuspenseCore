@@ -198,6 +198,14 @@ struct BRIDGESYSTEM_API FSuspenseCoreMagazineInstance
     UPROPERTY(BlueprintReadOnly, Category = "Magazine|State")
     bool bIsInsertedInWeapon = false;
 
+    /**
+     * Source QuickSlot index where this magazine was taken from.
+     * Used for returning magazine to original slot on eject.
+     * -1 means magazine came from inventory or was spawned (not from QuickSlot).
+     */
+    UPROPERTY(BlueprintReadOnly, Category = "Magazine|State")
+    int32 SourceQuickSlotIndex = -1;
+
     //==================================================================
     // Constructors
     //==================================================================

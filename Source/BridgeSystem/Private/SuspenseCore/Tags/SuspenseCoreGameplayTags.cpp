@@ -387,6 +387,7 @@ namespace SuspenseCoreTags
 	{
 		UE_DEFINE_GAMEPLAY_TAG(ItemID, "Data.ItemID");
 		UE_DEFINE_GAMEPLAY_TAG(Damage, "Data.Damage");
+		UE_DEFINE_GAMEPLAY_TAG(ErgonomicsPenalty, "Data.ErgonomicsPenalty");
 
 		// Cost tags for SetByCaller in GameplayEffects
 		namespace Cost

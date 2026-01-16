@@ -33,6 +33,10 @@ class USuspenseCoreAmmoAttributeSet;
 class USuspenseCoreEquipmentAttributeComponent;
 class USuspenseCoreQuickSlotComponent;
 class UAbilitySystemComponent;
+class UGameplayEffect;
+
+// GAS types for effect handles
+#include "GameplayEffectTypes.h"
 
 /**
  * Delegate for magazine state changes
@@ -387,6 +391,14 @@ protected:
     /** Remove magazine modifier from weapon */
     void RemoveMagazineModifiers();
 
+    /**
+     * Return ejected magazine to owner's storage (QuickSlot or Inventory)
+     * Attempts to return to source slot first, then any available slot
+     * @param EjectedMagazine Magazine to return
+     * @return true if successfully stored
+     */
+    bool ReturnMagazineToOwner(const FSuspenseCoreMagazineInstance& EjectedMagazine);
+
     /** Handle reload completion logic */
     void ProcessReloadCompletion();
 
@@ -522,6 +534,17 @@ private:
 
     /** Whether we've attempted to cache the AttributeSet */
     mutable bool bAttributeSetCacheAttempted = false;
+
+    //================================================
+    // Magazine Modifier Effects (GAS)
+    //================================================
+
+    /** GameplayEffect class for applying magazine ergonomics penalty via SetByCaller */
+    UPROPERTY(EditDefaultsOnly, Category = "Magazine|GAS")
+    TSubclassOf<UGameplayEffect> MagazineErgonomicsEffectClass;
+
+    /** Handle to active ergonomics effect (for removal when magazine is ejected) */
+    FActiveGameplayEffectHandle ActiveErgonomicsHandle;
 
     //================================================
     // Client Prediction State

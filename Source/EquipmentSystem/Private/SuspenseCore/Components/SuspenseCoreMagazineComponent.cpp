@@ -11,8 +11,10 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
 #include "AbilitySystemGlobals.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
@@ -263,10 +265,8 @@ FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazineInter
     }
     else
     {
-        // TODO: Return to inventory/QuickSlot
-        UE_LOG(LogMagazineComponent, Log, TEXT("Ejected magazine: %s (%d rounds)"),
-            *EjectedMag.MagazineID.ToString(),
-            EjectedMag.CurrentRoundCount);
+        // Return magazine to owner's QuickSlot or Inventory
+        ReturnMagazineToOwner(EjectedMag);
     }
 
     BroadcastStateChanged();
@@ -392,6 +392,9 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
     {
         EjectMagazineInternal(bEmergencyDrop);
     }
+
+    // Track source slot for later return on eject
+    NewMagazine.SourceQuickSlotIndex = QuickSlotIndex;
 
     // Insert new magazine from QuickSlot
     bool bInserted = InsertMagazineInternal(NewMagazine);
@@ -971,19 +974,163 @@ void USuspenseCoreMagazineComponent::BroadcastStateChanged()
 
 void USuspenseCoreMagazineComponent::ApplyMagazineModifiers()
 {
+    // Skip if no magazine data cached or no penalty
     if (!bMagazineDataCached || CachedMagazineData.ErgonomicsPenalty <= 0)
     {
         return;
     }
 
-    // TODO: Apply ergonomics penalty to weapon
-    UE_LOG(LogMagazineComponent, Verbose, TEXT("Applied magazine ergonomics penalty: %d"),
-        CachedMagazineData.ErgonomicsPenalty);
+    // Skip if no effect class configured
+    if (!MagazineErgonomicsEffectClass)
+    {
+        UE_LOG(LogMagazineComponent, Verbose, TEXT("ApplyMagazineModifiers: MagazineErgonomicsEffectClass not configured, skipping"));
+        return;
+    }
+
+    // Get ASC from owner chain (weapon -> character)
+    UAbilitySystemComponent* ASC = GetOwnerASC();
+    if (!ASC)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("ApplyMagazineModifiers: No ASC found in owner chain"));
+        return;
+    }
+
+    // Create effect context with source info
+    FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+    Context.AddSourceObject(this);
+
+    // Create effect spec
+    FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(
+        MagazineErgonomicsEffectClass, 1.0f, Context);
+
+    if (!Spec.IsValid())
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("ApplyMagazineModifiers: Failed to create effect spec"));
+        return;
+    }
+
+    // Set ergonomics penalty magnitude via SetByCaller (negative value = penalty)
+    Spec.Data->SetSetByCallerMagnitude(
+        SuspenseCoreTags::Data::ErgonomicsPenalty,
+        -static_cast<float>(CachedMagazineData.ErgonomicsPenalty));
+
+    // Apply effect and store handle for later removal
+    ActiveErgonomicsHandle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+
+    if (ActiveErgonomicsHandle.IsValid())
+    {
+        UE_LOG(LogMagazineComponent, Log, TEXT("ApplyMagazineModifiers: Applied ergonomics penalty -%d from magazine %s"),
+            CachedMagazineData.ErgonomicsPenalty,
+            *WeaponAmmoState.InsertedMagazine.MagazineID.ToString());
+    }
+    else
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("ApplyMagazineModifiers: Failed to apply effect"));
+    }
 }
 
 void USuspenseCoreMagazineComponent::RemoveMagazineModifiers()
 {
-    // TODO: Remove ergonomics penalty from weapon
+    // Remove active ergonomics effect if present
+    if (ActiveErgonomicsHandle.IsValid())
+    {
+        if (UAbilitySystemComponent* ASC = GetOwnerASC())
+        {
+            ASC->RemoveActiveGameplayEffect(ActiveErgonomicsHandle);
+            UE_LOG(LogMagazineComponent, Log, TEXT("RemoveMagazineModifiers: Removed ergonomics penalty effect"));
+        }
+        ActiveErgonomicsHandle.Invalidate();
+    }
+}
+
+bool USuspenseCoreMagazineComponent::ReturnMagazineToOwner(const FSuspenseCoreMagazineInstance& EjectedMagazine)
+{
+    if (!EjectedMagazine.IsValid())
+    {
+        return false;
+    }
+
+    // Get character owner through weapon chain
+    AActor* WeaponOwner = GetOwner();
+    if (!WeaponOwner)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("ReturnMagazineToOwner: No weapon owner"));
+        return false;
+    }
+
+    AActor* CharacterOwner = WeaponOwner->GetOwner();
+    if (!CharacterOwner)
+    {
+        CharacterOwner = WeaponOwner->GetInstigator();
+    }
+    if (!CharacterOwner)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("ReturnMagazineToOwner: Cannot find character owner"));
+        return false;
+    }
+
+    // Get QuickSlotComponent
+    USuspenseCoreQuickSlotComponent* QuickSlotComp = CharacterOwner->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
+    if (!QuickSlotComp)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("ReturnMagazineToOwner: No QuickSlotComponent found"));
+        return false;
+    }
+
+    bool bStored = false;
+    int32 StoredSlotIndex = -1;
+
+    // Try to return to source slot first (if valid)
+    if (EjectedMagazine.SourceQuickSlotIndex >= 0 &&
+        EjectedMagazine.SourceQuickSlotIndex < static_cast<int32>(SUSPENSECORE_QUICKSLOT_COUNT))
+    {
+        // Check if source slot is empty
+        if (!QuickSlotComp->HasItemInSlot_Implementation(EjectedMagazine.SourceQuickSlotIndex))
+        {
+            QuickSlotComp->AssignMagazineToSlot(EjectedMagazine.SourceQuickSlotIndex, EjectedMagazine);
+            StoredSlotIndex = EjectedMagazine.SourceQuickSlotIndex;
+            bStored = true;
+            UE_LOG(LogMagazineComponent, Log, TEXT("ReturnMagazineToOwner: Returned magazine to source slot %d (%d rounds)"),
+                StoredSlotIndex, EjectedMagazine.CurrentRoundCount);
+        }
+    }
+
+    // Fallback: try any available slot
+    if (!bStored)
+    {
+        bStored = ISuspenseCoreQuickSlotProvider::Execute_StoreEjectedMagazine(
+            QuickSlotComp, EjectedMagazine, StoredSlotIndex);
+
+        if (bStored)
+        {
+            UE_LOG(LogMagazineComponent, Log, TEXT("ReturnMagazineToOwner: Stored magazine in slot %d (%d rounds)"),
+                StoredSlotIndex, EjectedMagazine.CurrentRoundCount);
+        }
+        else
+        {
+            UE_LOG(LogMagazineComponent, Warning, TEXT("ReturnMagazineToOwner: No available slot for magazine %s"),
+                *EjectedMagazine.MagazineID.ToString());
+        }
+    }
+
+    // Publish EventBus event for UI
+    if (bStored)
+    {
+        if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
+        {
+            if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+            {
+                FSuspenseCoreEventData EventData;
+                EventData.SetString(TEXT("MagazineID"), EjectedMagazine.MagazineID.ToString());
+                EventData.SetInt(TEXT("Rounds"), EjectedMagazine.CurrentRoundCount);
+                EventData.SetInt(TEXT("SlotIndex"), StoredSlotIndex);
+                EventData.SetInt(TEXT("SourceSlotIndex"), EjectedMagazine.SourceQuickSlotIndex);
+                EventBus->Publish(SuspenseCoreEquipmentTags::Magazine::TAG_Equipment_Event_Magazine_ReturnedToStorage, EventData);
+            }
+        }
+    }
+
+    return bStored;
 }
 
 void USuspenseCoreMagazineComponent::ProcessReloadCompletion()
@@ -995,10 +1142,10 @@ void USuspenseCoreMagazineComponent::ProcessReloadCompletion()
         case ESuspenseCoreReloadType::Emergency:
         {
             // Eject current magazine if present
+            // EjectMagazineInternal handles returning to storage when not emergency drop
             if (WeaponAmmoState.bHasMagazine)
             {
-                FSuspenseCoreMagazineInstance OldMag = EjectMagazineInternal(CurrentReloadType == ESuspenseCoreReloadType::Emergency);
-                // TODO: Return old magazine to inventory/QuickSlot
+                EjectMagazineInternal(CurrentReloadType == ESuspenseCoreReloadType::Emergency);
             }
 
             // Insert new magazine

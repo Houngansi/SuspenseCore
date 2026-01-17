@@ -1836,4 +1836,1484 @@ TEST(FallDamage, FractureChance)
 
 ---
 
+## Appendix D: Complete Implementation Guide
+
+This appendix provides step-by-step implementation details for integrating the Limb Damage System with GAS, EventBus, and dependent game systems.
+
+---
+
+### D.1 System Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           HIT REGISTRATION LAYER                            │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                      │
+│  │ Projectile  │    │  Hitscan    │    │   Melee     │                      │
+│  │ Component   │    │   Trace     │    │   Trace     │                      │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘                      │
+│         │                  │                  │                             │
+│         └──────────────────┼──────────────────┘                             │
+│                            ▼                                                │
+│                   ┌────────────────┐                                        │
+│                   │  FHitResult    │                                        │
+│                   │  (BoneName)    │                                        │
+│                   └────────┬───────┘                                        │
+└────────────────────────────┼────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DAMAGE PROCESSING LAYER                             │
+│                   ┌────────────────────┐                                    │
+│                   │ USuspenseCoreDamage│                                    │
+│                   │ ProcessorSubsystem │                                    │
+│                   └─────────┬──────────┘                                    │
+│                             │                                               │
+│         ┌───────────────────┼───────────────────┐                           │
+│         ▼                   ▼                   ▼                           │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                     │
+│  │ BoneToLimb   │   │   Armor      │   │  Damage      │                     │
+│  │ Resolver     │   │   Check      │   │  Calculation │                     │
+│  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘                     │
+│         │                  │                  │                             │
+│         └──────────────────┼──────────────────┘                             │
+│                            ▼                                                │
+│                   ┌────────────────┐                                        │
+│                   │FLimbDamageInfo │                                        │
+│                   └────────┬───────┘                                        │
+└────────────────────────────┼────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              GAS LAYER                                      │
+│                   ┌────────────────────┐                                    │
+│                   │  Apply Gameplay    │                                    │
+│                   │  Effect to Target  │                                    │
+│                   └─────────┬──────────┘                                    │
+│                             │                                               │
+│         ┌───────────────────┼───────────────────┐                           │
+│         ▼                   ▼                   ▼                           │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                     │
+│  │LimbAttribute │   │  Status      │   │  Penalty     │                     │
+│  │Set Modified  │   │  Effect GE   │   │  Effect GE   │                     │
+│  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘                     │
+│         │                  │                  │                             │
+│         │                  ▼                  ▼                             │
+│         │         ┌────────────────┐  ┌────────────────┐                    │
+│         │         │ GameplayTags   │  │ Attribute     │                     │
+│         │         │ Granted        │  │ Modifiers     │                     │
+│         │         └────────┬───────┘  └────────┬───────┘                    │
+│         │                  │                   │                            │
+└─────────┼──────────────────┼───────────────────┼────────────────────────────┘
+          │                  │                   │
+          ▼                  ▼                   ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            EVENTBUS LAYER                                   │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                    FSuspenseCoreEventBus                             │   │
+│  │  Publish: LimbDamageEvent, FractureEvent, BleedingEvent, etc.        │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                             │                                               │
+│         ┌───────────────────┼───────────────────┐                           │
+│         ▼                   ▼                   ▼                           │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                     │
+│  │  UI Widget   │   │   Audio      │   │   VFX        │                     │
+│  │  Subscriber  │   │   Manager    │   │   Manager    │                     │
+│  └──────────────┘   └──────────────┘   └──────────────┘                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CONSUMER SYSTEMS                                    │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐  │
+│  │ Movement     │   │  Weapon      │   │  Animation   │   │   Camera     │  │
+│  │ Component    │   │  Component   │   │  Blueprint   │   │   Manager    │  │
+│  │ (Speed/Jump) │   │ (Reload/Aim) │   │  (Limp/Pain) │   │   (Shake)    │  │
+│  └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### D.2 Hit Registration Implementation
+
+#### D.2.1 Projectile Hit Detection
+
+```cpp
+// SuspenseCoreProjectile.cpp
+
+void ASuspenseCoreProjectile::OnProjectileHit(
+    UPrimitiveComponent* HitComponent,
+    AActor* OtherActor,
+    UPrimitiveComponent* OtherComp,
+    FVector NormalImpulse,
+    const FHitResult& Hit)
+{
+    // Validate hit target
+    if (!OtherActor || OtherActor == GetInstigator())
+    {
+        return;
+    }
+
+    // Check if target is damageable character
+    ASuspenseCoreCharacter* TargetCharacter = Cast<ASuspenseCoreCharacter>(OtherActor);
+    if (!TargetCharacter)
+    {
+        // Hit world geometry - spawn decal/effect
+        HandleEnvironmentHit(Hit);
+        return;
+    }
+
+    // === CRITICAL: Extract bone name from hit ===
+    FName HitBoneName = Hit.BoneName;
+
+    // Build damage info struct
+    FSuspenseCoreDamageInfo DamageInfo;
+    DamageInfo.Instigator = GetInstigator();
+    DamageInfo.DamageCauser = this;
+    DamageInfo.BaseDamage = ProjectileData.BaseDamage;
+    DamageInfo.Penetration = ProjectileData.Penetration;
+    DamageInfo.DamageType = EDamageCategory::Ballistic;
+    DamageInfo.HitLocation = Hit.ImpactPoint;
+    DamageInfo.HitNormal = Hit.ImpactNormal;
+    DamageInfo.HitBoneName = HitBoneName;  // <-- Key for limb detection
+    DamageInfo.HitResult = Hit;
+
+    // Send to damage processor subsystem (server-side)
+    if (HasAuthority())
+    {
+        USuspenseCoreDamageProcessorSubsystem* DamageProcessor =
+            GetWorld()->GetSubsystem<USuspenseCoreDamageProcessorSubsystem>();
+
+        if (DamageProcessor)
+        {
+            DamageProcessor->ProcessDamage(TargetCharacter, DamageInfo);
+        }
+    }
+
+    // Destroy projectile
+    Destroy();
+}
+```
+
+#### D.2.2 Hitscan Weapon Hit Detection
+
+```cpp
+// SuspenseCoreWeaponComponent.cpp
+
+void USuspenseCoreWeaponComponent::FireHitscan()
+{
+    // Get muzzle transform
+    FVector MuzzleLocation = GetMuzzleLocation();
+    FVector AimDirection = GetAimDirection();
+
+    // Trace parameters
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(GetOwner());
+    QueryParams.bReturnPhysicalMaterial = true;
+    QueryParams.bTraceComplex = true;  // Required for accurate bone detection
+
+    FHitResult Hit;
+    FVector TraceEnd = MuzzleLocation + (AimDirection * WeaponData.MaxRange);
+
+    bool bHit = GetWorld()->LineTraceSingleByChannel(
+        Hit,
+        MuzzleLocation,
+        TraceEnd,
+        ECC_WeaponTrace,  // Custom collision channel
+        QueryParams
+    );
+
+    if (bHit && Hit.GetActor())
+    {
+        ASuspenseCoreCharacter* TargetCharacter = Cast<ASuspenseCoreCharacter>(Hit.GetActor());
+
+        if (TargetCharacter)
+        {
+            // === Build damage info with bone name ===
+            FSuspenseCoreDamageInfo DamageInfo;
+            DamageInfo.Instigator = GetOwner();
+            DamageInfo.DamageCauser = GetOwner();
+            DamageInfo.BaseDamage = WeaponData.BaseDamage;
+            DamageInfo.Penetration = WeaponData.Penetration;
+            DamageInfo.DamageType = EDamageCategory::Ballistic;
+            DamageInfo.HitLocation = Hit.ImpactPoint;
+            DamageInfo.HitNormal = Hit.ImpactNormal;
+            DamageInfo.HitBoneName = Hit.BoneName;  // <-- From skeletal mesh
+            DamageInfo.HitResult = Hit;
+
+            // Server processes damage
+            if (GetOwner()->HasAuthority())
+            {
+                ProcessHitscanDamage(TargetCharacter, DamageInfo);
+            }
+            else
+            {
+                // Client sends to server
+                Server_ProcessHitscanDamage(TargetCharacter, DamageInfo);
+            }
+        }
+    }
+}
+```
+
+#### D.2.3 Bone-to-Limb Resolution Service
+
+```cpp
+// SuspenseCoreBoneLimbResolver.h
+
+UCLASS()
+class USuspenseCoreBoneLimbResolver : public UObject
+{
+    GENERATED_BODY()
+
+public:
+    // Singleton access
+    static USuspenseCoreBoneLimbResolver* Get(UWorld* World);
+
+    // Main resolution function
+    ELimbType ResolveBoneToLimb(FName BoneName) const;
+
+    // Get damage multiplier for specific bone
+    float GetBoneDamageMultiplier(FName BoneName) const;
+
+private:
+    // Loaded from DataTable
+    UPROPERTY()
+    TMap<FName, FBoneLimbMappingData> BoneMappings;
+
+    void LoadMappingsFromDataTable();
+};
+
+// SuspenseCoreBoneLimbResolver.cpp
+
+ELimbType USuspenseCoreBoneLimbResolver::ResolveBoneToLimb(FName BoneName) const
+{
+    // Direct lookup first
+    if (const FBoneLimbMappingData* Mapping = BoneMappings.Find(BoneName))
+    {
+        return Mapping->LimbType;
+    }
+
+    // Fallback: Pattern matching for common bone naming conventions
+    FString BoneString = BoneName.ToString().ToLower();
+
+    // Head detection
+    if (BoneString.Contains(TEXT("head")) || BoneString.Contains(TEXT("neck")))
+    {
+        return ELimbType::Head;
+    }
+
+    // Arm detection (check side first)
+    if (BoneString.Contains(TEXT("arm")) || BoneString.Contains(TEXT("hand")) ||
+        BoneString.Contains(TEXT("shoulder")) || BoneString.Contains(TEXT("clavicle")))
+    {
+        if (BoneString.Contains(TEXT("_l")) || BoneString.Contains(TEXT("left")))
+        {
+            return ELimbType::LeftArm;
+        }
+        return ELimbType::RightArm;  // Default to right
+    }
+
+    // Leg detection
+    if (BoneString.Contains(TEXT("leg")) || BoneString.Contains(TEXT("thigh")) ||
+        BoneString.Contains(TEXT("calf")) || BoneString.Contains(TEXT("foot")))
+    {
+        if (BoneString.Contains(TEXT("_l")) || BoneString.Contains(TEXT("left")))
+        {
+            return ELimbType::LeftLeg;
+        }
+        return ELimbType::RightLeg;
+    }
+
+    // Torso detection
+    if (BoneString.Contains(TEXT("spine_03")) || BoneString.Contains(TEXT("chest")))
+    {
+        return ELimbType::Thorax;
+    }
+
+    if (BoneString.Contains(TEXT("spine")) || BoneString.Contains(TEXT("pelvis")))
+    {
+        return ELimbType::Stomach;
+    }
+
+    // Ultimate fallback - thorax (center mass)
+    UE_LOG(LogSuspenseCore, Warning,
+        TEXT("Unknown bone '%s' - defaulting to Thorax"), *BoneName.ToString());
+    return ELimbType::Thorax;
+}
+```
+
+---
+
+### D.3 Damage Processor Subsystem
+
+#### D.3.1 Main Damage Processing Flow
+
+```cpp
+// SuspenseCoreDamageProcessorSubsystem.h
+
+UCLASS()
+class USuspenseCoreDamageProcessorSubsystem : public UWorldSubsystem
+{
+    GENERATED_BODY()
+
+public:
+    // Main entry point for all damage
+    void ProcessDamage(ASuspenseCoreCharacter* Target, const FSuspenseCoreDamageInfo& DamageInfo);
+
+private:
+    // Step 1: Resolve bone to limb
+    ELimbType ResolveLimbFromHit(const FSuspenseCoreDamageInfo& DamageInfo);
+
+    // Step 2: Check armor
+    float ProcessArmorInteraction(ASuspenseCoreCharacter* Target, ELimbType Limb,
+                                   const FSuspenseCoreDamageInfo& DamageInfo);
+
+    // Step 3: Apply damage via GAS
+    void ApplyLimbDamageViaGAS(ASuspenseCoreCharacter* Target, ELimbType Limb,
+                                float FinalDamage, const FSuspenseCoreDamageInfo& DamageInfo);
+
+    // Step 4: Check and apply status effects
+    void ProcessStatusEffects(ASuspenseCoreCharacter* Target, ELimbType Limb,
+                               float Damage, const FSuspenseCoreDamageInfo& DamageInfo);
+};
+
+// SuspenseCoreDamageProcessorSubsystem.cpp
+
+void USuspenseCoreDamageProcessorSubsystem::ProcessDamage(
+    ASuspenseCoreCharacter* Target,
+    const FSuspenseCoreDamageInfo& DamageInfo)
+{
+    if (!Target || !Target->HasAuthority())
+    {
+        return;  // Server only
+    }
+
+    // === Step 1: Resolve limb from bone hit ===
+    ELimbType TargetLimb = ResolveLimbFromHit(DamageInfo);
+
+    UE_LOG(LogSuspenseCore, Verbose,
+        TEXT("Processing damage: Bone=%s -> Limb=%s, BaseDamage=%.1f"),
+        *DamageInfo.HitBoneName.ToString(),
+        *UEnum::GetValueAsString(TargetLimb),
+        DamageInfo.BaseDamage);
+
+    // === Step 2: Armor interaction ===
+    float DamageAfterArmor = ProcessArmorInteraction(Target, TargetLimb, DamageInfo);
+
+    if (DamageAfterArmor <= 0.0f)
+    {
+        // Fully blocked by armor
+        BroadcastArmorBlockEvent(Target, TargetLimb, DamageInfo);
+        return;
+    }
+
+    // === Step 3: Apply damage to limb via GAS ===
+    ApplyLimbDamageViaGAS(Target, TargetLimb, DamageAfterArmor, DamageInfo);
+
+    // === Step 4: Process status effects (bleeding, fracture chances) ===
+    ProcessStatusEffects(Target, TargetLimb, DamageAfterArmor, DamageInfo);
+}
+
+ELimbType USuspenseCoreDamageProcessorSubsystem::ResolveLimbFromHit(
+    const FSuspenseCoreDamageInfo& DamageInfo)
+{
+    USuspenseCoreBoneLimbResolver* Resolver = USuspenseCoreBoneLimbResolver::Get(GetWorld());
+
+    if (Resolver && DamageInfo.HitBoneName != NAME_None)
+    {
+        return Resolver->ResolveBoneToLimb(DamageInfo.HitBoneName);
+    }
+
+    // Fallback: Use hit location height
+    // ... (see Section 4.4 in main document)
+
+    return ELimbType::Thorax;
+}
+```
+
+---
+
+### D.4 GAS Damage Application
+
+#### D.4.1 Applying Damage via Gameplay Effect
+
+```cpp
+void USuspenseCoreDamageProcessorSubsystem::ApplyLimbDamageViaGAS(
+    ASuspenseCoreCharacter* Target,
+    ELimbType Limb,
+    float FinalDamage,
+    const FSuspenseCoreDamageInfo& DamageInfo)
+{
+    UAbilitySystemComponent* TargetASC = Target->GetAbilitySystemComponent();
+    if (!TargetASC)
+    {
+        UE_LOG(LogSuspenseCore, Error, TEXT("Target has no ASC!"));
+        return;
+    }
+
+    // Get the damage effect class (configured in project settings or data asset)
+    TSubclassOf<UGameplayEffect> DamageEffectClass = GetLimbDamageEffectClass();
+    if (!DamageEffectClass)
+    {
+        return;
+    }
+
+    // Create effect context with custom data
+    FGameplayEffectContextHandle ContextHandle = TargetASC->MakeEffectContext();
+    ContextHandle.AddSourceObject(DamageInfo.DamageCauser);
+    ContextHandle.AddInstigator(DamageInfo.Instigator, DamageInfo.DamageCauser);
+    ContextHandle.AddHitResult(DamageInfo.HitResult);
+
+    // === Store limb info in context ===
+    // Option A: Custom context class
+    FSuspenseCoreDamageEffectContext* CustomContext =
+        static_cast<FSuspenseCoreDamageEffectContext*>(ContextHandle.Get());
+    if (CustomContext)
+    {
+        CustomContext->TargetLimb = Limb;
+        CustomContext->DamageCategory = DamageInfo.DamageType;
+    }
+
+    // Create effect spec
+    FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(
+        DamageEffectClass,
+        1.0f,  // Level
+        ContextHandle
+    );
+
+    if (SpecHandle.IsValid())
+    {
+        // === Set damage amount via SetByCaller ===
+        FGameplayTag DamageAmountTag = FGameplayTag::RequestGameplayTag(
+            FName("SetByCaller.Damage.Amount"));
+        SpecHandle.Data->SetSetByCallerMagnitude(DamageAmountTag, FinalDamage);
+
+        // === Set target limb via SetByCaller (for execution calculation) ===
+        FGameplayTag LimbTag = FGameplayTag::RequestGameplayTag(
+            FName("SetByCaller.Damage.Limb"));
+        SpecHandle.Data->SetSetByCallerMagnitude(LimbTag, static_cast<float>(Limb));
+
+        // Apply effect
+        FActiveGameplayEffectHandle ActiveHandle = TargetASC->ApplyGameplayEffectSpecToSelf(
+            *SpecHandle.Data.Get());
+
+        if (!ActiveHandle.IsValid())
+        {
+            UE_LOG(LogSuspenseCore, Warning, TEXT("Failed to apply limb damage effect"));
+        }
+    }
+}
+```
+
+#### D.4.2 Limb Damage Execution Calculation
+
+```cpp
+// SuspenseCoreLimbDamageExecution.h
+
+UCLASS()
+class ULimbDamageExecutionCalculation : public UGameplayEffectExecutionCalculation
+{
+    GENERATED_BODY()
+
+public:
+    ULimbDamageExecutionCalculation();
+
+    virtual void Execute_Implementation(
+        const FGameplayEffectCustomExecutionParameters& ExecutionParams,
+        FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const override;
+
+private:
+    // Captured attributes for reading
+    FGameplayEffectAttributeCaptureDefinition HeadHealthDef;
+    FGameplayEffectAttributeCaptureDefinition ThoraxHealthDef;
+    FGameplayEffectAttributeCaptureDefinition StomachHealthDef;
+    FGameplayEffectAttributeCaptureDefinition LeftArmHealthDef;
+    FGameplayEffectAttributeCaptureDefinition RightArmHealthDef;
+    FGameplayEffectAttributeCaptureDefinition LeftLegHealthDef;
+    FGameplayEffectAttributeCaptureDefinition RightLegHealthDef;
+};
+
+// SuspenseCoreLimbDamageExecution.cpp
+
+ULimbDamageExecutionCalculation::ULimbDamageExecutionCalculation()
+{
+    // Capture all limb health attributes
+    HeadHealthDef.AttributeToCapture = USuspenseCoreLimbAttributeSet::GetHeadHealthAttribute();
+    HeadHealthDef.AttributeSource = EGameplayEffectAttributeCaptureSource::Target;
+    HeadHealthDef.bSnapshot = false;
+
+    ThoraxHealthDef.AttributeToCapture = USuspenseCoreLimbAttributeSet::GetThoraxHealthAttribute();
+    ThoraxHealthDef.AttributeSource = EGameplayEffectAttributeCaptureSource::Target;
+    ThoraxHealthDef.bSnapshot = false;
+
+    // ... (similar for all limbs)
+
+    RelevantAttributesToCapture.Add(HeadHealthDef);
+    RelevantAttributesToCapture.Add(ThoraxHealthDef);
+    RelevantAttributesToCapture.Add(StomachHealthDef);
+    RelevantAttributesToCapture.Add(LeftArmHealthDef);
+    RelevantAttributesToCapture.Add(RightArmHealthDef);
+    RelevantAttributesToCapture.Add(LeftLegHealthDef);
+    RelevantAttributesToCapture.Add(RightLegHealthDef);
+}
+
+void ULimbDamageExecutionCalculation::Execute_Implementation(
+    const FGameplayEffectCustomExecutionParameters& ExecutionParams,
+    FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
+{
+    UAbilitySystemComponent* TargetASC = ExecutionParams.GetTargetAbilitySystemComponent();
+    if (!TargetASC)
+    {
+        return;
+    }
+
+    const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+
+    // === Get damage amount from SetByCaller ===
+    float DamageAmount = Spec.GetSetByCallerMagnitude(
+        FGameplayTag::RequestGameplayTag(FName("SetByCaller.Damage.Amount")),
+        false, 0.0f);
+
+    // === Get target limb from SetByCaller ===
+    float LimbFloat = Spec.GetSetByCallerMagnitude(
+        FGameplayTag::RequestGameplayTag(FName("SetByCaller.Damage.Limb")),
+        false, static_cast<float>(ELimbType::Thorax));
+    ELimbType TargetLimb = static_cast<ELimbType>(FMath::RoundToInt(LimbFloat));
+
+    if (DamageAmount <= 0.0f)
+    {
+        return;
+    }
+
+    // === Get current limb health ===
+    float CurrentHealth = 0.0f;
+    float MaxHealth = 0.0f;
+    FGameplayAttribute TargetAttribute;
+
+    switch (TargetLimb)
+    {
+        case ELimbType::Head:
+            ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+                HeadHealthDef, FAggregatorEvaluateParameters(), CurrentHealth);
+            TargetAttribute = USuspenseCoreLimbAttributeSet::GetHeadHealthAttribute();
+            MaxHealth = 35.0f;
+            break;
+
+        case ELimbType::Thorax:
+            ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+                ThoraxHealthDef, FAggregatorEvaluateParameters(), CurrentHealth);
+            TargetAttribute = USuspenseCoreLimbAttributeSet::GetThoraxHealthAttribute();
+            MaxHealth = 85.0f;
+            break;
+
+        case ELimbType::Stomach:
+            ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+                StomachHealthDef, FAggregatorEvaluateParameters(), CurrentHealth);
+            TargetAttribute = USuspenseCoreLimbAttributeSet::GetStomachHealthAttribute();
+            MaxHealth = 70.0f;
+            break;
+
+        case ELimbType::LeftArm:
+            ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+                LeftArmHealthDef, FAggregatorEvaluateParameters(), CurrentHealth);
+            TargetAttribute = USuspenseCoreLimbAttributeSet::GetLeftArmHealthAttribute();
+            MaxHealth = 60.0f;
+            break;
+
+        case ELimbType::RightArm:
+            ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+                RightArmHealthDef, FAggregatorEvaluateParameters(), CurrentHealth);
+            TargetAttribute = USuspenseCoreLimbAttributeSet::GetRightArmHealthAttribute();
+            MaxHealth = 60.0f;
+            break;
+
+        case ELimbType::LeftLeg:
+            ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+                LeftLegHealthDef, FAggregatorEvaluateParameters(), CurrentHealth);
+            TargetAttribute = USuspenseCoreLimbAttributeSet::GetLeftLegHealthAttribute();
+            MaxHealth = 65.0f;
+            break;
+
+        case ELimbType::RightLeg:
+            ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+                RightLegHealthDef, FAggregatorEvaluateParameters(), CurrentHealth);
+            TargetAttribute = USuspenseCoreLimbAttributeSet::GetRightLegHealthAttribute();
+            MaxHealth = 65.0f;
+            break;
+    }
+
+    // === Calculate damage with overflow ===
+    float NewHealth = CurrentHealth - DamageAmount;
+    float OverflowDamage = 0.0f;
+    bool bLimbDestroyed = false;
+
+    if (NewHealth < 0.0f)
+    {
+        // Limb goes to zero
+        OverflowDamage = FMath::Abs(NewHealth) * 0.7f;  // 70% overflow
+        NewHealth = 0.0f;
+        bLimbDestroyed = !IsCriticalLimb(TargetLimb);
+    }
+
+    // === Output modifier for target limb ===
+    OutExecutionOutput.AddOutputModifier(
+        FGameplayModifierEvaluatedData(
+            TargetAttribute,
+            EGameplayModOp::Override,  // Set directly to new value
+            NewHealth
+        )
+    );
+
+    // === Handle overflow to secondary target ===
+    if (OverflowDamage > 0.0f && !IsCriticalLimb(TargetLimb))
+    {
+        ELimbType OverflowTarget = GetOverflowTarget(TargetLimb);
+        FGameplayAttribute OverflowAttribute = GetAttributeForLimb(OverflowTarget);
+
+        float OverflowTargetHealth = GetCurrentHealth(ExecutionParams, OverflowTarget);
+        float NewOverflowHealth = FMath::Max(0.0f, OverflowTargetHealth - OverflowDamage);
+
+        OutExecutionOutput.AddOutputModifier(
+            FGameplayModifierEvaluatedData(
+                OverflowAttribute,
+                EGameplayModOp::Override,
+                NewOverflowHealth
+            )
+        );
+    }
+
+    // Store results for post-execution processing (status effects, events)
+    // This is handled in PostGameplayEffectExecute on the AttributeSet
+}
+```
+
+#### D.4.3 AttributeSet Post-Effect Processing
+
+```cpp
+// SuspenseCoreLimbAttributeSet.cpp
+
+void USuspenseCoreLimbAttributeSet::PostGameplayEffectExecute(
+    const FGameplayEffectModCallbackData& Data)
+{
+    Super::PostGameplayEffectExecute(Data);
+
+    // Determine which limb was affected
+    ELimbType AffectedLimb = ELimbType::None;
+    float NewHealth = 0.0f;
+    float MaxHealth = 0.0f;
+
+    if (Data.EvaluatedData.Attribute == GetHeadHealthAttribute())
+    {
+        AffectedLimb = ELimbType::Head;
+        NewHealth = GetHeadHealth();
+        MaxHealth = GetMaxHeadHealth();
+    }
+    else if (Data.EvaluatedData.Attribute == GetThoraxHealthAttribute())
+    {
+        AffectedLimb = ELimbType::Thorax;
+        NewHealth = GetThoraxHealth();
+        MaxHealth = GetMaxThoraxHealth();
+    }
+    // ... (similar for all limbs)
+
+    if (AffectedLimb == ELimbType::None)
+    {
+        return;
+    }
+
+    // === Check for death (critical limbs) ===
+    if (IsCriticalLimb(AffectedLimb) && NewHealth <= 0.0f)
+    {
+        HandleCharacterDeath(Data);
+        return;
+    }
+
+    // === Check for limb destruction (non-critical) ===
+    if (!IsCriticalLimb(AffectedLimb) && NewHealth <= 0.0f)
+    {
+        HandleLimbDestruction(AffectedLimb, Data);
+    }
+
+    // === Update penalty GameplayEffects based on new health ===
+    UpdateLimbPenalties(AffectedLimb, NewHealth, MaxHealth);
+
+    // === Broadcast EventBus event ===
+    BroadcastLimbDamageEvent(AffectedLimb, Data);
+}
+
+void USuspenseCoreLimbAttributeSet::UpdateLimbPenalties(
+    ELimbType Limb,
+    float CurrentHealth,
+    float MaxHealth)
+{
+    UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
+    if (!ASC)
+    {
+        return;
+    }
+
+    float HealthPercent = CurrentHealth / MaxHealth;
+
+    // === Remove existing penalty effect for this limb ===
+    FGameplayTagContainer LimbPenaltyTags;
+    LimbPenaltyTags.AddTag(GetPenaltyTagForLimb(Limb));
+    ASC->RemoveActiveEffectsWithGrantedTags(LimbPenaltyTags);
+
+    // === Apply new penalty effect based on health threshold ===
+    TSubclassOf<UGameplayEffect> PenaltyEffect = nullptr;
+
+    if (IsLimbDestroyed(Limb))
+    {
+        PenaltyEffect = GetDestroyedPenaltyEffect(Limb);
+    }
+    else if (HasFracture(Limb))
+    {
+        PenaltyEffect = GetFracturePenaltyEffect(Limb);
+    }
+    else if (HealthPercent <= 0.25f)
+    {
+        PenaltyEffect = GetSevereDamagePenaltyEffect(Limb);
+    }
+    else if (HealthPercent <= 0.50f)
+    {
+        PenaltyEffect = GetModerateDamagePenaltyEffect(Limb);
+    }
+
+    if (PenaltyEffect)
+    {
+        FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+        ASC->ApplyGameplayEffectToSelf(PenaltyEffect.GetDefaultObject(), 1.0f, Context);
+    }
+}
+```
+
+---
+
+### D.5 GameplayTags Native Declaration
+
+```cpp
+// SuspenseCoreGameplayTags.h
+
+#pragma once
+
+#include "NativeGameplayTags.h"
+
+namespace SuspenseCoreTags
+{
+    // === Limb State Tags ===
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_Head_Destroyed);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_Thorax_Critical);
+
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_LeftArm_Destroyed);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_LeftArm_Fractured);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_LeftArm_Splinted);
+
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_RightArm_Destroyed);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_RightArm_Fractured);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_RightArm_Splinted);
+
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_LeftLeg_Destroyed);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_LeftLeg_Fractured);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_LeftLeg_Splinted);
+
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_RightLeg_Destroyed);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_RightLeg_Fractured);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Limb_RightLeg_Splinted);
+
+    // === Status Effect Tags ===
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Status_Bleeding_Light);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Status_Bleeding_Heavy);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Status_Pain_Light);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Status_Pain_Moderate);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Status_Pain_Severe);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Status_Tremor);
+
+    // === Penalty Tags (for effect identification) ===
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(Penalty_Limb_LeftArm);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(Penalty_Limb_RightArm);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(Penalty_Limb_LeftLeg);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(Penalty_Limb_RightLeg);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(Penalty_Limb_Stomach);
+
+    // === SetByCaller Tags ===
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Damage_Amount);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Damage_Limb);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Heal_Amount);
+
+    // === Ability Block Tags ===
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Block_Sprint);  // Applied by destroyed leg
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Block_Jump);    // Applied by both legs fractured
+}
+
+// SuspenseCoreGameplayTags.cpp
+
+#include "SuspenseCoreGameplayTags.h"
+
+namespace SuspenseCoreTags
+{
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_Head_Destroyed, "State.Limb.Head.Destroyed");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_Thorax_Critical, "State.Limb.Thorax.Critical");
+
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_LeftArm_Destroyed, "State.Limb.LeftArm.Destroyed");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_LeftArm_Fractured, "State.Limb.LeftArm.Fractured");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_LeftArm_Splinted, "State.Limb.LeftArm.Splinted");
+
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_RightArm_Destroyed, "State.Limb.RightArm.Destroyed");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_RightArm_Fractured, "State.Limb.RightArm.Fractured");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_RightArm_Splinted, "State.Limb.RightArm.Splinted");
+
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_LeftLeg_Destroyed, "State.Limb.LeftLeg.Destroyed");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_LeftLeg_Fractured, "State.Limb.LeftLeg.Fractured");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_LeftLeg_Splinted, "State.Limb.LeftLeg.Splinted");
+
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_RightLeg_Destroyed, "State.Limb.RightLeg.Destroyed");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_RightLeg_Fractured, "State.Limb.RightLeg.Fractured");
+    UE_DEFINE_GAMEPLAY_TAG(State_Limb_RightLeg_Splinted, "State.Limb.RightLeg.Splinted");
+
+    UE_DEFINE_GAMEPLAY_TAG(State_Status_Bleeding_Light, "State.Status.Bleeding.Light");
+    UE_DEFINE_GAMEPLAY_TAG(State_Status_Bleeding_Heavy, "State.Status.Bleeding.Heavy");
+    UE_DEFINE_GAMEPLAY_TAG(State_Status_Pain_Light, "State.Status.Pain.Light");
+    UE_DEFINE_GAMEPLAY_TAG(State_Status_Pain_Moderate, "State.Status.Pain.Moderate");
+    UE_DEFINE_GAMEPLAY_TAG(State_Status_Pain_Severe, "State.Status.Pain.Severe");
+    UE_DEFINE_GAMEPLAY_TAG(State_Status_Tremor, "State.Status.Tremor");
+
+    UE_DEFINE_GAMEPLAY_TAG(Penalty_Limb_LeftArm, "Penalty.Limb.LeftArm");
+    UE_DEFINE_GAMEPLAY_TAG(Penalty_Limb_RightArm, "Penalty.Limb.RightArm");
+    UE_DEFINE_GAMEPLAY_TAG(Penalty_Limb_LeftLeg, "Penalty.Limb.LeftLeg");
+    UE_DEFINE_GAMEPLAY_TAG(Penalty_Limb_RightLeg, "Penalty.Limb.RightLeg");
+    UE_DEFINE_GAMEPLAY_TAG(Penalty_Limb_Stomach, "Penalty.Limb.Stomach");
+
+    UE_DEFINE_GAMEPLAY_TAG(SetByCaller_Damage_Amount, "SetByCaller.Damage.Amount");
+    UE_DEFINE_GAMEPLAY_TAG(SetByCaller_Damage_Limb, "SetByCaller.Damage.Limb");
+    UE_DEFINE_GAMEPLAY_TAG(SetByCaller_Heal_Amount, "SetByCaller.Heal.Amount");
+
+    UE_DEFINE_GAMEPLAY_TAG(Ability_Block_Sprint, "Ability.Block.Sprint");
+    UE_DEFINE_GAMEPLAY_TAG(Ability_Block_Jump, "Ability.Block.Jump");
+}
+```
+
+---
+
+### D.6 Consumer System Integration
+
+#### D.6.1 Movement Component Integration
+
+```cpp
+// SuspenseCoreCharacterMovementComponent.h
+
+UCLASS()
+class USuspenseCoreCharacterMovementComponent : public UCharacterMovementComponent
+{
+    GENERATED_BODY()
+
+public:
+    virtual float GetMaxSpeed() const override;
+    virtual float GetMaxJumpHeight() const;
+    virtual bool CanAttemptJump() const override;
+
+protected:
+    // Cached penalty values (updated on attribute change)
+    float CachedMovementSpeedMultiplier = 1.0f;
+    float CachedSprintSpeedMultiplier = 1.0f;
+    float CachedJumpHeightMultiplier = 1.0f;
+
+    // Subscribe to attribute changes
+    virtual void BeginPlay() override;
+
+    UFUNCTION()
+    void OnMovementPenaltyChanged(const FOnAttributeChangeData& Data);
+};
+
+// SuspenseCoreCharacterMovementComponent.cpp
+
+void USuspenseCoreCharacterMovementComponent::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // Subscribe to penalty attribute changes via ASC
+    if (ASuspenseCoreCharacter* Owner = Cast<ASuspenseCoreCharacter>(GetOwner()))
+    {
+        if (UAbilitySystemComponent* ASC = Owner->GetAbilitySystemComponent())
+        {
+            // Subscribe to movement penalty attribute
+            ASC->GetGameplayAttributeValueChangeDelegate(
+                USuspenseCoreLimbAttributeSet::GetMovementSpeedPenaltyAttribute()
+            ).AddUObject(this, &USuspenseCoreCharacterMovementComponent::OnMovementPenaltyChanged);
+
+            // Subscribe to sprint penalty attribute
+            ASC->GetGameplayAttributeValueChangeDelegate(
+                USuspenseCoreLimbAttributeSet::GetSprintSpeedPenaltyAttribute()
+            ).AddUObject(this, &USuspenseCoreCharacterMovementComponent::OnSprintPenaltyChanged);
+
+            // Subscribe to jump penalty attribute
+            ASC->GetGameplayAttributeValueChangeDelegate(
+                USuspenseCoreLimbAttributeSet::GetJumpHeightPenaltyAttribute()
+            ).AddUObject(this, &USuspenseCoreCharacterMovementComponent::OnJumpPenaltyChanged);
+        }
+    }
+}
+
+void USuspenseCoreCharacterMovementComponent::OnMovementPenaltyChanged(
+    const FOnAttributeChangeData& Data)
+{
+    CachedMovementSpeedMultiplier = Data.NewValue;
+
+    // Log for debugging
+    UE_LOG(LogSuspenseCore, Verbose,
+        TEXT("Movement speed penalty changed: %.2f"), Data.NewValue);
+}
+
+float USuspenseCoreCharacterMovementComponent::GetMaxSpeed() const
+{
+    float BaseSpeed = Super::GetMaxSpeed();
+
+    // Apply limb penalty
+    float ModifiedSpeed = BaseSpeed * CachedMovementSpeedMultiplier;
+
+    // Check if sprinting and apply sprint penalty
+    if (IsSprinting())
+    {
+        // Sprint uses separate multiplier
+        ModifiedSpeed = GetSprintSpeed() * CachedSprintSpeedMultiplier;
+
+        // Check for sprint block tag
+        if (ASuspenseCoreCharacter* Owner = Cast<ASuspenseCoreCharacter>(GetOwner()))
+        {
+            if (UAbilitySystemComponent* ASC = Owner->GetAbilitySystemComponent())
+            {
+                if (ASC->HasMatchingGameplayTag(SuspenseCoreTags::Ability_Block_Sprint))
+                {
+                    // Cannot sprint - fallback to walk speed
+                    ModifiedSpeed = BaseSpeed * CachedMovementSpeedMultiplier;
+                }
+            }
+        }
+    }
+
+    return ModifiedSpeed;
+}
+
+bool USuspenseCoreCharacterMovementComponent::CanAttemptJump() const
+{
+    // Check base conditions
+    if (!Super::CanAttemptJump())
+    {
+        return false;
+    }
+
+    // Check for jump block tag (both legs fractured)
+    if (ASuspenseCoreCharacter* Owner = Cast<ASuspenseCoreCharacter>(GetOwner()))
+    {
+        if (UAbilitySystemComponent* ASC = Owner->GetAbilitySystemComponent())
+        {
+            if (ASC->HasMatchingGameplayTag(SuspenseCoreTags::Ability_Block_Jump))
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+float USuspenseCoreCharacterMovementComponent::GetMaxJumpHeight() const
+{
+    float BaseJumpHeight = JumpZVelocity;
+
+    // Apply limb penalty
+    return BaseJumpHeight * CachedJumpHeightMultiplier;
+}
+```
+
+#### D.6.2 Weapon Component Integration
+
+```cpp
+// SuspenseCoreWeaponComponent.cpp - Reload Speed
+
+float USuspenseCoreWeaponComponent::GetReloadSpeedMultiplier() const
+{
+    if (ASuspenseCoreCharacter* Owner = Cast<ASuspenseCoreCharacter>(GetOwner()))
+    {
+        if (UAbilitySystemComponent* ASC = Owner->GetAbilitySystemComponent())
+        {
+            // Get reload penalty from limb attribute set
+            float ReloadPenalty = ASC->GetNumericAttribute(
+                USuspenseCoreLimbAttributeSet::GetReloadSpeedPenaltyAttribute());
+
+            return FMath::Max(0.1f, ReloadPenalty);  // Minimum 10% speed
+        }
+    }
+    return 1.0f;
+}
+
+// In reload ability
+void UGA_Reload::ActivateAbility(...)
+{
+    // ... setup code ...
+
+    // Get speed multiplier considering arm damage
+    float ReloadSpeedMult = WeaponComponent->GetReloadSpeedMultiplier();
+
+    // Apply to montage
+    UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+        this,
+        NAME_None,
+        ReloadMontage,
+        ReloadSpeedMult  // Play rate affected by arm damage
+    );
+
+    MontageTask->ReadyForActivation();
+}
+```
+
+#### D.6.3 Aim/Weapon Sway Integration
+
+```cpp
+// SuspenseCoreWeaponComponent.cpp - Weapon Sway
+
+FRotator USuspenseCoreWeaponComponent::CalculateWeaponSway(float DeltaTime) const
+{
+    FRotator BaseSway = CalculateBaseWeaponSway(DeltaTime);
+
+    // Get sway multiplier from limb system
+    float SwayMultiplier = 1.0f;
+    if (ASuspenseCoreCharacter* Owner = Cast<ASuspenseCoreCharacter>(GetOwner()))
+    {
+        if (UAbilitySystemComponent* ASC = Owner->GetAbilitySystemComponent())
+        {
+            SwayMultiplier = ASC->GetNumericAttribute(
+                USuspenseCoreLimbAttributeSet::GetWeaponSwayMultiplierAttribute());
+        }
+    }
+
+    // Apply multiplier (higher = more sway)
+    return BaseSway * SwayMultiplier;
+}
+
+// Aim down sights speed
+float USuspenseCoreWeaponComponent::GetADSSpeed() const
+{
+    float BaseADSSpeed = WeaponData.ADSSpeed;
+
+    if (ASuspenseCoreCharacter* Owner = Cast<ASuspenseCoreCharacter>(GetOwner()))
+    {
+        if (UAbilitySystemComponent* ASC = Owner->GetAbilitySystemComponent())
+        {
+            float AimPenalty = ASC->GetNumericAttribute(
+                USuspenseCoreLimbAttributeSet::GetAimSpeedPenaltyAttribute());
+
+            return BaseADSSpeed * AimPenalty;
+        }
+    }
+
+    return BaseADSSpeed;
+}
+```
+
+#### D.6.4 Animation Blueprint Integration
+
+```cpp
+// SuspenseCoreAnimInstance.h
+
+UCLASS()
+class USuspenseCoreAnimInstance : public UAnimInstance
+{
+    GENERATED_BODY()
+
+public:
+    virtual void NativeUpdateAnimation(float DeltaSeconds) override;
+
+protected:
+    // Exposed to AnimBP
+    UPROPERTY(BlueprintReadOnly, Category = "Limb State")
+    bool bLeftLegFractured = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb State")
+    bool bRightLegFractured = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb State")
+    bool bLeftArmDestroyed = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb State")
+    bool bRightArmDestroyed = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb State")
+    float LimpIntensity = 0.0f;  // 0-1 for blend
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb State")
+    float PainLevel = 0.0f;  // 0-100
+
+private:
+    void UpdateLimbStateFromTags();
+};
+
+// SuspenseCoreAnimInstance.cpp
+
+void USuspenseCoreAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
+{
+    Super::NativeUpdateAnimation(DeltaSeconds);
+
+    UpdateLimbStateFromTags();
+}
+
+void USuspenseCoreAnimInstance::UpdateLimbStateFromTags()
+{
+    APawn* Owner = TryGetPawnOwner();
+    if (!Owner)
+    {
+        return;
+    }
+
+    ASuspenseCoreCharacter* Character = Cast<ASuspenseCoreCharacter>(Owner);
+    if (!Character)
+    {
+        return;
+    }
+
+    UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
+    if (!ASC)
+    {
+        return;
+    }
+
+    // === Query GameplayTags for limb states ===
+    bLeftLegFractured = ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Limb_LeftLeg_Fractured);
+    bRightLegFractured = ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Limb_RightLeg_Fractured);
+    bLeftArmDestroyed = ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Limb_LeftArm_Destroyed);
+    bRightArmDestroyed = ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Limb_RightArm_Destroyed);
+
+    // === Calculate limp intensity ===
+    // Based on leg health and fracture state
+    float LeftLegHealth = ASC->GetNumericAttribute(
+        USuspenseCoreLimbAttributeSet::GetLeftLegHealthAttribute());
+    float RightLegHealth = ASC->GetNumericAttribute(
+        USuspenseCoreLimbAttributeSet::GetRightLegHealthAttribute());
+
+    float WorstLegPercent = FMath::Min(LeftLegHealth / 65.0f, RightLegHealth / 65.0f);
+
+    LimpIntensity = 1.0f - WorstLegPercent;  // Higher = more limp
+
+    // Fracture increases limp
+    if (bLeftLegFractured || bRightLegFractured)
+    {
+        LimpIntensity = FMath::Min(1.0f, LimpIntensity + 0.3f);
+    }
+
+    // === Get pain level ===
+    if (ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Status_Pain_Severe))
+    {
+        PainLevel = 90.0f;
+    }
+    else if (ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Status_Pain_Moderate))
+    {
+        PainLevel = 60.0f;
+    }
+    else if (ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Status_Pain_Light))
+    {
+        PainLevel = 30.0f;
+    }
+    else
+    {
+        PainLevel = 0.0f;
+    }
+}
+```
+
+**Animation Blueprint Usage:**
+```
+In AnimGraph:
+- Use LimpIntensity to blend between normal walk and limp animation
+- Use PainLevel to add procedural camera sway/breathing
+- Use bLeftArmDestroyed to modify weapon holding pose
+- Use bLeftLegFractured/bRightLegFractured for specific leg limp blends
+```
+
+---
+
+### D.7 EventBus Integration
+
+#### D.7.1 Publishing Events from AttributeSet
+
+```cpp
+// SuspenseCoreLimbAttributeSet.cpp
+
+void USuspenseCoreLimbAttributeSet::BroadcastLimbDamageEvent(
+    ELimbType Limb,
+    const FGameplayEffectModCallbackData& Data)
+{
+    // Get EventBus
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    USuspenseCoreEventBus* EventBus = World->GetSubsystem<USuspenseCoreEventBus>();
+    if (!EventBus)
+    {
+        return;
+    }
+
+    // Build event
+    FSuspenseCoreLimbDamageEvent Event;
+    Event.VictimActor = GetOwningActor();
+    Event.DamagedLimb = Limb;
+    Event.DamageAmount = FMath::Abs(Data.EvaluatedData.Magnitude);
+    Event.RemainingHealth = GetLimbHealth(Limb);
+    Event.HealthPercent = GetLimbHealthPercent(Limb);
+    Event.bLimbDestroyed = IsLimbDestroyed(Limb);
+
+    // Get instigator from effect context
+    if (Data.EffectSpec.GetContext().IsValid())
+    {
+        Event.InstigatorActor = Data.EffectSpec.GetContext().GetInstigator();
+    }
+
+    // Publish
+    EventBus->Publish(Event);
+}
+
+void USuspenseCoreLimbAttributeSet::HandleLimbDestruction(
+    ELimbType Limb,
+    const FGameplayEffectModCallbackData& Data)
+{
+    // Grant destroyed tag
+    UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
+    if (ASC)
+    {
+        FGameplayTag DestroyedTag = GetDestroyedTagForLimb(Limb);
+        ASC->AddLooseGameplayTag(DestroyedTag);
+
+        // Apply fracture if limb can be fractured
+        if (CanLimbBeFractured(Limb))
+        {
+            FGameplayTag FractureTag = GetFractureTagForLimb(Limb);
+            ASC->AddLooseGameplayTag(FractureTag);
+
+            // Publish fracture event
+            PublishFractureEvent(Limb, false);  // false = not from fall
+        }
+
+        // Check if sprint should be blocked
+        if (Limb == ELimbType::LeftLeg || Limb == ELimbType::RightLeg)
+        {
+            ASC->AddLooseGameplayTag(SuspenseCoreTags::Ability_Block_Sprint);
+
+            // Check if both legs fractured - block jump too
+            if (ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Limb_LeftLeg_Fractured) &&
+                ASC->HasMatchingGameplayTag(SuspenseCoreTags::State_Limb_RightLeg_Fractured))
+            {
+                ASC->AddLooseGameplayTag(SuspenseCoreTags::Ability_Block_Jump);
+            }
+        }
+    }
+
+    // Publish destruction event
+    if (USuspenseCoreEventBus* EventBus = GetWorld()->GetSubsystem<USuspenseCoreEventBus>())
+    {
+        FSuspenseCoreLimbDestroyedEvent Event;
+        Event.AffectedActor = GetOwningActor();
+        Event.DestroyedLimb = Limb;
+        EventBus->Publish(Event);
+    }
+}
+```
+
+#### D.7.2 UI Widget Subscription
+
+```cpp
+// LimbStatusWidget.cpp
+
+void ULimbStatusWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // Get EventBus
+    if (UWorld* World = GetWorld())
+    {
+        if (USuspenseCoreEventBus* EventBus = World->GetSubsystem<USuspenseCoreEventBus>())
+        {
+            // Subscribe to limb events
+            EventBus->Subscribe<FSuspenseCoreLimbDamageEvent>(
+                this, &ULimbStatusWidget::OnLimbDamageReceived);
+
+            EventBus->Subscribe<FSuspenseCoreLimbHealedEvent>(
+                this, &ULimbStatusWidget::OnLimbHealed);
+
+            EventBus->Subscribe<FSuspenseCoreBleedingStartEvent>(
+                this, &ULimbStatusWidget::OnBleedingStarted);
+
+            EventBus->Subscribe<FSuspenseCoreBleedingStopEvent>(
+                this, &ULimbStatusWidget::OnBleedingStopped);
+
+            EventBus->Subscribe<FSuspenseCoreFractureEvent>(
+                this, &ULimbStatusWidget::OnFractureReceived);
+        }
+    }
+}
+
+void ULimbStatusWidget::OnLimbDamageReceived(const FSuspenseCoreLimbDamageEvent& Event)
+{
+    // Only process events for local player
+    APawn* LocalPawn = GetOwningPlayerPawn();
+    if (!LocalPawn || Event.VictimActor.Get() != LocalPawn)
+    {
+        return;
+    }
+
+    // Update limb display
+    UpdateLimbHealthDisplay(Event.DamagedLimb, Event.HealthPercent);
+
+    // Flash damage indicator
+    PlayDamageFlash(Event.DamagedLimb);
+
+    // Update destroyed state if needed
+    if (Event.bLimbDestroyed)
+    {
+        SetLimbDestroyedVisual(Event.DamagedLimb, true);
+    }
+}
+
+void ULimbStatusWidget::OnFractureReceived(const FSuspenseCoreFractureEvent& Event)
+{
+    APawn* LocalPawn = GetOwningPlayerPawn();
+    if (!LocalPawn || Event.AffectedActor.Get() != LocalPawn)
+    {
+        return;
+    }
+
+    // Show fracture icon on limb
+    SetLimbFracturedVisual(Event.FracturedLimb, true);
+
+    // Play fracture sound/notification
+    PlayFractureNotification(Event.FracturedLimb);
+}
+```
+
+---
+
+### D.8 GameplayEffect Blueprint Setup
+
+#### D.8.1 Penalty Effect Configuration (Data Asset/Blueprint)
+
+```
+GE_LegFracturePenalty (GameplayEffect Blueprint)
+├── Duration Policy: Infinite
+├── Period: None
+│
+├── Modifiers:
+│   ├── Attribute: LimbAttributeSet.MovementSpeedPenalty
+│   │   └── Modifier Op: Multiply
+│   │   └── Magnitude: Scalable Float = 0.6
+│   │
+│   ├── Attribute: LimbAttributeSet.SprintSpeedPenalty
+│   │   └── Modifier Op: Multiply
+│   │   └── Magnitude: Scalable Float = 0.4
+│   │
+│   └── Attribute: LimbAttributeSet.JumpHeightPenalty
+│       └── Modifier Op: Multiply
+│       └── Magnitude: Scalable Float = 0.5
+│
+├── Granted Tags:
+│   └── State.Limb.XXXLeg.Fractured
+│
+├── Asset Tags:
+│   └── Penalty.Limb.XXXLeg
+│
+└── Gameplay Cues:
+    └── GameplayCue.Status.Fracture.Leg
+```
+
+#### D.8.2 Bleeding Effect Configuration
+
+```
+GE_HeavyBleeding (GameplayEffect Blueprint)
+├── Duration Policy: Infinite
+├── Period: 1.0 seconds
+│
+├── Periodic Execution:
+│   └── UBleedingDamageExecution
+│       └── Applies 1.2 damage to source limb per tick
+│
+├── Granted Tags:
+│   └── State.Status.Bleeding.Heavy
+│
+├── Ongoing Tag Requirements:
+│   └── None (persists until cured)
+│
+└── Gameplay Cues:
+    ├── GameplayCue.Status.Bleeding.Heavy.Start (OnApply)
+    ├── GameplayCue.Status.Bleeding.Heavy.Tick (OnTick)
+    └── GameplayCue.Status.Bleeding.Heavy.End (OnRemove)
+```
+
+---
+
+### D.9 Implementation Checklist with Order
+
+```
+Phase 1: Foundation
+├── [ ] 1.1 Create ELimbType enum
+├── [ ] 1.2 Create USuspenseCoreLimbAttributeSet with all limb attributes
+├── [ ] 1.3 Register AttributeSet on character
+├── [ ] 1.4 Define all native GameplayTags in SuspenseCoreGameplayTags.h/cpp
+└── [ ] 1.5 Create bone-to-limb mapping DataTable
+
+Phase 2: Damage Pipeline
+├── [ ] 2.1 Create USuspenseCoreBoneLimbResolver
+├── [ ] 2.2 Create FSuspenseCoreDamageInfo struct
+├── [ ] 2.3 Create USuspenseCoreDamageProcessorSubsystem
+├── [ ] 2.4 Create ULimbDamageExecutionCalculation
+├── [ ] 2.5 Create GE_LimbDamage base effect
+├── [ ] 2.6 Update projectile OnHit to extract bone name
+└── [ ] 2.7 Update hitscan trace to extract bone name
+
+Phase 3: Status Effects
+├── [ ] 3.1 Create bleeding GameplayEffects (Light, Heavy)
+├── [ ] 3.2 Create fracture GameplayEffects per limb
+├── [ ] 3.3 Create penalty GameplayEffects per severity level
+├── [ ] 3.4 Implement UBleedingDamageExecution
+└── [ ] 3.5 Add status effect chance rolls in ProcessStatusEffects()
+
+Phase 4: Consumer System Integration
+├── [ ] 4.1 Update MovementComponent to read penalty attributes
+├── [ ] 4.2 Add tag checks for sprint/jump blocking
+├── [ ] 4.3 Update WeaponComponent for reload/aim speed penalties
+├── [ ] 4.4 Update weapon sway calculation
+├── [ ] 4.5 Add AnimInstance limb state variables
+└── [ ] 4.6 Update AnimBP with limp/pain blends
+
+Phase 5: EventBus & UI
+├── [ ] 5.1 Define all limb-related event structs
+├── [ ] 5.2 Add event publishing in AttributeSet
+├── [ ] 5.3 Create limb status widget
+├── [ ] 5.4 Subscribe widget to EventBus
+├── [ ] 5.5 Add damage direction indicator
+└── [ ] 5.6 Add screen effects (vignette, shake)
+
+Phase 6: Fall Damage
+├── [ ] 6.1 Hook into CharacterMovementComponent::ProcessLanded
+├── [ ] 6.2 Implement fall height calculation
+├── [ ] 6.3 Apply damage to legs via GAS
+├── [ ] 6.4 Add fracture chance calculation
+└── [ ] 6.5 Publish fall damage event
+
+Phase 7: Healing Integration
+├── [ ] 7.1 Update medical item handlers to target limbs
+├── [ ] 7.2 Add healing execution calculation
+├── [ ] 7.3 Add status effect removal logic
+├── [ ] 7.4 Add limb restoration (surgical kit)
+└── [ ] 7.5 Add splint application logic
+
+Phase 8: Network & Polish
+├── [ ] 8.1 Configure attribute replication
+├── [ ] 8.2 Add GameplayCues for effects
+├── [ ] 8.3 Test with multiple clients
+├── [ ] 8.4 Profile and optimize
+└── [ ] 8.5 Add debug visualization
+```
+
+---
+
 *Document End*

@@ -3318,234 +3318,597 @@ Phase 8: Network & Polish
 
 ## Appendix E: SuspenseCore Architecture Integration
 
-This appendix describes how to integrate the Limb Damage System with the **existing** SuspenseCore architecture. **DO NOT** create parallel systems - extend what already exists.
+This appendix describes how to integrate the Limb Damage System with the **existing** SuspenseCore architecture. **EXTEND the existing SuspenseCoreAttributeSet** - do NOT create a separate LimbAttributeSet.
 
 ---
 
-### E.1 Existing Architecture Overview
+### E.1 Architecture Decision: Unified AttributeSet
+
+**Why NOT create a separate LimbAttributeSet:**
+
+1. **Single Source of Truth:** Health and limb health are fundamentally linked
+2. **Death Logic:** `Health <= 0` already triggers death - Health = ThoraxHealth
+3. **No Redundancy:** Avoid two separate health tracking systems
+4. **Simpler Integration:** One AttributeSet to query, one place for damage processing
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        EXISTING SUSPENSECORE ARCHITECTURE                   │
+│                     UNIFIED HEALTH ARCHITECTURE                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  ASuspenseCorePlayerState (Owns ASC - survives respawn)                     │
-│  ├── USuspenseCoreAbilitySystemComponent                                    │
-│  │   ├── USuspenseCoreAttributeSet (Health, Stamina, Armor)                 │
-│  │   ├── USuspenseCoreMovementAttributeSet (Speeds, WeightPenalty)          │
-│  │   ├── USuspenseCoreWeaponAttributeSet (Damage, Recoil, Ergonomics)       │
-│  │   └── [NEW] USuspenseCoreLimbAttributeSet ← ADD HERE                     │
+│  USuspenseCoreAttributeSet (EXTENDED)                                       │
+│  ├── Health          ← EXISTING = ThoraxHealth (alias for compatibility)   │
+│  ├── MaxHealth       ← EXISTING = MaxThoraxHealth                          │
+│  ├── Stamina         ← EXISTING (unchanged)                                │
+│  ├── Armor           ← EXISTING (unchanged)                                │
 │  │                                                                          │
-│  ASuspenseCoreCharacter (Avatar)                                            │
-│  ├── IAbilitySystemInterface::GetAbilitySystemComponent()                   │
-│  │   └── Returns PlayerState->ASC                                           │
-│  ├── USuspenseCoreCharacterMovementComponent                                │
-│  │   └── Reads MovementAttributeSet for speeds                              │
-│  └── [Components access ASC via Character->GetASC()]                        │
+│  ├── HeadHealth      ← NEW (35 HP, CRITICAL - death if <= 0)               │
+│  ├── StomachHealth   ← NEW (70 HP, overflow to Thorax)                     │
+│  ├── LeftArmHealth   ← NEW (60 HP, overflow to Thorax)                     │
+│  ├── RightArmHealth  ← NEW (60 HP, overflow to Thorax)                     │
+│  ├── LeftLegHealth   ← NEW (65 HP, overflow to Stomach)                    │
+│  ├── RightLegHealth  ← NEW (65 HP, overflow to Stomach)                    │
+│  │                                                                          │
+│  ├── LimbMovementPenalty   ← NEW (0.0 - 1.0, stacks with weight penalty)   │
+│  ├── LimbReloadPenalty     ← NEW (0.0 - 1.0)                               │
+│  ├── LimbAimPenalty        ← NEW (0.0 - 1.0)                               │
+│  ├── WeaponSwayMultiplier  ← NEW (1.0 = normal, 2.0 = double)              │
+│  │                                                                          │
+│  ├── IncomingLimbDamage    ← NEW META (for limb damage routing)            │
+│  └── TargetLimbIndex       ← NEW META (ELimbType as float)                 │
+│                                                                             │
+│  DEATH CONDITION: Health <= 0 OR HeadHealth <= 0                            │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### E.2 Key Files to Modify (NOT Create New)
+### E.2 Key Files to Modify
 
 | Purpose | Existing File | Action |
 |---------|---------------|--------|
-| Limb Attributes | Create NEW `SuspenseCoreLimbAttributeSet.h/cpp` | New file in existing Attributes folder |
-| GameplayTags | `SuspenseCoreGameplayTags.h` | EXTEND with limb tags |
-| ASC Registration | `SuspenseCorePlayerState.cpp` | ADD LimbAttributeSet spawn |
-| Movement Penalties | `SuspenseCoreMovementAttributeSet.h` | EXTEND with limb penalty modifiers |
-| Damage Processing | `SuspenseCoreAttributeSet.cpp` | EXTEND IncomingDamage to route to limbs |
+| Limb Attributes | `SuspenseCoreAttributeSet.h/cpp` | **EXTEND** with limb health + penalties |
+| Attribute Defaults | `SuspenseCoreAttributeDefaults.h` | **ADD** limb health defaults |
+| GameplayTags | `SuspenseCoreGameplayTags.h/cpp` | **EXTEND** with limb state tags |
+| Movement Penalties | `SuspenseCoreMovementAttributeSet.cpp` | **MODIFY** to read LimbMovementPenalty |
+| Damage Processing | `SuspenseCoreAttributeSet.cpp` | **EXTEND** PostGameplayEffectExecute |
+
+**NO new AttributeSet files needed.**
 
 ---
 
-### E.3 Extending SuspenseCoreAttributeSet
+### E.3 Health-Limb Relationship
 
-**Option A: Add limb attributes to existing AttributeSet (simpler)**
-
-```cpp
-// In SuspenseCoreAttributeSet.h - ADD these attributes
-
-// === LIMB HEALTH ATTRIBUTES ===
-UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_HeadHealth, Category = "Limb Health")
-FGameplayAttributeData HeadHealth;
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, HeadHealth)
-
-UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ThoraxHealth, Category = "Limb Health")
-FGameplayAttributeData ThoraxHealth;
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, ThoraxHealth)
-
-UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_StomachHealth, Category = "Limb Health")
-FGameplayAttributeData StomachHealth;
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, StomachHealth)
-
-UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LeftArmHealth, Category = "Limb Health")
-FGameplayAttributeData LeftArmHealth;
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, LeftArmHealth)
-
-UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RightArmHealth, Category = "Limb Health")
-FGameplayAttributeData RightArmHealth;
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, RightArmHealth)
-
-UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LeftLegHealth, Category = "Limb Health")
-FGameplayAttributeData LeftLegHealth;
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, LeftLegHealth)
-
-UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RightLegHealth, Category = "Limb Health")
-FGameplayAttributeData RightLegHealth;
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, RightLegHealth)
-
-// === META ATTRIBUTE FOR LIMB DAMAGE ===
-UPROPERTY(BlueprintReadOnly, Category = "Limb Health|Meta")
-FGameplayAttributeData IncomingLimbDamage;
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, IncomingLimbDamage)
-
-UPROPERTY(BlueprintReadOnly, Category = "Limb Health|Meta")
-FGameplayAttributeData TargetLimbIndex;  // ELimbType as float
-ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, TargetLimbIndex)
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DAMAGE FLOW DIAGRAM                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  CRITICAL ZONES (Death on 0 HP):                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  HeadHealth = 35 HP                                                 │    │
+│  │  └── HeadHealth <= 0 → DEATH                                        │    │
+│  │                                                                     │    │
+│  │  Health (ThoraxHealth) = 85 HP                                      │    │
+│  │  └── Health <= 0 → DEATH                                            │    │
+│  │  └── Receives overflow from: Stomach, Arms                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  NON-CRITICAL ZONES (Destroyed state, overflow damage):                     │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  StomachHealth = 70 HP                                              │    │
+│  │  └── Overflow target: Thorax (Health)                               │    │
+│  │  └── Receives overflow from: Legs                                   │    │
+│  │                                                                     │    │
+│  │  LeftArmHealth / RightArmHealth = 60 HP each                        │    │
+│  │  └── Overflow target: Thorax (Health)                               │    │
+│  │                                                                     │    │
+│  │  LeftLegHealth / RightLegHealth = 65 HP each                        │    │
+│  │  └── Overflow target: Stomach                                       │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  OVERFLOW CHAIN EXAMPLE:                                                    │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  [Hit Leg for 100 damage, Leg has 65 HP]                            │    │
+│  │         │                                                           │    │
+│  │         ▼                                                           │    │
+│  │  LegHealth: 65 - 100 = -35 → SET TO 0 (Destroyed)                   │    │
+│  │  Overflow: 35 × 0.7 = 24.5 → Stomach                                │    │
+│  │         │                                                           │    │
+│  │         ▼                                                           │    │
+│  │  StomachHealth: 70 - 24.5 = 45.5 HP                                 │    │
+│  │  (Stomach survives, no further overflow)                            │    │
+│  │         │                                                           │    │
+│  │         ▼                                                           │    │
+│  │  Health (Thorax): UNCHANGED                                         │    │
+│  │  → Player ALIVE but leg destroyed, cannot sprint                    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Option B: Separate LimbAttributeSet (modular, recommended)**
+---
+
+### E.4 Extending SuspenseCoreAttributeSet
 
 ```cpp
-// NEW FILE: Source/GAS/Public/SuspenseCore/Attributes/SuspenseCoreLimbAttributeSet.h
+// ============================================================================
+// SuspenseCoreAttributeSet.h - ADD TO EXISTING CLASS
+// ============================================================================
 
-#pragma once
-
-#include "AttributeSet.h"
-#include "AbilitySystemComponent.h"
-#include "SuspenseCoreLimbAttributeSet.generated.h"
+// Forward declare
+enum class ELimbType : uint8;
 
 UCLASS()
-class GAS_API USuspenseCoreLimbAttributeSet : public UAttributeSet
+class GAS_API USuspenseCoreAttributeSet : public UAttributeSet
 {
     GENERATED_BODY()
 
 public:
-    USuspenseCoreLimbAttributeSet();
+    // ========================================================================
+    // EXISTING ATTRIBUTES (KEEP AS-IS)
+    // ========================================================================
 
-    // === Limb Health Attributes ===
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_HeadHealth, Category = "Limb")
-    FGameplayAttributeData HeadHealth;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, HeadHealth)
+    // Health = ThoraxHealth (kept for backward compatibility)
+    // Any system reading "Health" continues to work
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Health")
+    FGameplayAttributeData Health;  // Default: 85 HP (was 100, now = Thorax)
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, Health)
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ThoraxHealth, Category = "Limb")
-    FGameplayAttributeData ThoraxHealth;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, ThoraxHealth)
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Health")
+    FGameplayAttributeData MaxHealth;  // Default: 85 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, MaxHealth)
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_StomachHealth, Category = "Limb")
-    FGameplayAttributeData StomachHealth;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, StomachHealth)
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Stamina, Category = "Stamina")
+    FGameplayAttributeData Stamina;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, Stamina)
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LeftArmHealth, Category = "Limb")
-    FGameplayAttributeData LeftArmHealth;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, LeftArmHealth)
+    // ... other existing attributes ...
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RightArmHealth, Category = "Limb")
-    FGameplayAttributeData RightArmHealth;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, RightArmHealth)
+    // ========================================================================
+    // NEW: LIMB HEALTH ATTRIBUTES
+    // ========================================================================
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LeftLegHealth, Category = "Limb")
-    FGameplayAttributeData LeftLegHealth;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, LeftLegHealth)
+    // Head - CRITICAL (death if <= 0)
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_HeadHealth, Category = "Limb Health")
+    FGameplayAttributeData HeadHealth;  // Default: 35 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, HeadHealth)
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RightLegHealth, Category = "Limb")
-    FGameplayAttributeData RightLegHealth;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, RightLegHealth)
+    UPROPERTY(BlueprintReadOnly, Category = "Limb Health|Max")
+    FGameplayAttributeData MaxHeadHealth;  // Default: 35 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, MaxHeadHealth)
 
-    // === Max Health (for percentage calculations) ===
-    UPROPERTY(BlueprintReadOnly, Category = "Limb|Max")
-    FGameplayAttributeData MaxHeadHealth;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, MaxHeadHealth)
+    // Stomach - overflow to Thorax
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_StomachHealth, Category = "Limb Health")
+    FGameplayAttributeData StomachHealth;  // Default: 70 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, StomachHealth)
 
-    // ... (similar for all limbs)
+    UPROPERTY(BlueprintReadOnly, Category = "Limb Health|Max")
+    FGameplayAttributeData MaxStomachHealth;  // Default: 70 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, MaxStomachHealth)
 
-    // === Penalty Multipliers (modified by GameplayEffects) ===
-    // These STACK with existing MovementAttributeSet penalties
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LimbMovementPenalty, Category = "Penalty")
+    // Arms - overflow to Thorax
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LeftArmHealth, Category = "Limb Health")
+    FGameplayAttributeData LeftArmHealth;  // Default: 60 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, LeftArmHealth)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb Health|Max")
+    FGameplayAttributeData MaxLeftArmHealth;  // Default: 60 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, MaxLeftArmHealth)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RightArmHealth, Category = "Limb Health")
+    FGameplayAttributeData RightArmHealth;  // Default: 60 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, RightArmHealth)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb Health|Max")
+    FGameplayAttributeData MaxRightArmHealth;  // Default: 60 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, MaxRightArmHealth)
+
+    // Legs - overflow to Stomach
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LeftLegHealth, Category = "Limb Health")
+    FGameplayAttributeData LeftLegHealth;  // Default: 65 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, LeftLegHealth)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb Health|Max")
+    FGameplayAttributeData MaxLeftLegHealth;  // Default: 65 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, MaxLeftLegHealth)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RightLegHealth, Category = "Limb Health")
+    FGameplayAttributeData RightLegHealth;  // Default: 65 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, RightLegHealth)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Limb Health|Max")
+    FGameplayAttributeData MaxRightLegHealth;  // Default: 65 HP
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, MaxRightLegHealth)
+
+    // ========================================================================
+    // NEW: LIMB PENALTY ATTRIBUTES
+    // ========================================================================
+
+    // Movement penalty from leg damage (stacks with weight penalty)
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LimbMovementPenalty, Category = "Limb Penalty")
     FGameplayAttributeData LimbMovementPenalty;  // 0.0 = no penalty, 0.5 = 50% slower
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, LimbMovementPenalty)
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, LimbMovementPenalty)
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LimbReloadPenalty, Category = "Penalty")
-    FGameplayAttributeData LimbReloadPenalty;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, LimbReloadPenalty)
+    // Reload speed penalty from arm damage
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LimbReloadPenalty, Category = "Limb Penalty")
+    FGameplayAttributeData LimbReloadPenalty;  // 0.0 = no penalty, 0.5 = 50% slower
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, LimbReloadPenalty)
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LimbAimPenalty, Category = "Penalty")
-    FGameplayAttributeData LimbAimPenalty;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, LimbAimPenalty)
+    // Aim speed penalty from arm damage
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LimbAimPenalty, Category = "Limb Penalty")
+    FGameplayAttributeData LimbAimPenalty;  // 0.0 = no penalty
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, LimbAimPenalty)
 
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_WeaponSwayMultiplier, Category = "Penalty")
+    // Weapon sway multiplier from arm damage
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_WeaponSwayMultiplier, Category = "Limb Penalty")
     FGameplayAttributeData WeaponSwayMultiplier;  // 1.0 = normal, 2.0 = double sway
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, WeaponSwayMultiplier)
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, WeaponSwayMultiplier)
 
-    // === Meta Attributes (not replicated, for calculation only) ===
+    // ========================================================================
+    // NEW: META ATTRIBUTES (for damage routing, not replicated)
+    // ========================================================================
+
+    // Incoming limb damage amount (processed in PostGameplayEffectExecute)
     UPROPERTY(BlueprintReadOnly, Category = "Meta")
     FGameplayAttributeData IncomingLimbDamage;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, IncomingLimbDamage)
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, IncomingLimbDamage)
 
+    // Target limb index (ELimbType cast to float)
     UPROPERTY(BlueprintReadOnly, Category = "Meta")
     FGameplayAttributeData TargetLimbIndex;
-    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, TargetLimbIndex)
+    ATTRIBUTE_ACCESSORS(USuspenseCoreAttributeSet, TargetLimbIndex)
 
-    // === Helper Functions ===
+    // ========================================================================
+    // NEW: LIMB HELPER FUNCTIONS
+    // ========================================================================
+
+    // Get health for specific limb
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Limb")
     float GetLimbHealth(ELimbType Limb) const;
+
+    // Set health for specific limb
     void SetLimbHealth(ELimbType Limb, float NewValue);
+
+    // Get max health for specific limb
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Limb")
     float GetLimbMaxHealth(ELimbType Limb) const;
+
+    // Get health percentage (0.0 - 1.0)
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Limb")
     float GetLimbHealthPercent(ELimbType Limb) const;
+
+    // Check if limb is destroyed (HP <= 0)
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Limb")
     bool IsLimbDestroyed(ELimbType Limb) const;
 
+    // Check if limb is critical (Head or Thorax)
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Limb")
+    static bool IsCriticalLimb(ELimbType Limb);
+
+    // Get overflow target for limb
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Limb")
+    static ELimbType GetOverflowTarget(ELimbType Limb);
+
+    // Alias: GetThoraxHealth() = GetHealth()
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Limb")
+    float GetThoraxHealth() const { return GetHealth(); }
+
+    float GetMaxThoraxHealth() const { return GetMaxHealth(); }
+
 protected:
+    // EXISTING
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
     virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
     virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 
-    // Replication callbacks
+    // NEW: Replication callbacks for limbs
     UFUNCTION()
     void OnRep_HeadHealth(const FGameplayAttributeData& OldValue);
-    // ... (similar for all)
+
+    UFUNCTION()
+    void OnRep_StomachHealth(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_LeftArmHealth(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_RightArmHealth(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_LeftLegHealth(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_RightLegHealth(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_LimbMovementPenalty(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_LimbReloadPenalty(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_LimbAimPenalty(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_WeaponSwayMultiplier(const FGameplayAttributeData& OldValue);
 
 private:
-    void ProcessLimbDamage(const FGameplayEffectModCallbackData& Data);
-    void RecalculatePenalties();
-    void BroadcastLimbEvent(ELimbType Limb, float OldValue, float NewValue);
+    // NEW: Limb damage processing
+    void ProcessLimbDamage(float Damage, ELimbType TargetLimb, const FGameplayEffectModCallbackData& Data);
+
+    // NEW: Apply damage with overflow
+    void ApplyDamageToLimb(ELimbType Limb, float Damage, const FGameplayEffectModCallbackData& Data);
+
+    // NEW: Recalculate all penalties based on limb health
+    void RecalculateLimbPenalties();
+
+    // NEW: Check death condition (Health <= 0 OR HeadHealth <= 0)
+    void CheckDeathCondition(const FGameplayEffectModCallbackData& Data);
+
+    // NEW: Mark limb as destroyed (add tag, apply effects)
+    void MarkLimbDestroyed(ELimbType Limb);
+
+    // NEW: Broadcast limb damage event via EventBus
+    void BroadcastLimbDamageEvent(ELimbType Limb, float Damage, float RemainingHealth);
 };
 ```
 
 ---
 
-### E.4 Registering LimbAttributeSet on PlayerState
+### E.5 Death Logic Implementation
 
 ```cpp
-// In SuspenseCorePlayerState.h - ADD member
-UPROPERTY()
-USuspenseCoreLimbAttributeSet* LimbAttributeSet = nullptr;
+// ============================================================================
+// SuspenseCoreAttributeSet.cpp - MODIFY PostGameplayEffectExecute
+// ============================================================================
 
-// In SuspenseCorePlayerState.cpp - InitializeAbilitySystem()
-void ASuspenseCorePlayerState::InitializeAbilitySystem()
+void USuspenseCoreAttributeSet::PostGameplayEffectExecute(
+    const FGameplayEffectModCallbackData& Data)
 {
-    // ... existing code ...
+    Super::PostGameplayEffectExecute(Data);
 
-    // Create attribute sets
-    if (AttributeSetClass)
+    // ========================================================================
+    // EXISTING: Direct damage processing (IncomingDamage → Health)
+    // ========================================================================
+    if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
     {
-        AttributeSet = NewObject<USuspenseCoreAttributeSet>(this, AttributeSetClass);
-        AbilitySystemComponent->AddSpawnedAttribute(AttributeSet);
+        const float LocalDamage = GetIncomingDamage();
+        SetIncomingDamage(0.0f);
+
+        // Apply armor, then to Health (Thorax)
+        const float DamageAfterArmor = FMath::Max(LocalDamage - GetArmor(), 0.0f);
+        const float NewHealth = FMath::Clamp(GetHealth() - DamageAfterArmor, 0.0f, GetMaxHealth());
+        SetHealth(NewHealth);
+
+        // Recalculate penalties (Thorax damage doesn't directly affect movement)
+        RecalculateLimbPenalties();
     }
 
-    // ADD: Create movement attribute set (if not already)
-    MovementAttributeSet = NewObject<USuspenseCoreMovementAttributeSet>(this);
-    AbilitySystemComponent->AddSpawnedAttribute(MovementAttributeSet);
+    // ========================================================================
+    // NEW: Limb damage processing (IncomingLimbDamage → specific limb)
+    // ========================================================================
+    if (Data.EvaluatedData.Attribute == GetIncomingLimbDamageAttribute())
+    {
+        const float Damage = GetIncomingLimbDamage();
+        SetIncomingLimbDamage(0.0f);
 
-    // ADD: Create limb attribute set
-    LimbAttributeSet = NewObject<USuspenseCoreLimbAttributeSet>(this);
-    AbilitySystemComponent->AddSpawnedAttribute(LimbAttributeSet);
+        const ELimbType TargetLimb = static_cast<ELimbType>(
+            FMath::RoundToInt(GetTargetLimbIndex()));
+        SetTargetLimbIndex(0.0f);
 
-    // ... rest of initialization ...
+        if (Damage > 0.0f)
+        {
+            ProcessLimbDamage(Damage, TargetLimb, Data);
+        }
+    }
+
+    // ========================================================================
+    // MODIFIED: Death check (now includes HeadHealth)
+    // ========================================================================
+    CheckDeathCondition(Data);
+}
+
+void USuspenseCoreAttributeSet::CheckDeathCondition(
+    const FGameplayEffectModCallbackData& Data)
+{
+    bool bShouldDie = false;
+    FString DeathReason;
+
+    // Check Thorax (Health)
+    if (GetHealth() <= 0.0f)
+    {
+        bShouldDie = true;
+        DeathReason = TEXT("Thorax destroyed");
+    }
+
+    // Check Head
+    if (GetHeadHealth() <= 0.0f)
+    {
+        bShouldDie = true;
+        DeathReason = TEXT("Head destroyed");
+    }
+
+    if (bShouldDie)
+    {
+        UE_LOG(LogSuspenseCore, Log, TEXT("Death: %s"), *DeathReason);
+
+        // Get instigator from effect context
+        AActor* Instigator = nullptr;
+        AActor* Causer = nullptr;
+        if (Data.EffectSpec.GetContext().IsValid())
+        {
+            Instigator = Data.EffectSpec.GetContext().GetInstigator();
+            Causer = Data.EffectSpec.GetContext().GetEffectCauser();
+        }
+
+        HandleDeath(Instigator, Causer);
+    }
+}
+
+void USuspenseCoreAttributeSet::ProcessLimbDamage(
+    float Damage,
+    ELimbType TargetLimb,
+    const FGameplayEffectModCallbackData& Data)
+{
+    // Route to specific limb, handling Thorax specially
+    if (TargetLimb == ELimbType::Thorax)
+    {
+        // Thorax = Health attribute
+        const float OldHealth = GetHealth();
+        const float NewHealth = FMath::Max(0.0f, OldHealth - Damage);
+        SetHealth(NewHealth);
+
+        BroadcastLimbDamageEvent(ELimbType::Thorax, Damage, NewHealth);
+    }
+    else
+    {
+        ApplyDamageToLimb(TargetLimb, Damage, Data);
+    }
+
+    RecalculateLimbPenalties();
+}
+
+void USuspenseCoreAttributeSet::ApplyDamageToLimb(
+    ELimbType Limb,
+    float Damage,
+    const FGameplayEffectModCallbackData& Data)
+{
+    const float CurrentHealth = GetLimbHealth(Limb);
+    float NewHealth = CurrentHealth - Damage;
+
+    // Check for overflow (non-critical limbs only)
+    if (NewHealth < 0.0f && !IsCriticalLimb(Limb))
+    {
+        // Limb destroyed
+        SetLimbHealth(Limb, 0.0f);
+        MarkLimbDestroyed(Limb);
+
+        // Calculate overflow damage (70% passes through)
+        const float OverflowDamage = FMath::Abs(NewHealth) * 0.7f;
+        const ELimbType OverflowTarget = GetOverflowTarget(Limb);
+
+        UE_LOG(LogSuspenseCore, Verbose,
+            TEXT("Limb %d destroyed, overflow %.1f to limb %d"),
+            static_cast<int32>(Limb), OverflowDamage, static_cast<int32>(OverflowTarget));
+
+        // Recursive apply to overflow target
+        if (OverflowTarget == ELimbType::Thorax)
+        {
+            // Thorax = Health
+            const float OldHealth = GetHealth();
+            const float ThoraxNewHealth = FMath::Max(0.0f, OldHealth - OverflowDamage);
+            SetHealth(ThoraxNewHealth);
+            BroadcastLimbDamageEvent(ELimbType::Thorax, OverflowDamage, ThoraxNewHealth);
+        }
+        else
+        {
+            ApplyDamageToLimb(OverflowTarget, OverflowDamage, Data);
+        }
+
+        BroadcastLimbDamageEvent(Limb, Damage, 0.0f);
+    }
+    else
+    {
+        // Normal damage or critical limb
+        NewHealth = FMath::Max(0.0f, NewHealth);
+        SetLimbHealth(Limb, NewHealth);
+        BroadcastLimbDamageEvent(Limb, Damage, NewHealth);
+    }
+}
+
+bool USuspenseCoreAttributeSet::IsCriticalLimb(ELimbType Limb)
+{
+    return Limb == ELimbType::Head || Limb == ELimbType::Thorax;
+}
+
+ELimbType USuspenseCoreAttributeSet::GetOverflowTarget(ELimbType Limb)
+{
+    switch (Limb)
+    {
+        case ELimbType::Stomach:    return ELimbType::Thorax;
+        case ELimbType::LeftArm:    return ELimbType::Thorax;
+        case ELimbType::RightArm:   return ELimbType::Thorax;
+        case ELimbType::LeftLeg:    return ELimbType::Stomach;
+        case ELimbType::RightLeg:   return ELimbType::Stomach;
+        default:                    return ELimbType::Thorax;
+    }
 }
 ```
 
 ---
 
-### E.5 Extending GameplayTags
+### E.6 Penalty Recalculation
+
+```cpp
+void USuspenseCoreAttributeSet::RecalculateLimbPenalties()
+{
+    // ========================================================================
+    // LEG PENALTIES → Movement
+    // ========================================================================
+    const float LeftLegPercent = GetLimbHealthPercent(ELimbType::LeftLeg);
+    const float RightLegPercent = GetLimbHealthPercent(ELimbType::RightLeg);
+
+    // Use worst leg for movement penalty
+    const float WorstLegPercent = FMath::Min(LeftLegPercent, RightLegPercent);
+
+    // 0% HP → 0.55 penalty (45% speed), 100% HP → 0 penalty
+    float MovementPenalty = (1.0f - WorstLegPercent) * 0.55f;
+
+    // Check for fractures (add extra penalty)
+    UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
+    if (ASC)
+    {
+        if (ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::Limb::LeftLeg::Fractured) ||
+            ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::Limb::RightLeg::Fractured))
+        {
+            MovementPenalty = FMath::Min(1.0f, MovementPenalty + 0.2f);
+        }
+    }
+
+    SetLimbMovementPenalty(MovementPenalty);
+
+    // ========================================================================
+    // ARM PENALTIES → Reload, Aim, Sway
+    // ========================================================================
+    const float LeftArmPercent = GetLimbHealthPercent(ELimbType::LeftArm);
+    const float RightArmPercent = GetLimbHealthPercent(ELimbType::RightArm);
+
+    // Right arm (dominant) has more impact: 60% right, 40% left
+    const float ArmHealthWeighted = (RightArmPercent * 0.6f) + (LeftArmPercent * 0.4f);
+
+    // Reload penalty: 0% arms → 0.6 penalty (40% speed)
+    const float ReloadPenalty = (1.0f - ArmHealthWeighted) * 0.6f;
+    SetLimbReloadPenalty(ReloadPenalty);
+
+    // Aim penalty: 0% arms → 0.5 penalty (50% ADS speed)
+    const float AimPenalty = (1.0f - ArmHealthWeighted) * 0.5f;
+    SetLimbAimPenalty(AimPenalty);
+
+    // Weapon sway: 0% arms → 2.0x sway
+    const float SwayMultiplier = 1.0f + (1.0f - ArmHealthWeighted);
+    SetWeaponSwayMultiplier(SwayMultiplier);
+
+    // ========================================================================
+    // UPDATE MOVEMENT COMPONENT
+    // ========================================================================
+    if (AActor* Owner = GetOwningActor())
+    {
+        if (ACharacter* Character = Cast<ACharacter>(Owner))
+        {
+            // Notify movement component to refresh speeds
+            if (USuspenseCoreCharacterMovementComponent* Movement =
+                Cast<USuspenseCoreCharacterMovementComponent>(Character->GetCharacterMovement()))
+            {
+                Movement->OnLimbPenaltyChanged();
+            }
+        }
+    }
+}
+```
+
+---
+
+### E.7 Extending GameplayTags
 
 ```cpp
 // In SuspenseCoreGameplayTags.h - ADD to existing namespace structure
@@ -3637,17 +4000,17 @@ namespace SuspenseCoreTags
 
 ---
 
-### E.6 Integrating with Existing MovementAttributeSet
+### E.8 Integrating with Existing MovementAttributeSet
 
-**Key Pattern:** Use the EXISTING `WeightSpeedPenalty` as reference.
+**Key Pattern:** Read `LimbMovementPenalty` from the SAME `SuspenseCoreAttributeSet`.
 
 ```cpp
 // In SuspenseCoreMovementAttributeSet.h - ADD limb penalty integration
 
 // === ADD: Limb Penalty Integration ===
-// Called from LimbAttributeSet when penalties change
+// Called from SuspenseCoreAttributeSet when penalties change
 UFUNCTION()
-void OnLimbPenaltyChanged(float NewLimbPenalty);
+void OnLimbPenaltyChanged();
 
 // === MODIFY: GetEffectiveWalkSpeed() ===
 float USuspenseCoreMovementAttributeSet::GetEffectiveWalkSpeed() const
@@ -3657,10 +4020,10 @@ float USuspenseCoreMovementAttributeSet::GetEffectiveWalkSpeed() const
     // Existing weight penalty
     Speed *= (1.0f - GetWeightSpeedPenalty());
 
-    // ADD: Limb penalty from LimbAttributeSet
-    if (USuspenseCoreLimbAttributeSet* LimbAS = GetLimbAttributeSet())
+    // ADD: Limb penalty from SuspenseCoreAttributeSet (NOT separate LimbAttributeSet)
+    if (USuspenseCoreAttributeSet* AttrSet = GetSuspenseCoreAttributeSet())
     {
-        Speed *= (1.0f - LimbAS->GetLimbMovementPenalty());
+        Speed *= (1.0f - AttrSet->GetLimbMovementPenalty());
     }
 
     return Speed;
@@ -3681,21 +4044,21 @@ float USuspenseCoreMovementAttributeSet::GetEffectiveSprintSpeed() const
     float Speed = GetSprintSpeed();
     Speed *= (1.0f - GetWeightSpeedPenalty() * 1.5f);
 
-    // Limb penalty applies MORE to sprint
-    if (USuspenseCoreLimbAttributeSet* LimbAS = GetLimbAttributeSet())
+    // Limb penalty applies MORE to sprint (from same AttributeSet)
+    if (USuspenseCoreAttributeSet* AttrSet = GetSuspenseCoreAttributeSet())
     {
-        Speed *= (1.0f - LimbAS->GetLimbMovementPenalty() * 1.5f);
+        Speed *= (1.0f - AttrSet->GetLimbMovementPenalty() * 1.5f);
     }
 
     return Speed;
 }
 
-// === ADD: Helper to get LimbAttributeSet ===
-USuspenseCoreLimbAttributeSet* USuspenseCoreMovementAttributeSet::GetLimbAttributeSet() const
+// === ADD: Helper to get SuspenseCoreAttributeSet ===
+USuspenseCoreAttributeSet* USuspenseCoreMovementAttributeSet::GetSuspenseCoreAttributeSet() const
 {
     if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
     {
-        return ASC->GetSet<USuspenseCoreLimbAttributeSet>();
+        return ASC->GetSet<USuspenseCoreAttributeSet>();
     }
     return nullptr;
 }
@@ -3703,7 +4066,7 @@ USuspenseCoreLimbAttributeSet* USuspenseCoreMovementAttributeSet::GetLimbAttribu
 
 ---
 
-### E.7 Service & Component Registration
+### E.9 Service & Component Registration
 
 #### E.7.1 BoneLimbResolver as Subsystem
 
@@ -3880,40 +4243,31 @@ struct FSuspenseCoreLimbDamageEvent
 
 ---
 
-### E.9 Folder Structure
+### E.11 Folder Structure (Unified Approach)
 
 ```
 Source/GAS/
 ├── Public/SuspenseCore/
 │   ├── Attributes/
-│   │   ├── SuspenseCoreAttributeSet.h          ← EXISTING
-│   │   ├── SuspenseCoreMovementAttributeSet.h  ← MODIFY (add limb integration)
-│   │   └── SuspenseCoreLimbAttributeSet.h      ← NEW
+│   │   ├── SuspenseCoreAttributeSet.h          ← MODIFY (add limb attributes)
+│   │   ├── SuspenseCoreAttributeDefaults.h     ← MODIFY (add limb defaults)
+│   │   └── SuspenseCoreMovementAttributeSet.h  ← MODIFY (read limb penalty)
 │   │
 │   ├── Subsystems/
 │   │   ├── SuspenseCoreBoneLimbResolverSubsystem.h  ← NEW
 │   │   └── SuspenseCoreLimbDamageSubsystem.h        ← NEW
 │   │
-│   ├── Executions/
-│   │   └── SuspenseCoreLimbDamageExecution.h   ← NEW
-│   │
-│   └── Effects/
-│       └── Limb/
-│           ├── GE_LimbDamage.h                 ← NEW (or Blueprint)
-│           ├── GE_LegFracture.h                ← NEW (or Blueprint)
-│           └── GE_HeavyBleeding.h              ← NEW (or Blueprint)
+│   └── Types/
+│       └── SuspenseCoreLimbTypes.h             ← NEW (ELimbType enum)
 │
 ├── Private/SuspenseCore/
 │   ├── Attributes/
-│   │   ├── SuspenseCoreLimbAttributeSet.cpp    ← NEW
+│   │   ├── SuspenseCoreAttributeSet.cpp        ← MODIFY (limb damage logic)
 │   │   └── SuspenseCoreMovementAttributeSet.cpp ← MODIFY
 │   │
-│   ├── Subsystems/
-│   │   ├── SuspenseCoreBoneLimbResolverSubsystem.cpp ← NEW
-│   │   └── SuspenseCoreLimbDamageSubsystem.cpp      ← NEW
-│   │
-│   └── Executions/
-│       └── SuspenseCoreLimbDamageExecution.cpp ← NEW
+│   └── Subsystems/
+│       ├── SuspenseCoreBoneLimbResolverSubsystem.cpp ← NEW
+│       └── SuspenseCoreLimbDamageSubsystem.cpp      ← NEW
 │
 Source/BridgeSystem/
 ├── Public/SuspenseCore/
@@ -3922,78 +4276,99 @@ Source/BridgeSystem/
 │   │
 │   └── Events/
 │       └── SuspenseCoreLimbEvents.h            ← NEW
+
+NO SEPARATE LimbAttributeSet.h/cpp - all limb attributes in SuspenseCoreAttributeSet
 ```
 
 ---
 
-### E.10 Updated Implementation Checklist
+### E.12 Updated Implementation Checklist (Unified Approach)
 
 ```
-Phase 1: Foundation (extends existing)
-├── [ ] 1.1 Create ELimbType enum in shared types
-├── [ ] 1.2 Create SuspenseCoreLimbAttributeSet.h/cpp
-├── [ ] 1.3 Register LimbAttributeSet in PlayerState::InitializeAbilitySystem()
-├── [ ] 1.4 ADD limb tags to SuspenseCoreGameplayTags.h/cpp
-├── [ ] 1.5 Create bone-to-limb mapping DataTable
-└── [ ] 1.6 Create SuspenseCoreBoneLimbResolverSubsystem
+Phase 1: Foundation (EXTEND existing SuspenseCoreAttributeSet)
+├── [ ] 1.1 Create ELimbType enum in SuspenseCoreLimbTypes.h
+├── [ ] 1.2 ADD limb health attributes to SuspenseCoreAttributeSet.h
+│         ├── HeadHealth, StomachHealth
+│         ├── LeftArmHealth, RightArmHealth
+│         └── LeftLegHealth, RightLegHealth
+├── [ ] 1.3 ADD penalty attributes to SuspenseCoreAttributeSet.h
+│         ├── LimbMovementPenalty
+│         ├── LimbReloadPenalty, LimbAimPenalty
+│         └── WeaponSwayMultiplier
+├── [ ] 1.4 ADD meta attributes: IncomingLimbDamage, TargetLimbIndex
+├── [ ] 1.5 UPDATE Health default from 100 → 85 (= ThoraxHealth)
+├── [ ] 1.6 ADD limb defaults to SuspenseCoreAttributeDefaults.h
+├── [ ] 1.7 ADD limb tags to SuspenseCoreGameplayTags.h/cpp
+├── [ ] 1.8 ADD replication for new attributes (GetLifetimeReplicatedProps)
+└── [ ] 1.9 Create bone-to-limb mapping DataTable
 
-Phase 2: Damage Pipeline (uses existing GAS patterns)
-├── [ ] 2.1 Create SuspenseCoreLimbDamageSubsystem
-├── [ ] 2.2 Create SuspenseCoreLimbDamageExecution
-├── [ ] 2.3 Create GE_LimbDamage effect (Blueprint or C++)
-├── [ ] 2.4 Update projectile OnHit to call LimbDamageSubsystem
-├── [ ] 2.5 Update hitscan to call LimbDamageSubsystem
-└── [ ] 2.6 Add IncomingLimbDamage meta-attribute processing
+Phase 2: Damage Processing (in SuspenseCoreAttributeSet.cpp)
+├── [ ] 2.1 ADD ProcessLimbDamage() method
+├── [ ] 2.2 ADD ApplyDamageToLimb() with overflow logic
+├── [ ] 2.3 MODIFY CheckDeathCondition() - add HeadHealth check
+├── [ ] 2.4 ADD RecalculateLimbPenalties()
+├── [ ] 2.5 ADD MarkLimbDestroyed() - applies tags
+├── [ ] 2.6 ADD BroadcastLimbDamageEvent()
+└── [ ] 2.7 MODIFY PostGameplayEffectExecute() for IncomingLimbDamage
 
-Phase 3: Penalty Integration (extends MovementAttributeSet)
-├── [ ] 3.1 Add LimbMovementPenalty to LimbAttributeSet
-├── [ ] 3.2 Modify MovementAttributeSet::GetEffectiveWalkSpeed()
-├── [ ] 3.3 Modify MovementAttributeSet::GetEffectiveSprintSpeed()
-├── [ ] 3.4 Add Ability.Block.Sprint/Jump tag checks
-├── [ ] 3.5 Update WeaponComponent for reload/aim penalties
-└── [ ] 3.6 Update weapon sway calculation
+Phase 3: Subsystems
+├── [ ] 3.1 Create SuspenseCoreBoneLimbResolverSubsystem
+├── [ ] 3.2 Create SuspenseCoreLimbDamageSubsystem
+├── [ ] 3.3 Update projectile OnHit to call LimbDamageSubsystem
+└── [ ] 3.4 Update hitscan to call LimbDamageSubsystem
 
-Phase 4: Status Effects
-├── [ ] 4.1 Create GE_LightBleeding, GE_HeavyBleeding effects
-├── [ ] 4.2 Create GE_XXXFracture effects per limb
-├── [ ] 4.3 Add bleeding tick damage logic
-├── [ ] 4.4 Add fracture chance rolls
-└── [ ] 4.5 Add status effect removal on healing
+Phase 4: Penalty Integration
+├── [ ] 4.1 MODIFY MovementAttributeSet::GetEffectiveWalkSpeed()
+├── [ ] 4.2 MODIFY MovementAttributeSet::GetEffectiveSprintSpeed()
+├── [ ] 4.3 ADD Ability.Block.Sprint/Jump tag checks in abilities
+├── [ ] 4.4 Update WeaponComponent for reload/aim penalties
+└── [ ] 4.5 Update weapon sway calculation
 
-Phase 5: EventBus & UI
-├── [ ] 5.1 Create SuspenseCoreLimbEvents.h
-├── [ ] 5.2 Add event publishing in LimbAttributeSet
-├── [ ] 5.3 Create limb status widget
-├── [ ] 5.4 Subscribe widget to EventBus
-└── [ ] 5.5 Add damage direction indicator
+Phase 5: Status Effects
+├── [ ] 5.1 Create GE_LightBleeding, GE_HeavyBleeding effects
+├── [ ] 5.2 Create GE_XXXFracture effects per limb
+├── [ ] 5.3 Add bleeding tick damage logic
+├── [ ] 5.4 Add fracture chance rolls in ProcessLimbDamage
+└── [ ] 5.5 Add status effect removal on healing
 
-Phase 6: Fall Damage
-├── [ ] 6.1 Add ProcessFallDamage to LimbDamageSubsystem
-├── [ ] 6.2 Hook MovementComponent::ProcessLanded
-├── [ ] 6.3 Apply leg damage via GAS
-└── [ ] 6.4 Add fracture chance on fall
+Phase 6: EventBus & UI
+├── [ ] 6.1 Create SuspenseCoreLimbEvents.h
+├── [ ] 6.2 Implement BroadcastLimbDamageEvent() via EventBus
+├── [ ] 6.3 Create limb status widget
+├── [ ] 6.4 Subscribe widget to EventBus
+└── [ ] 6.5 Add damage direction indicator
 
-Phase 7: Healing Integration
-├── [ ] 7.1 Update medical handlers for limb targeting
-├── [ ] 7.2 Add limb healing execution
-├── [ ] 7.3 Add status effect removal
-└── [ ] 7.4 Add surgical kit limb restoration
+Phase 7: Fall Damage
+├── [ ] 7.1 Add ProcessFallDamage to LimbDamageSubsystem
+├── [ ] 7.2 Hook MovementComponent::ProcessLanded
+├── [ ] 7.3 Apply leg damage via IncomingLimbDamage
+└── [ ] 7.4 Add fracture chance on fall
+
+Phase 8: Healing Integration
+├── [ ] 8.1 Update medical handlers for limb targeting
+├── [ ] 8.2 Add limb healing via GameplayEffect
+├── [ ] 8.3 Add status effect removal
+└── [ ] 8.4 Add surgical kit limb restoration
 ```
 
 ---
 
-### E.11 Integration Points Summary
+### E.13 Integration Points Summary (Unified Approach)
 
 | System | Integration Point | How to Integrate |
 |--------|-------------------|------------------|
-| **ASC** | PlayerState | `AddSpawnedAttribute(LimbAttributeSet)` |
-| **Movement** | MovementAttributeSet | Modify `GetEffectiveSpeed()` to read limb penalty |
-| **Weapon** | WeaponComponent | Query `LimbAimPenalty`, `LimbReloadPenalty` attributes |
-| **Animation** | AnimInstance | Query tags via ASC for limp/pain states |
-| **UI** | Widget | Subscribe to EventBus limb events |
+| **AttributeSet** | `SuspenseCoreAttributeSet.h/cpp` | ADD limb health + penalty attributes (NO separate file) |
+| **Movement** | `MovementAttributeSet::GetEffective*()` | Read `LimbMovementPenalty` from `SuspenseCoreAttributeSet` |
+| **Weapon** | `WeaponComponent` | Query `LimbAimPenalty`, `LimbReloadPenalty` from same AttributeSet |
+| **Animation** | `AnimInstance` | Query limb state tags via ASC |
+| **UI** | Widget | Subscribe to EventBus `FSuspenseCoreLimbDamageEvent` |
 | **Damage** | Projectile/Weapon | Call `LimbDamageSubsystem::ProcessLimbDamage()` |
-| **Tags** | SuspenseCoreGameplayTags | Add to existing namespace structure |
-| **Effects** | GAS Effects folder | Create as Blueprint or C++ UGameplayEffect |
+| **Death** | `SuspenseCoreAttributeSet::CheckDeathCondition()` | `Health <= 0 OR HeadHealth <= 0` |
+| **Tags** | `SuspenseCoreGameplayTags.h/cpp` | Add `State.Limb.XXX.Destroyed/Fractured` |
+| **Defaults** | `SuspenseCoreAttributeDefaults.h` | Add limb HP defaults (Head=35, Thorax=85, etc.) |
+
+**Key Principle:** All limb attributes live in `SuspenseCoreAttributeSet`.
+Health = ThoraxHealth for backward compatibility.
 
 ---
 

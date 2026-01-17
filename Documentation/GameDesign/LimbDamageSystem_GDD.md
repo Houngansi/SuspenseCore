@@ -1,0 +1,1839 @@
+# Limb Damage System - Game Design Document
+
+**Document Version:** 1.0
+**Last Updated:** 2026-01-17
+**Author:** SuspenseCore Team
+**Status:** Technical Specification
+
+---
+
+## Table of Contents
+
+1. [Overview](#1-overview)
+2. [Design Philosophy](#2-design-philosophy)
+3. [Limb Health Model](#3-limb-health-model)
+4. [Hit Detection & Damage Routing](#4-hit-detection--damage-routing)
+5. [Damage Types & Armor Interaction](#5-damage-types--armor-interaction)
+6. [Status Effects System](#6-status-effects-system)
+7. [Limb Penalties](#7-limb-penalties)
+8. [Fall Damage System](#8-fall-damage-system)
+9. [Healing & Recovery](#9-healing--recovery)
+10. [GAS Integration](#10-gas-integration)
+11. [EventBus Integration](#11-eventbus-integration)
+12. [Network Replication](#12-network-replication)
+13. [UI Integration](#13-ui-integration)
+14. [Performance Considerations](#14-performance-considerations)
+
+---
+
+## 1. Overview
+
+### 1.1 Purpose
+
+The Limb Damage System provides granular body-part damage tracking for realistic combat simulation. Players receive damage to specific limbs based on hit location, with cascading effects on movement, combat effectiveness, and survival.
+
+### 1.2 Core Features
+
+- **7 Body Zones:** Head, Thorax, Stomach, Left Arm, Right Arm, Left Leg, Right Leg
+- **Zone-Specific Health Pools:** Independent HP tracking per limb
+- **Damage Overflow:** Critical zones spread excess damage to adjacent zones
+- **Status Effects:** Fractures, bleedings, destruction states
+- **Dynamic Penalties:** Real-time debuffs based on limb condition
+- **Fall Damage:** Height-based leg damage with fracture chance
+
+### 1.3 Reference Games
+
+- Escape from Tarkov (primary reference)
+- SCUM
+- DayZ
+- Arma 3 ACE Medical
+
+---
+
+## 2. Design Philosophy
+
+### 2.1 Core Principles
+
+1. **Tactical Depth:** Limb targeting creates meaningful combat decisions
+2. **Risk/Reward:** Exposed limbs vs protected vitals
+3. **Progressive Degradation:** Gradual combat effectiveness loss
+4. **Recovery Options:** Healing items restore specific limb functionality
+5. **Network Efficiency:** Minimal bandwidth for MMO scale
+
+### 2.2 Player Experience Goals
+
+| Scenario | Expected Outcome |
+|----------|------------------|
+| Leg shot while sprinting | Immediate slowdown, potential fracture |
+| Arm damage mid-reload | Slower reload completion |
+| Head shot without helmet | Instant death or critical damage |
+| Fall from 3m height | Leg damage + fracture chance |
+| Destroyed leg | Cannot sprint, severe movement penalty |
+
+### 2.3 Balance Considerations
+
+- Arm damage affects combat but doesn't immobilize
+- Leg damage restricts movement but allows fighting
+- Stomach damage causes rapid HP drain (bleeding)
+- Thorax/Head damage is immediately lethal at high values
+
+---
+
+## 3. Limb Health Model
+
+### 3.1 Body Zone Definitions
+
+```
+                    ┌─────────┐
+                    │  HEAD   │
+                    │  35 HP  │
+                    └────┬────┘
+                         │
+              ┌──────────┼──────────┐
+              │          │          │
+         ┌────┴────┐┌────┴────┐┌────┴────┐
+         │LEFT ARM ││ THORAX  ││RIGHT ARM│
+         │  60 HP  ││  85 HP  ││  60 HP  │
+         └────┬────┘└────┬────┘└────┬────┘
+              │          │          │
+              │     ┌────┴────┐     │
+              │     │ STOMACH │     │
+              │     │  70 HP  │     │
+              │     └────┬────┘     │
+              │          │          │
+         ┌────┴────┐     │     ┌────┴────┐
+         │LEFT LEG │     │     │RIGHT LEG│
+         │  65 HP  │     │     │  65 HP  │
+         └─────────┘     │     └─────────┘
+                         │
+                    Total: 440 HP
+```
+
+### 3.2 Zone Properties
+
+| Zone | Base HP | Critical | Overflow Target | Death Threshold |
+|------|---------|----------|-----------------|-----------------|
+| Head | 35 | Yes | Thorax | 0 HP = Death |
+| Thorax | 85 | Yes | Stomach | 0 HP = Death |
+| Stomach | 70 | No | Thorax (50%) | Spreads damage |
+| Left Arm | 60 | No | Thorax (25%) | Destroyed state |
+| Right Arm | 60 | No | Thorax (25%) | Destroyed state |
+| Left Leg | 65 | No | Stomach (25%) | Destroyed state |
+| Right Leg | 65 | No | Stomach (25%) | Destroyed state |
+
+### 3.3 Damage Overflow Mechanics
+
+When a non-critical limb reaches 0 HP:
+
+1. **Limb enters "Destroyed" state**
+2. **Excess damage overflows** to target zone
+3. **Overflow multiplier:** 0.7x (30% damage reduction)
+
+```cpp
+// Pseudocode for damage overflow
+void ApplyDamageToLimb(ELimbType Limb, float Damage)
+{
+    float CurrentHP = GetLimbHealth(Limb);
+    float NewHP = CurrentHP - Damage;
+
+    if (NewHP <= 0.0f && !IsCriticalLimb(Limb))
+    {
+        SetLimbHealth(Limb, 0.0f);
+        SetLimbDestroyed(Limb, true);
+
+        float OverflowDamage = FMath::Abs(NewHP) * OverflowMultiplier; // 0.7
+        ELimbType OverflowTarget = GetOverflowTarget(Limb);
+        ApplyDamageToLimb(OverflowTarget, OverflowDamage);
+    }
+    else
+    {
+        SetLimbHealth(Limb, FMath::Max(0.0f, NewHP));
+    }
+}
+```
+
+### 3.4 Critical Zone Rules
+
+**Head (35 HP):**
+- Instant death if damage ≥ 35 in single hit (without helmet)
+- No destroyed state - death on 0 HP
+
+**Thorax (85 HP):**
+- Primary vital zone
+- Receives overflow from all other zones
+- Death on 0 HP
+
+---
+
+## 4. Hit Detection & Damage Routing
+
+### 4.1 Bone-to-Limb Mapping
+
+The system maps skeletal mesh bones to limb zones using a configuration table:
+
+```cpp
+USTRUCT(BlueprintType)
+struct FBoneLimbMapping
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditDefaultsOnly)
+    FName BoneName;
+
+    UPROPERTY(EditDefaultsOnly)
+    ELimbType LimbZone;
+
+    UPROPERTY(EditDefaultsOnly)
+    float DamageMultiplier = 1.0f;
+};
+```
+
+### 4.2 Standard Bone Mapping Table
+
+| Bone Pattern | Limb Zone | Multiplier | Notes |
+|--------------|-----------|------------|-------|
+| `head`, `neck_01` | Head | 1.0 | Headshots |
+| `spine_03`, `clavicle_*` | Thorax | 1.0 | Upper chest |
+| `spine_01`, `spine_02`, `pelvis` | Stomach | 1.0 | Lower torso |
+| `upperarm_l`, `lowerarm_l`, `hand_l` | Left Arm | 1.0 | Full arm |
+| `upperarm_r`, `lowerarm_r`, `hand_r` | Right Arm | 1.0 | Full arm |
+| `thigh_l`, `calf_l`, `foot_l` | Left Leg | 1.0 | Full leg |
+| `thigh_r`, `calf_r`, `foot_r` | Right Leg | 1.0 | Full leg |
+
+### 4.3 Hit Processing Pipeline
+
+```
+[Projectile/Hitscan Impact]
+           │
+           ▼
+┌─────────────────────────┐
+│  Get Hit Bone Name      │
+│  (FHitResult.BoneName)  │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  Lookup Limb Zone       │
+│  (BoneLimbMapping)      │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  Check Armor Coverage   │
+│  (Per-zone armor check) │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  Calculate Final Damage │
+│  (Pen, armor, mult)     │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  Apply to Limb Health   │
+│  (With overflow logic)  │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  Process Status Effects │
+│  (Fracture, bleed, etc) │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  Broadcast EventBus     │
+│  (UI, sound, effects)   │
+└─────────────────────────┘
+```
+
+### 4.4 Fallback Zone Detection
+
+When bone name is not found in mapping:
+
+```cpp
+ELimbType GetLimbFromHitLocation(const FVector& HitLocation, const AActor* Target)
+{
+    // Fallback: use relative height on character
+    FVector LocalHit = Target->GetActorTransform().InverseTransformPosition(HitLocation);
+    float RelativeHeight = LocalHit.Z / CharacterHeight;
+
+    if (RelativeHeight > 0.85f) return ELimbType::Head;
+    if (RelativeHeight > 0.55f) return ELimbType::Thorax;
+    if (RelativeHeight > 0.40f) return ELimbType::Stomach;
+    return ELimbType::Legs; // Further refined by X position
+}
+```
+
+---
+
+## 5. Damage Types & Armor Interaction
+
+### 5.1 Damage Types
+
+```cpp
+UENUM(BlueprintType)
+enum class EDamageCategory : uint8
+{
+    Ballistic,      // Bullets, fragments
+    Blunt,          // Melee, fall damage
+    Explosive,      // Grenade blast (non-fragment)
+    Fire,           // Burns
+    Environmental,  // Radiation, cold, etc.
+};
+```
+
+### 5.2 Per-Limb Armor Coverage
+
+Armor items protect specific zones:
+
+| Armor Type | Protected Zones | Coverage % |
+|------------|-----------------|------------|
+| Helmet | Head | 80-100% |
+| Body Armor | Thorax, Stomach | 85-95% |
+| Arm Guards | Arms | 70-90% |
+| Leg Armor | Legs | 70-90% |
+
+### 5.3 Armor Penetration Calculation
+
+```cpp
+float CalculateArmorDamage(float BaseDamage, float Penetration, const FArmorData& Armor, ELimbType Limb)
+{
+    // Check if limb is covered
+    if (!Armor.CoversLimb(Limb))
+    {
+        return BaseDamage; // Full damage
+    }
+
+    // Coverage roll
+    if (FMath::FRand() > Armor.GetCoverage(Limb))
+    {
+        return BaseDamage; // Hit uncovered area
+    }
+
+    // Penetration vs Armor Class
+    float PenChance = CalculatePenetrationChance(Penetration, Armor.ArmorClass);
+
+    if (FMath::FRand() < PenChance)
+    {
+        // Penetrated - reduced damage
+        float PenDamage = BaseDamage * (Penetration / (Penetration + Armor.ArmorClass));
+        Armor.TakeDurabilityDamage(BaseDamage * 0.1f);
+        return PenDamage;
+    }
+    else
+    {
+        // Blocked - blunt damage only
+        float BluntDamage = BaseDamage * Armor.BluntThroughput;
+        Armor.TakeDurabilityDamage(BaseDamage * 0.2f);
+        return BluntDamage;
+    }
+}
+```
+
+---
+
+## 6. Status Effects System
+
+### 6.1 Status Effect Types
+
+| Effect | Trigger | Duration | Cure |
+|--------|---------|----------|------|
+| Light Bleeding | Any limb damage (30% chance) | Until healed | Bandage, any medical |
+| Heavy Bleeding | High damage hit (15% chance) | Until healed | Tourniquet, IFAK+ |
+| Fracture | Blunt trauma / fall / destroyed limb | Until healed | Splint, Surgical Kit |
+| Pain | Any significant damage | 60-300s | Painkillers, Morphine |
+| Tremor | Low stamina + pain | While conditions met | Rest + painkillers |
+| Destroyed | Limb HP = 0 | Until surgical repair | Surgical Kit only |
+
+### 6.2 Bleeding System
+
+```cpp
+USTRUCT(BlueprintType)
+struct FBleedingEffect
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    ELimbType SourceLimb;
+
+    UPROPERTY()
+    EBleedingLevel Level; // Light, Heavy
+
+    UPROPERTY()
+    float DamagePerSecond; // Light: 0.3/s, Heavy: 1.2/s
+
+    UPROPERTY()
+    float TimeAccumulator;
+};
+```
+
+**Bleeding Tick Logic:**
+
+```cpp
+void ProcessBleeding(float DeltaTime)
+{
+    for (FBleedingEffect& Bleed : ActiveBleeds)
+    {
+        Bleed.TimeAccumulator += DeltaTime;
+
+        if (Bleed.TimeAccumulator >= 1.0f)
+        {
+            Bleed.TimeAccumulator -= 1.0f;
+
+            // Apply damage to source limb
+            ApplyDamageToLimb(Bleed.SourceLimb, Bleed.DamagePerSecond);
+
+            // Broadcast for UI blood effect
+            EventBus->Publish(FSuspenseCoreBleedTickEvent(OwnerActor, Bleed));
+        }
+    }
+}
+```
+
+### 6.3 Fracture System
+
+**Fracture Triggers:**
+
+| Cause | Fracture Chance | Notes |
+|-------|-----------------|-------|
+| Fall damage ≥ 20 | 50% per leg | Height dependent |
+| Fall damage ≥ 40 | 100% per leg | Severe fall |
+| Blunt damage ≥ 30 | 25% | Limb specific |
+| Limb destroyed | 100% | Automatic |
+| Explosive nearby | 15% legs | Blast wave |
+
+**Fracture State:**
+
+```cpp
+USTRUCT(BlueprintType)
+struct FLimbFractureState
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    ELimbType Limb;
+
+    UPROPERTY()
+    bool bIsFractured = false;
+
+    UPROPERTY()
+    bool bIsSplinted = false; // Temporary fix
+
+    // Splint reduces penalty by 50% but doesn't cure
+    float GetPenaltyMultiplier() const
+    {
+        if (!bIsFractured) return 1.0f;
+        return bIsSplinted ? 0.75f : 0.5f;
+    }
+};
+```
+
+### 6.4 Pain System
+
+Pain accumulates from damage and affects combat effectiveness:
+
+```cpp
+// Pain calculation
+float CalculatePainFromDamage(float Damage, ELimbType Limb)
+{
+    float BasePain = Damage * 0.5f;
+
+    // Head/Thorax cause more pain
+    if (Limb == ELimbType::Head) BasePain *= 2.0f;
+    if (Limb == ELimbType::Thorax) BasePain *= 1.5f;
+
+    return BasePain;
+}
+
+// Pain decay
+void TickPain(float DeltaTime)
+{
+    CurrentPain = FMath::Max(0.0f, CurrentPain - PainDecayRate * DeltaTime);
+}
+```
+
+**Pain Thresholds:**
+
+| Pain Level | Threshold | Effects |
+|------------|-----------|---------|
+| None | 0-20 | No effects |
+| Light | 21-50 | Minor tremor |
+| Moderate | 51-80 | Tremor + tunnel vision |
+| Severe | 81-100 | All above + blurred vision |
+
+---
+
+## 7. Limb Penalties
+
+### 7.1 Penalty Categories
+
+```cpp
+USTRUCT(BlueprintType)
+struct FLimbPenalties
+{
+    GENERATED_BODY()
+
+    // Movement
+    UPROPERTY() float MovementSpeedMult = 1.0f;
+    UPROPERTY() float SprintSpeedMult = 1.0f;
+    UPROPERTY() bool bCanSprint = true;
+
+    // Combat
+    UPROPERTY() float ReloadSpeedMult = 1.0f;
+    UPROPERTY() float AimSpeedMult = 1.0f;
+    UPROPERTY() float WeaponSwayMult = 1.0f;
+    UPROPERTY() float RecoilControlMult = 1.0f;
+
+    // Interaction
+    UPROPERTY() float InteractionSpeedMult = 1.0f;
+    UPROPERTY() float HealingSpeedMult = 1.0f;
+};
+```
+
+### 7.2 Leg Penalties
+
+| Condition | Walk Speed | Sprint Speed | Sprint Allowed |
+|-----------|------------|--------------|----------------|
+| Healthy | 100% | 100% | Yes |
+| Damaged (50% HP) | 90% | 85% | Yes |
+| Damaged (25% HP) | 75% | 60% | Yes |
+| Fractured | 60% | 40% | Yes (painful) |
+| Fractured + Splint | 75% | 60% | Yes |
+| Destroyed | 45% | N/A | No |
+| Both legs damaged | Compound | Compound | Depends |
+
+**Leg Penalty Calculation:**
+
+```cpp
+FLimbPenalties CalculateLegPenalties()
+{
+    FLimbPenalties Result;
+
+    float LeftLegMod = CalculateLegModifier(ELimbType::LeftLeg);
+    float RightLegMod = CalculateLegModifier(ELimbType::RightLeg);
+
+    // Use worse leg for sprint, average for walk
+    Result.MovementSpeedMult = (LeftLegMod + RightLegMod) / 2.0f;
+    Result.SprintSpeedMult = FMath::Min(LeftLegMod, RightLegMod);
+
+    // Can't sprint with destroyed leg
+    Result.bCanSprint = !IsLimbDestroyed(ELimbType::LeftLeg) &&
+                        !IsLimbDestroyed(ELimbType::RightLeg);
+
+    return Result;
+}
+
+float CalculateLegModifier(ELimbType Leg)
+{
+    float HealthPercent = GetLimbHealthPercent(Leg);
+    float Modifier = FMath::Lerp(0.45f, 1.0f, HealthPercent);
+
+    // Apply fracture penalty
+    Modifier *= GetFractureState(Leg).GetPenaltyMultiplier();
+
+    // Destroyed limb override
+    if (IsLimbDestroyed(Leg))
+    {
+        Modifier = 0.45f;
+    }
+
+    return Modifier;
+}
+```
+
+### 7.3 Arm Penalties
+
+| Condition | Reload Speed | Aim Speed | Weapon Sway | Recoil Control |
+|-----------|--------------|-----------|-------------|----------------|
+| Healthy | 100% | 100% | 100% | 100% |
+| Damaged (50% HP) | 90% | 95% | 110% | 95% |
+| Damaged (25% HP) | 75% | 85% | 130% | 85% |
+| Fractured | 60% | 70% | 150% | 70% |
+| Destroyed | 40% | 50% | 200% | 50% |
+
+**Dominant Hand Consideration:**
+
+```cpp
+float CalculateArmPenalty(EArmPenaltyType Type)
+{
+    float LeftMod = GetArmModifier(ELimbType::LeftArm, Type);
+    float RightMod = GetArmModifier(ELimbType::RightArm, Type);
+
+    // Right arm (dominant) has more impact
+    // 60% right arm, 40% left arm
+    return (RightMod * 0.6f) + (LeftMod * 0.4f);
+}
+```
+
+### 7.4 Torso Penalties (Stomach)
+
+| Condition | Stamina Regen | Hold Breath Duration |
+|-----------|---------------|---------------------|
+| Healthy | 100% | 100% |
+| Damaged (50% HP) | 70% | 80% |
+| Damaged (25% HP) | 40% | 50% |
+| Destroyed | 20% | 25% |
+
+### 7.5 Combined Penalty Aggregation
+
+```cpp
+FLimbPenalties AggregatePenalties()
+{
+    FLimbPenalties Total;
+
+    // Leg penalties (movement)
+    FLimbPenalties LegPenalties = CalculateLegPenalties();
+    Total.MovementSpeedMult = LegPenalties.MovementSpeedMult;
+    Total.SprintSpeedMult = LegPenalties.SprintSpeedMult;
+    Total.bCanSprint = LegPenalties.bCanSprint;
+
+    // Arm penalties (combat)
+    Total.ReloadSpeedMult = CalculateArmPenalty(EArmPenaltyType::Reload);
+    Total.AimSpeedMult = CalculateArmPenalty(EArmPenaltyType::Aim);
+    Total.WeaponSwayMult = 1.0f / CalculateArmPenalty(EArmPenaltyType::Stability);
+    Total.RecoilControlMult = CalculateArmPenalty(EArmPenaltyType::Recoil);
+
+    // Pain overlay
+    float PainModifier = 1.0f - (CurrentPain / 100.0f) * 0.3f; // Max 30% penalty
+    Total.AimSpeedMult *= PainModifier;
+    Total.WeaponSwayMult /= PainModifier;
+
+    return Total;
+}
+```
+
+---
+
+## 8. Fall Damage System
+
+### 8.1 Fall Damage Calculation
+
+```cpp
+USTRUCT(BlueprintType)
+struct FFallDamageConfig
+{
+    GENERATED_BODY()
+
+    // Heights in centimeters
+    UPROPERTY(EditDefaultsOnly)
+    float SafeFallHeight = 200.0f; // 2m - no damage
+
+    UPROPERTY(EditDefaultsOnly)
+    float MinDamageHeight = 300.0f; // 3m - damage starts
+
+    UPROPERTY(EditDefaultsOnly)
+    float LethalHeight = 1500.0f; // 15m - instant death
+
+    UPROPERTY(EditDefaultsOnly)
+    float DamagePerMeter = 8.0f; // Base damage per meter over threshold
+
+    UPROPERTY(EditDefaultsOnly)
+    float FractureThreshold = 20.0f; // Damage threshold for fracture roll
+};
+```
+
+### 8.2 Fall Damage Pipeline
+
+```
+[Character Lands]
+       │
+       ▼
+┌──────────────────┐
+│ Get Fall Height  │
+│ (Z velocity)     │
+└────────┬─────────┘
+         │
+         ▼
+    Height < 2m?
+    ┌────┴────┐
+   Yes       No
+    │         │
+    ▼         ▼
+  [None]  Calculate
+          Damage
+              │
+              ▼
+      ┌───────────────┐
+      │ Apply to Legs │
+      │ (50% each)    │
+      └───────┬───────┘
+              │
+              ▼
+      ┌───────────────┐
+      │ Fracture Roll │
+      │ (if > 20 dmg) │
+      └───────┬───────┘
+              │
+              ▼
+      ┌───────────────┐
+      │ EventBus      │
+      │ Broadcast     │
+      └───────────────┘
+```
+
+### 8.3 Fall Damage Implementation
+
+```cpp
+void ProcessFallDamage(float FallHeight)
+{
+    // Height in cm
+    if (FallHeight < FallConfig.SafeFallHeight)
+    {
+        return; // No damage
+    }
+
+    // Check lethal fall
+    if (FallHeight >= FallConfig.LethalHeight)
+    {
+        // Instant death
+        ApplyDamageToLimb(ELimbType::Thorax, 9999.0f);
+        return;
+    }
+
+    // Calculate damage
+    float DamageableHeight = FallHeight - FallConfig.SafeFallHeight;
+    float MetersOver = DamageableHeight / 100.0f;
+    float TotalDamage = MetersOver * FallConfig.DamagePerMeter;
+
+    // Exponential scaling for high falls
+    if (MetersOver > 5.0f)
+    {
+        TotalDamage *= FMath::Pow(1.15f, MetersOver - 5.0f);
+    }
+
+    // Split damage between legs
+    float PerLegDamage = TotalDamage / 2.0f;
+
+    ApplyDamageToLimb(ELimbType::LeftLeg, PerLegDamage);
+    ApplyDamageToLimb(ELimbType::RightLeg, PerLegDamage);
+
+    // Fracture rolls
+    if (PerLegDamage >= FallConfig.FractureThreshold)
+    {
+        float FractureChance = FMath::GetMappedRangeValueClamped(
+            FVector2D(20.0f, 40.0f),
+            FVector2D(0.5f, 1.0f),
+            PerLegDamage
+        );
+
+        if (FMath::FRand() < FractureChance)
+        {
+            ApplyFracture(ELimbType::LeftLeg);
+        }
+        if (FMath::FRand() < FractureChance)
+        {
+            ApplyFracture(ELimbType::RightLeg);
+        }
+    }
+
+    // Broadcast event
+    EventBus->Publish(FSuspenseCoreFallDamageEvent(
+        OwnerActor,
+        FallHeight,
+        TotalDamage
+    ));
+}
+```
+
+### 8.4 Fall Damage Table
+
+| Fall Height | Damage per Leg | Fracture Chance | Notes |
+|-------------|----------------|-----------------|-------|
+| 0-2m | 0 | 0% | Safe |
+| 3m | 4 | 0% | Minor |
+| 4m | 8 | 0% | Noticeable |
+| 5m | 12 | 0% | Significant |
+| 6m | 16 | 0% | Painful |
+| 7m | 22 | 55% | Fracture likely |
+| 8m | 28 | 70% | High risk |
+| 10m | 44 | 100% | Guaranteed fracture |
+| 15m+ | Death | - | Lethal |
+
+### 8.5 Fall Damage Modifiers
+
+```cpp
+float GetFallDamageModifier(ACharacter* Character)
+{
+    float Modifier = 1.0f;
+
+    // Soft landing (crouch during landing)
+    if (Character->bIsCrouched)
+    {
+        Modifier *= 0.7f; // 30% reduction
+    }
+
+    // Boot armor (if implemented)
+    if (HasBootArmor(Character))
+    {
+        Modifier *= 0.85f; // 15% reduction
+    }
+
+    // Stamina exhaustion increases damage
+    float StaminaPercent = GetStaminaPercent(Character);
+    if (StaminaPercent < 0.2f)
+    {
+        Modifier *= 1.25f; // 25% more damage
+    }
+
+    return Modifier;
+}
+```
+
+---
+
+## 9. Healing & Recovery
+
+### 9.1 Medical Items for Limb System
+
+| Item | Heals HP | Stops Light Bleed | Stops Heavy Bleed | Cures Fracture | Restores Destroyed |
+|------|----------|-------------------|-------------------|----------------|-------------------|
+| Bandage | 0 | Yes | No | No | No |
+| Tourniquet | 0 | Yes | Yes | No | No |
+| AI-2 | 50 | No | No | No | No |
+| CAR | 50 | Yes | No | No | No |
+| IFAK | 150 | Yes | Yes | No | No |
+| AFAK | 250 | Yes | Yes | No | No |
+| Salewa | 300 | Yes | Yes | No | No |
+| Grizzly | 600 | Yes | Yes | No | No |
+| Splint | 0 | No | No | Splints* | No |
+| Surgical Kit | 0 | No | No | Yes | Yes |
+
+*Splint provides temporary fracture relief, not full cure.
+
+### 9.2 Limb-Specific Healing
+
+```cpp
+void HealLimb(ELimbType Limb, float Amount, const FMedicalItemData& Item)
+{
+    // Check if item can heal this limb
+    if (!Item.CanHealLimb(Limb))
+    {
+        return;
+    }
+
+    // Get current state
+    float CurrentHP = GetLimbHealth(Limb);
+    float MaxHP = GetLimbMaxHealth(Limb);
+
+    // Can't heal destroyed limb with normal meds
+    if (IsLimbDestroyed(Limb) && !Item.bCanRestoreDestroyed)
+    {
+        return;
+    }
+
+    // Restore destroyed state first (surgical kit)
+    if (IsLimbDestroyed(Limb) && Item.bCanRestoreDestroyed)
+    {
+        SetLimbDestroyed(Limb, false);
+        SetLimbHealth(Limb, MaxHP * 0.1f); // Restore to 10%
+    }
+
+    // Apply healing
+    float NewHP = FMath::Min(MaxHP, CurrentHP + Amount);
+    SetLimbHealth(Limb, NewHP);
+
+    // Stop bleedings
+    if (Item.bStopsLightBleeding)
+    {
+        RemoveBleedingFromLimb(Limb, EBleedingLevel::Light);
+    }
+    if (Item.bStopsHeavyBleeding)
+    {
+        RemoveBleedingFromLimb(Limb, EBleedingLevel::Heavy);
+    }
+
+    // Fracture handling
+    if (Item.bCuresFracture)
+    {
+        CureFracture(Limb);
+    }
+    else if (Item.bSplintsFracture && HasFracture(Limb))
+    {
+        ApplySplint(Limb);
+    }
+
+    // Broadcast
+    EventBus->Publish(FSuspenseCoreLimbHealedEvent(OwnerActor, Limb, Amount));
+}
+```
+
+### 9.3 Healing Priority System
+
+When using medical item without targeting specific limb:
+
+```cpp
+ELimbType GetPriorityHealTarget(const FMedicalItemData& Item)
+{
+    // Priority 1: Critical zones with low HP
+    if (GetLimbHealthPercent(ELimbType::Thorax) < 0.3f)
+        return ELimbType::Thorax;
+    if (GetLimbHealthPercent(ELimbType::Head) < 0.5f)
+        return ELimbType::Head;
+
+    // Priority 2: Heavy bleeding
+    for (ELimbType Limb : GetLimbsWithHeavyBleeding())
+    {
+        if (Item.bStopsHeavyBleeding)
+            return Limb;
+    }
+
+    // Priority 3: Destroyed limbs
+    for (ELimbType Limb : GetDestroyedLimbs())
+    {
+        if (Item.bCanRestoreDestroyed)
+            return Limb;
+    }
+
+    // Priority 4: Lowest HP limb
+    return GetLowestHealthLimb();
+}
+```
+
+---
+
+## 10. GAS Integration
+
+### 10.1 Limb Health AttributeSet
+
+```cpp
+UCLASS()
+class USuspenseCoreLimbAttributeSet : public UAttributeSet
+{
+    GENERATED_BODY()
+
+public:
+    // === Health Attributes ===
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_HeadHealth)
+    FGameplayAttributeData HeadHealth;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, HeadHealth)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_ThoraxHealth)
+    FGameplayAttributeData ThoraxHealth;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, ThoraxHealth)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_StomachHealth)
+    FGameplayAttributeData StomachHealth;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, StomachHealth)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_LeftArmHealth)
+    FGameplayAttributeData LeftArmHealth;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, LeftArmHealth)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_RightArmHealth)
+    FGameplayAttributeData RightArmHealth;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, RightArmHealth)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_LeftLegHealth)
+    FGameplayAttributeData LeftLegHealth;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, LeftLegHealth)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_RightLegHealth)
+    FGameplayAttributeData RightLegHealth;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, RightLegHealth)
+
+    // === Max Health (for percentage calculations) ===
+    UPROPERTY(BlueprintReadOnly, Category = "Max Health")
+    FGameplayAttributeData MaxHeadHealth;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, MaxHeadHealth)
+
+    // ... (similar for all limbs)
+
+    // === Penalty Modifiers (applied by GameplayEffects) ===
+    UPROPERTY(BlueprintReadOnly, Category = "Penalties")
+    FGameplayAttributeData MovementSpeedPenalty;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, MovementSpeedPenalty)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Penalties")
+    FGameplayAttributeData ReloadSpeedPenalty;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, ReloadSpeedPenalty)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Penalties")
+    FGameplayAttributeData AimSpeedPenalty;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, AimSpeedPenalty)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Penalties")
+    FGameplayAttributeData WeaponSwayMultiplier;
+    ATTRIBUTE_ACCESSORS(USuspenseCoreLimbAttributeSet, WeaponSwayMultiplier)
+
+    // === Status Flags (replicated as tags, not attributes) ===
+    // Fractures, bleedings, destroyed states use GameplayTags
+
+protected:
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
+    virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
+};
+```
+
+### 10.2 GameplayTags for Limb States
+
+```cpp
+// Native GameplayTags declaration
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_Head_Destroyed);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_Thorax_Critical);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_LeftArm_Destroyed);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_LeftArm_Fractured);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_RightArm_Destroyed);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_RightArm_Fractured);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_LeftLeg_Destroyed);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_LeftLeg_Fractured);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_RightLeg_Destroyed);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Limb_RightLeg_Fractured);
+
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Bleeding_Light);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Bleeding_Heavy);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Pain_Light);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Pain_Moderate);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Pain_Severe);
+```
+
+### 10.3 Damage Application via Gameplay Effect
+
+```cpp
+UCLASS()
+class UGE_LimbDamage : public UGameplayEffect
+{
+    // Configured in Blueprint/DataAsset
+    // Duration: Instant
+    // Modifiers:
+    //   - Attribute: LimbAttributeSet.XXXHealth
+    //   - Operation: Additive
+    //   - Magnitude: SetByCaller (Tag: Damage.Limb.Amount)
+
+    // Executions:
+    //   - ULimbDamageExecution (handles overflow, status effects)
+};
+
+// Damage Execution Calculation
+UCLASS()
+class ULimbDamageExecution : public UGameplayEffectExecutionCalculation
+{
+    GENERATED_BODY()
+
+public:
+    virtual void Execute_Implementation(
+        const FGameplayEffectCustomExecutionParameters& ExecutionParams,
+        FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const override
+    {
+        // Get target limb from effect context
+        ELimbType TargetLimb = GetLimbFromEffectContext(ExecutionParams);
+
+        // Get damage amount
+        float Damage = 0.0f;
+        ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+            DamageStatics().DamageAmountDef,
+            EvaluationParameters,
+            Damage
+        );
+
+        // Apply to appropriate attribute
+        FGameplayAttribute LimbAttribute = GetLimbHealthAttribute(TargetLimb);
+        OutExecutionOutput.AddOutputModifier(
+            FGameplayModifierEvaluatedData(
+                LimbAttribute,
+                EGameplayModOp::Additive,
+                -Damage
+            )
+        );
+
+        // Trigger status effect checks in PostGameplayEffectExecute
+    }
+};
+```
+
+### 10.4 Penalty Application Effects
+
+```cpp
+// Example: Leg Fracture Effect
+UCLASS()
+class UGE_LegFracture : public UGameplayEffect
+{
+    // Duration: Infinite (until removed)
+    // Period: None
+
+    // Modifiers:
+    //   - MovementSpeedPenalty: Multiply 0.6 (40% reduction)
+    //   - SprintSpeedPenalty: Multiply 0.4 (60% reduction)
+
+    // Granted Tags:
+    //   - TAG_State_Limb_XXXLeg_Fractured
+
+    // Gameplay Cues:
+    //   - GameplayCue.Limb.Fracture (for pain grunt, limp animation)
+};
+
+// Example: Heavy Bleeding Effect
+UCLASS()
+class UGE_HeavyBleeding : public UGameplayEffect
+{
+    // Duration: Infinite
+    // Period: 1.0s
+
+    // Periodic Execution:
+    //   - Apply 1.2 damage to source limb each period
+
+    // Granted Tags:
+    //   - TAG_State_Bleeding_Heavy
+
+    // Gameplay Cues:
+    //   - GameplayCue.Status.Bleeding.Heavy (blood drip VFX)
+};
+```
+
+### 10.5 Ability Modifications Based on Limb State
+
+```cpp
+// In Reload Ability
+void UGA_Reload::ActivateAbility(...)
+{
+    // Get reload speed modifier from attribute
+    float ReloadSpeedMod = AbilitySystemComponent->GetNumericAttribute(
+        USuspenseCoreLimbAttributeSet::GetReloadSpeedPenaltyAttribute()
+    );
+
+    // Apply to montage playrate
+    float PlayRate = BaseReloadSpeed * ReloadSpeedMod;
+    PlayMontage(ReloadMontage, PlayRate);
+}
+
+// In Movement Component
+void USuspenseCoreMovementComponent::GetMaxSpeed()
+{
+    float BaseSpeed = Super::GetMaxSpeed();
+
+    // Query penalty attribute
+    if (AbilitySystemComponent)
+    {
+        float MovementPenalty = AbilitySystemComponent->GetNumericAttribute(
+            USuspenseCoreLimbAttributeSet::GetMovementSpeedPenaltyAttribute()
+        );
+        return BaseSpeed * MovementPenalty;
+    }
+
+    return BaseSpeed;
+}
+```
+
+---
+
+## 11. EventBus Integration
+
+### 11.1 Limb Damage Events
+
+```cpp
+// Base limb event
+USTRUCT(BlueprintType)
+struct FSuspenseCoreLimbDamageEvent : public FSuspenseCoreEventBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    TWeakObjectPtr<AActor> VictimActor;
+
+    UPROPERTY(BlueprintReadOnly)
+    TWeakObjectPtr<AActor> InstigatorActor;
+
+    UPROPERTY(BlueprintReadOnly)
+    ELimbType DamagedLimb;
+
+    UPROPERTY(BlueprintReadOnly)
+    float DamageAmount;
+
+    UPROPERTY(BlueprintReadOnly)
+    float RemainingHealth;
+
+    UPROPERTY(BlueprintReadOnly)
+    float HealthPercent;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bLimbDestroyed;
+
+    UPROPERTY(BlueprintReadOnly)
+    EDamageCategory DamageType;
+};
+```
+
+### 11.2 Status Effect Events
+
+```cpp
+USTRUCT(BlueprintType)
+struct FSuspenseCoreBleedingStartEvent : public FSuspenseCoreEventBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    TWeakObjectPtr<AActor> AffectedActor;
+
+    UPROPERTY(BlueprintReadOnly)
+    ELimbType SourceLimb;
+
+    UPROPERTY(BlueprintReadOnly)
+    EBleedingLevel BleedingLevel;
+};
+
+USTRUCT(BlueprintType)
+struct FSuspenseCoreFractureEvent : public FSuspenseCoreEventBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    TWeakObjectPtr<AActor> AffectedActor;
+
+    UPROPERTY(BlueprintReadOnly)
+    ELimbType FracturedLimb;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bFromFall;
+
+    UPROPERTY(BlueprintReadOnly)
+    float FallHeight; // 0 if not from fall
+};
+```
+
+### 11.3 Healing Events
+
+```cpp
+USTRUCT(BlueprintType)
+struct FSuspenseCoreLimbHealedEvent : public FSuspenseCoreEventBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    TWeakObjectPtr<AActor> HealedActor;
+
+    UPROPERTY(BlueprintReadOnly)
+    ELimbType HealedLimb;
+
+    UPROPERTY(BlueprintReadOnly)
+    float HealAmount;
+
+    UPROPERTY(BlueprintReadOnly)
+    float NewHealth;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bLimbRestored; // Was destroyed, now functional
+};
+
+USTRUCT(BlueprintType)
+struct FSuspenseCoreStatusCuredEvent : public FSuspenseCoreEventBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    TWeakObjectPtr<AActor> CuredActor;
+
+    UPROPERTY(BlueprintReadOnly)
+    ELimbType AffectedLimb;
+
+    UPROPERTY(BlueprintReadOnly)
+    FGameplayTag CuredStatus; // TAG_State_Bleeding_Heavy, etc.
+};
+```
+
+### 11.4 Fall Damage Event
+
+```cpp
+USTRUCT(BlueprintType)
+struct FSuspenseCoreFallDamageEvent : public FSuspenseCoreEventBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    TWeakObjectPtr<AActor> FallenActor;
+
+    UPROPERTY(BlueprintReadOnly)
+    float FallHeight; // In cm
+
+    UPROPERTY(BlueprintReadOnly)
+    float TotalDamage;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bLeftLegFractured;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bRightLegFractured;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bLethalFall;
+};
+```
+
+### 11.5 Event Publishing Examples
+
+```cpp
+// After applying limb damage
+void PublishLimbDamageEvent(AActor* Victim, AActor* Instigator, ELimbType Limb, float Damage)
+{
+    FSuspenseCoreLimbDamageEvent Event;
+    Event.VictimActor = Victim;
+    Event.InstigatorActor = Instigator;
+    Event.DamagedLimb = Limb;
+    Event.DamageAmount = Damage;
+    Event.RemainingHealth = GetLimbHealth(Limb);
+    Event.HealthPercent = GetLimbHealthPercent(Limb);
+    Event.bLimbDestroyed = IsLimbDestroyed(Limb);
+
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
+    {
+        EventBus->Publish(Event);
+    }
+}
+
+// UI widget subscribing to events
+void ULimbStatusWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
+    {
+        EventBus->Subscribe<FSuspenseCoreLimbDamageEvent>(
+            this,
+            &ULimbStatusWidget::OnLimbDamage
+        );
+
+        EventBus->Subscribe<FSuspenseCoreBleedingStartEvent>(
+            this,
+            &ULimbStatusWidget::OnBleedingStart
+        );
+    }
+}
+```
+
+---
+
+## 12. Network Replication
+
+### 12.1 Replication Strategy
+
+**Server Authority:**
+- All damage calculations
+- Status effect application
+- Death determination
+- Healing validation
+
+**Replicated to Clients:**
+- Limb health values (via AttributeSet)
+- Status effect tags (via ASC)
+- Visual/audio cues (via GameplayCues)
+
+### 12.2 Compact Limb State Replication
+
+```cpp
+USTRUCT()
+struct FReplicatedLimbState
+{
+    GENERATED_BODY()
+
+    // Pack all 7 limb health values into bytes (0-255 mapped to 0-100%)
+    UPROPERTY()
+    uint8 HeadHealthPct;      // 1 byte
+
+    UPROPERTY()
+    uint8 ThoraxHealthPct;    // 1 byte
+
+    UPROPERTY()
+    uint8 StomachHealthPct;   // 1 byte
+
+    UPROPERTY()
+    uint8 LeftArmHealthPct;   // 1 byte
+
+    UPROPERTY()
+    uint8 RightArmHealthPct;  // 1 byte
+
+    UPROPERTY()
+    uint8 LeftLegHealthPct;   // 1 byte
+
+    UPROPERTY()
+    uint8 RightLegHealthPct;  // 1 byte
+
+    // Status flags packed into bitfield
+    UPROPERTY()
+    uint16 StatusFlags;       // 2 bytes
+    // Bit 0: LeftArm Fractured
+    // Bit 1: RightArm Fractured
+    // Bit 2: LeftLeg Fractured
+    // Bit 3: RightLeg Fractured
+    // Bit 4: LeftArm Destroyed
+    // Bit 5: RightArm Destroyed
+    // Bit 6: LeftLeg Destroyed
+    // Bit 7: RightLeg Destroyed
+    // Bit 8-10: Active bleed count (0-7)
+    // Bit 11: Has Heavy Bleed
+    // Bit 12-15: Pain level (0-15)
+
+    // Total: 9 bytes per character
+};
+```
+
+### 12.3 Damage Event Replication
+
+```cpp
+// Server -> Client damage notification (unreliable)
+UFUNCTION(NetMulticast, Unreliable)
+void Multicast_OnLimbDamaged(ELimbType Limb, uint8 DamageAmount, bool bDestroyed);
+
+// Implementation
+void Multicast_OnLimbDamaged_Implementation(ELimbType Limb, uint8 DamageAmount, bool bDestroyed)
+{
+    // Client-side only: play effects
+    if (!HasAuthority())
+    {
+        // Trigger hit reaction animation
+        PlayLimbHitReaction(Limb, DamageAmount);
+
+        // Blood VFX
+        SpawnBloodEffect(Limb);
+
+        // Pain grunt
+        if (DamageAmount > 15)
+        {
+            PlayPainSound(DamageAmount);
+        }
+    }
+}
+```
+
+### 12.4 Bandwidth Analysis
+
+**Per Character (replicated state):**
+- Base limb state: 9 bytes
+- AttributeSet replication: ~28 bytes (7 floats, delta compressed)
+- GameplayTags: Variable, typically 4-8 bytes for active status
+
+**Per Damage Event:**
+- Multicast call: ~8 bytes
+- Sent only when damage occurs
+
+**For 64 players:**
+- Static state: 64 × 9 = 576 bytes/tick (worst case)
+- With delta compression: ~50-100 bytes/tick typical
+- Damage events: ~8 bytes per hit (unreliable, can drop)
+
+### 12.5 Relevancy Optimization
+
+```cpp
+// Only replicate full limb state to nearby players
+bool ASuspenseCoreCharacter::IsNetRelevantFor(
+    const AActor* RealViewer,
+    const AActor* ViewTarget,
+    const FVector& SrcLocation) const
+{
+    // Full limb state relevancy: 50m radius
+    float DistSq = FVector::DistSquared(GetActorLocation(), SrcLocation);
+
+    if (DistSq > FMath::Square(5000.0f)) // 50m
+    {
+        // Only replicate critical state (alive/dead)
+        return false;
+    }
+
+    return Super::IsNetRelevantFor(RealViewer, ViewTarget, SrcLocation);
+}
+```
+
+---
+
+## 13. UI Integration
+
+### 13.1 Health Display Widget
+
+```
+┌─────────────────────────────────────┐
+│           HEALTH STATUS             │
+├─────────────────────────────────────┤
+│                                     │
+│              ┌───┐                  │
+│              │ H │ ← Head (100%)    │
+│              └─┬─┘                  │
+│         ┌─────┼─────┐               │
+│      ┌──┴──┐┌─┴─┐┌──┴──┐            │
+│      │ LA ││ T ││ RA │              │
+│      │75% ││85%││60% │              │
+│      └──┬──┘└─┬─┘└──┬──┘            │
+│         │  ┌─┴─┐   │                │
+│         │  │ S │   │                │
+│         │  │70%│   │                │
+│         │  └─┬─┘   │                │
+│      ┌──┴──┐ │ ┌──┴──┐              │
+│      │ LL │ │ │ RL │               │
+│      │ ⚠️ │   │ ✓  │               │
+│      │45% │   │65% │               │
+│      └────┘   └────┘               │
+│                                     │
+│  ⚠️ = Fractured  🩸 = Bleeding      │
+│  ❌ = Destroyed                     │
+└─────────────────────────────────────┘
+```
+
+### 13.2 Widget Color Coding
+
+```cpp
+FLinearColor GetLimbHealthColor(float HealthPercent, bool bDestroyed, bool bFractured)
+{
+    if (bDestroyed)
+    {
+        return FLinearColor(0.2f, 0.2f, 0.2f); // Dark gray
+    }
+
+    if (bFractured)
+    {
+        // Pulsing orange
+        float Pulse = (FMath::Sin(GetWorld()->GetTimeSeconds() * 4.0f) + 1.0f) / 2.0f;
+        return FLinearColor::LerpUsingHSV(
+            FLinearColor(1.0f, 0.5f, 0.0f),
+            FLinearColor(1.0f, 0.3f, 0.0f),
+            Pulse
+        );
+    }
+
+    // Health gradient: Green -> Yellow -> Red
+    if (HealthPercent > 0.6f)
+    {
+        return FLinearColor::Green;
+    }
+    else if (HealthPercent > 0.3f)
+    {
+        float T = (HealthPercent - 0.3f) / 0.3f;
+        return FLinearColor::LerpUsingHSV(FLinearColor::Yellow, FLinearColor::Green, T);
+    }
+    else
+    {
+        float T = HealthPercent / 0.3f;
+        return FLinearColor::LerpUsingHSV(FLinearColor::Red, FLinearColor::Yellow, T);
+    }
+}
+```
+
+### 13.3 Status Effect Indicators
+
+```cpp
+UENUM(BlueprintType)
+enum class ELimbStatusIcon : uint8
+{
+    None,
+    Fractured,      // Bone icon
+    Bleeding_Light, // Single blood drop
+    Bleeding_Heavy, // Multiple blood drops
+    Destroyed,      // X icon
+    Splinted,       // Bandage icon
+};
+
+// Widget displays icons overlaid on limb diagram
+void ULimbStatusWidget::UpdateLimbIcons(ELimbType Limb)
+{
+    TArray<ELimbStatusIcon> Icons;
+
+    if (IsLimbDestroyed(Limb))
+    {
+        Icons.Add(ELimbStatusIcon::Destroyed);
+    }
+    else
+    {
+        if (HasFracture(Limb))
+        {
+            Icons.Add(HasSplint(Limb) ?
+                ELimbStatusIcon::Splinted :
+                ELimbStatusIcon::Fractured);
+        }
+
+        if (HasHeavyBleeding(Limb))
+        {
+            Icons.Add(ELimbStatusIcon::Bleeding_Heavy);
+        }
+        else if (HasLightBleeding(Limb))
+        {
+            Icons.Add(ELimbStatusIcon::Bleeding_Light);
+        }
+    }
+
+    SetLimbIcons(Limb, Icons);
+}
+```
+
+### 13.4 Damage Feedback
+
+```cpp
+// Screen effects for limb damage
+void ULimbDamageHUDComponent::OnLimbDamaged(const FSuspenseCoreLimbDamageEvent& Event)
+{
+    // Only for local player
+    if (!IsLocalPlayer(Event.VictimActor.Get()))
+        return;
+
+    // Direction indicator (where damage came from)
+    ShowDamageDirection(Event.InstigatorActor.Get());
+
+    // Limb-specific screen effect
+    switch (Event.DamagedLimb)
+    {
+        case ELimbType::Head:
+            // Screen shake + tinnitus
+            PlayCameraShake(HeadDamageShake, Event.DamageAmount / 35.0f);
+            PlayTinnitusEffect(Event.DamageAmount / 35.0f);
+            break;
+
+        case ELimbType::LeftLeg:
+        case ELimbType::RightLeg:
+            // Screen tilt + stumble
+            if (Event.DamageAmount > 20)
+            {
+                TriggerStumbleEffect();
+            }
+            break;
+
+        case ELimbType::LeftArm:
+        case ELimbType::RightArm:
+            // Weapon sway spike
+            TriggerWeaponSwaySpike(Event.DamageAmount);
+            break;
+    }
+
+    // Blood vignette
+    if (Event.HealthPercent < 0.3f)
+    {
+        ShowBloodVignette(1.0f - Event.HealthPercent);
+    }
+}
+```
+
+---
+
+## 14. Performance Considerations
+
+### 14.1 Optimization Strategies
+
+**Attribute Updates:**
+- Batch multiple limb updates in single frame
+- Use dirty flags to minimize recalculation
+- Cache penalty values, recalculate only on change
+
+```cpp
+void USuspenseCoreLimbComponent::TickComponent(float DeltaTime, ...)
+{
+    // Only recalculate penalties if limb state changed
+    if (bPenaltiesDirty)
+    {
+        RecalculatePenalties();
+        bPenaltiesDirty = false;
+    }
+
+    // Bleeding tick (already rate-limited to 1/sec)
+    ProcessBleedings(DeltaTime);
+}
+```
+
+### 14.2 Memory Layout
+
+```cpp
+// Cache-friendly limb data structure
+USTRUCT()
+struct FLimbHealthData
+{
+    // Hot data (accessed every frame)
+    float CurrentHealth[7];     // 28 bytes
+    float MaxHealth[7];         // 28 bytes
+    uint8 StatusFlags;          // 1 byte (bitfield)
+    uint8 Padding[3];           // 3 bytes alignment
+
+    // Cold data (accessed on damage/heal)
+    FLimbFractureState Fractures[4]; // Arms + Legs only
+    TArray<FBleedingEffect> Bleedings;
+
+    // Total hot path: 60 bytes (fits in cache line)
+};
+```
+
+### 14.3 Event Throttling
+
+```cpp
+// Throttle UI updates for rapid damage
+class FLimbDamageThrottler
+{
+    float LastBroadcastTime[7] = {0};
+    float AccumulatedDamage[7] = {0};
+    const float ThrottleInterval = 0.1f; // 100ms
+
+public:
+    void QueueDamageEvent(ELimbType Limb, float Damage)
+    {
+        int32 Index = static_cast<int32>(Limb);
+        AccumulatedDamage[Index] += Damage;
+
+        float CurrentTime = GetWorld()->GetTimeSeconds();
+        if (CurrentTime - LastBroadcastTime[Index] >= ThrottleInterval)
+        {
+            // Broadcast accumulated damage
+            BroadcastLimbDamage(Limb, AccumulatedDamage[Index]);
+            AccumulatedDamage[Index] = 0;
+            LastBroadcastTime[Index] = CurrentTime;
+        }
+    }
+};
+```
+
+### 14.4 Server Performance Budget
+
+| Operation | Budget | Frequency |
+|-----------|--------|-----------|
+| Damage calculation | 0.1ms | Per hit |
+| Penalty recalculation | 0.05ms | On state change |
+| Bleeding tick (all players) | 0.5ms | Per second |
+| Attribute replication | 0.02ms/player | On change |
+
+**Target:** <2ms total for 64 players under heavy combat
+
+---
+
+## Appendix A: Data Tables
+
+### A.1 Limb Configuration DataTable
+
+```cpp
+USTRUCT(BlueprintType)
+struct FLimbConfigRow : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere)
+    ELimbType LimbType;
+
+    UPROPERTY(EditAnywhere)
+    float BaseHealth = 60.0f;
+
+    UPROPERTY(EditAnywhere)
+    bool bIsCritical = false;
+
+    UPROPERTY(EditAnywhere)
+    ELimbType OverflowTarget;
+
+    UPROPERTY(EditAnywhere)
+    float OverflowMultiplier = 0.7f;
+
+    UPROPERTY(EditAnywhere)
+    TArray<FName> AssociatedBones;
+
+    UPROPERTY(EditAnywhere)
+    float FractureChanceMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere)
+    float BleedChanceMultiplier = 1.0f;
+};
+```
+
+### A.2 Penalty Configuration DataTable
+
+```cpp
+USTRUCT(BlueprintType)
+struct FLimbPenaltyRow : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere)
+    ELimbType LimbType;
+
+    UPROPERTY(EditAnywhere)
+    EPenaltyCondition Condition; // Damaged, Fractured, Destroyed
+
+    UPROPERTY(EditAnywhere)
+    float HealthThreshold = 0.5f; // For Damaged condition
+
+    UPROPERTY(EditAnywhere)
+    FLimbPenalties Penalties;
+};
+```
+
+---
+
+## Appendix B: Integration Checklist
+
+### B.1 Required Components
+
+- [ ] `USuspenseCoreLimbComponent` - Main limb tracking component
+- [ ] `USuspenseCoreLimbAttributeSet` - GAS attributes
+- [ ] `ULimbDamageExecution` - GAS damage execution
+- [ ] `UGE_LimbDamage` - Base damage effect
+- [ ] `UGE_Fracture_XXX` - Per-limb fracture effects
+- [ ] `UGE_Bleeding_XXX` - Bleeding status effects
+- [ ] Bone-to-limb mapping DataTable
+- [ ] Penalty configuration DataTable
+
+### B.2 EventBus Events to Implement
+
+- [ ] `FSuspenseCoreLimbDamageEvent`
+- [ ] `FSuspenseCoreLimbHealedEvent`
+- [ ] `FSuspenseCoreBleedingStartEvent`
+- [ ] `FSuspenseCoreBleedingStopEvent`
+- [ ] `FSuspenseCoreFractureEvent`
+- [ ] `FSuspenseCoreFractureCuredEvent`
+- [ ] `FSuspenseCoreLimbDestroyedEvent`
+- [ ] `FSuspenseCoreLimbRestoredEvent`
+- [ ] `FSuspenseCoreFallDamageEvent`
+- [ ] `FSuspenseCorePainLevelChangedEvent`
+
+### B.3 UI Widgets
+
+- [ ] Limb health diagram (body outline)
+- [ ] Status effect icons
+- [ ] Damage direction indicator
+- [ ] Blood vignette overlay
+- [ ] Pain/tremor screen effects
+
+---
+
+## Appendix C: Testing Scenarios
+
+### C.1 Unit Tests
+
+```cpp
+// Test: Damage overflow from destroyed limb
+TEST(LimbDamage, OverflowOnDestruction)
+{
+    // Setup: Left arm at 10 HP
+    SetLimbHealth(ELimbType::LeftArm, 10.0f);
+
+    // Action: Apply 30 damage
+    ApplyDamage(ELimbType::LeftArm, 30.0f);
+
+    // Assert: Arm destroyed, overflow to thorax
+    EXPECT_EQ(GetLimbHealth(ELimbType::LeftArm), 0.0f);
+    EXPECT_TRUE(IsLimbDestroyed(ELimbType::LeftArm));
+
+    // Overflow: (30-10) * 0.7 = 14 damage to thorax
+    EXPECT_NEAR(GetLimbHealth(ELimbType::Thorax), 85.0f - 14.0f, 0.1f);
+}
+
+// Test: Fall damage fracture
+TEST(FallDamage, FractureChance)
+{
+    // Setup: 8m fall height
+    float FallHeight = 800.0f;
+
+    // Action: Process fall damage 1000 times
+    int FractureCount = 0;
+    for (int i = 0; i < 1000; i++)
+    {
+        ResetLimbState();
+        ProcessFallDamage(FallHeight);
+        if (HasFracture(ELimbType::LeftLeg))
+            FractureCount++;
+    }
+
+    // Assert: ~70% fracture rate (±5%)
+    float FractureRate = FractureCount / 1000.0f;
+    EXPECT_NEAR(FractureRate, 0.7f, 0.05f);
+}
+```
+
+### C.2 Integration Test Scenarios
+
+1. **Full combat scenario:** Player takes multiple hits to various limbs, accumulates status effects, uses medical items to recover
+2. **Fall damage ladder:** Test fall damage at 1m increments from 2m to 15m
+3. **Bleeding to death:** Verify heavy bleed drains HP correctly over time
+4. **Penalty stacking:** Verify multiple limb injuries compound correctly
+5. **Network sync:** Verify client limb state matches server after 100 damage events
+
+---
+
+*Document End*

@@ -263,11 +263,9 @@ FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazineInter
             *EjectedMag.MagazineID.ToString(),
             EjectedMag.CurrentRoundCount);
     }
-    else
-    {
-        // Return magazine to owner's QuickSlot or Inventory
-        ReturnMagazineToOwner(EjectedMag);
-    }
+    // NOTE: When bDropToGround == false, the CALLER is responsible for storing the ejected magazine.
+    // ReloadAbility handles this in OnMagInNotify() / ExecuteReloadOnMontageComplete().
+    // Previously ReturnMagazineToOwner() was called here, causing DOUBLE storage (duplication bug).
 
     BroadcastStateChanged();
     OnMagazineChanged.Broadcast(OldMag, FSuspenseCoreMagazineInstance());
@@ -1142,16 +1140,24 @@ void USuspenseCoreMagazineComponent::ProcessReloadCompletion()
         case ESuspenseCoreReloadType::Emergency:
         {
             // Eject current magazine if present
-            // EjectMagazineInternal handles returning to storage when not emergency drop
-            if (WeaponAmmoState.bHasMagazine)
+            FSuspenseCoreMagazineInstance EjectedMag;
+            bool bHadMagazine = WeaponAmmoState.bHasMagazine;
+            if (bHadMagazine)
             {
-                EjectMagazineInternal(CurrentReloadType == ESuspenseCoreReloadType::Emergency);
+                EjectedMag = EjectMagazineInternal(CurrentReloadType == ESuspenseCoreReloadType::Emergency);
             }
 
             // Insert new magazine
             if (PendingMagazine.IsValid())
             {
                 InsertMagazineInternal(PendingMagazine);
+            }
+
+            // Return ejected magazine to storage (if not emergency drop)
+            // NOTE: This was previously done inside EjectMagazineInternal, but now the CALLER handles storage
+            if (bHadMagazine && EjectedMag.IsValid() && CurrentReloadType != ESuspenseCoreReloadType::Emergency)
+            {
+                ReturnMagazineToOwner(EjectedMag);
             }
 
             // Chamber round if needed

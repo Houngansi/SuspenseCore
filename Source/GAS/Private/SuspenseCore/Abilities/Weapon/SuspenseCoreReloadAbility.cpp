@@ -182,6 +182,11 @@ void USuspenseCoreReloadAbility::ActivateAbility(
     // Apply effects
     ApplyReloadEffects(ActorInfo);
 
+    // CRITICAL: Broadcast reload started BEFORE playing montage!
+    // This ensures UI widgets have bIsReloading=true before any AnimNotifies fire
+    // (prevents race condition where phase events arrive before ReloadStart event)
+    BroadcastReloadStarted();
+
     // Play montage
     if (!PlayReloadMontage())
     {
@@ -191,9 +196,6 @@ void USuspenseCoreReloadAbility::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-
-    // Broadcast reload started
-    BroadcastReloadStarted();
 
     RELOAD_LOG(Log, TEXT("Reload started: Type=%d, Duration=%.2f"),
         static_cast<int32>(CurrentReloadType), ReloadDuration);
@@ -1073,8 +1075,8 @@ void USuspenseCoreReloadAbility::StopReloadMontage()
     if (CachedAnimInstance.IsValid())
     {
         CachedAnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
-        CachedAnimInstance.Reset();
     }
+    CachedAnimInstance.Reset();
 
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character)

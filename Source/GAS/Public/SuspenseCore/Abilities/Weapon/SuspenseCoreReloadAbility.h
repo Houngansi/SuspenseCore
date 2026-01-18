@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
-#include "Animation/AnimInstance.h"
+#include "Animation/AnimInstance.h"  // For FBranchingPointNotifyPayload
 #include "SuspenseCoreReloadAbility.generated.h"
 
 // Forward declarations - use interfaces instead of concrete types

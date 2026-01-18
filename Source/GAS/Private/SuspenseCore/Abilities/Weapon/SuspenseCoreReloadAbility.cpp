@@ -626,33 +626,70 @@ void USuspenseCoreReloadAbility::OnRackEndNotify()
 void USuspenseCoreReloadAbility::OnAnimNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload)
 {
     // Dispatch to correct handler based on notify name
-    // Montage AnimNotifies should be named: "MagOut", "MagIn", "RackStart", "RackEnd"
+    // Supports multiple common naming conventions for reload phases
 
     RELOAD_LOG(Log, TEXT("AnimNotify received: '%s'"), *NotifyName.ToString());
 
-    if (NotifyName == FName("MagOut"))
+    const FString NotifyStr = NotifyName.ToString();
+
+    // Phase 1: Magazine Eject
+    // Common names: MagOut, ClipOut, EjectMag, Eject, MagazineOut, MagazineEject, Continue (generic start)
+    if (NotifyName == FName("MagOut") ||
+        NotifyName == FName("ClipOut") ||
+        NotifyName == FName("EjectMag") ||
+        NotifyName == FName("Eject") ||
+        NotifyName == FName("MagazineOut") ||
+        NotifyName == FName("MagazineEject") ||
+        NotifyName == FName("Continue") ||
+        NotifyStr.Contains(TEXT("MagOut")) ||
+        NotifyStr.Contains(TEXT("ClipOut")) ||
+        NotifyStr.Contains(TEXT("Eject")))
     {
-        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnMagOutNotify"));
+        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnMagOutNotify (Phase 1: Eject)"));
         OnMagOutNotify();
     }
-    else if (NotifyName == FName("MagIn"))
+    // Phase 2: Magazine Insert
+    // Common names: MagIn, ClipIn, InsertMag, Insert, MagazineIn, MagazineInsert
+    else if (NotifyName == FName("MagIn") ||
+             NotifyName == FName("ClipIn") ||
+             NotifyName == FName("InsertMag") ||
+             NotifyName == FName("Insert") ||
+             NotifyName == FName("MagazineIn") ||
+             NotifyName == FName("MagazineInsert") ||
+             NotifyStr.Contains(TEXT("MagIn")) ||
+             NotifyStr.Contains(TEXT("ClipIn")) ||
+             NotifyStr.Contains(TEXT("Insert")))
     {
-        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnMagInNotify"));
+        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnMagInNotify (Phase 2: Insert)"));
         OnMagInNotify();
     }
-    else if (NotifyName == FName("RackStart"))
+    // Phase 3: Chambering (Rack)
+    // Common names: RackStart, Rack, Chamber, Bolt, Finalize, Charge
+    else if (NotifyName == FName("RackStart") ||
+             NotifyName == FName("Rack") ||
+             NotifyName == FName("Chamber") ||
+             NotifyName == FName("Bolt") ||
+             NotifyName == FName("Charge"))
     {
-        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnRackStartNotify"));
+        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnRackStartNotify (Phase 3: Rack Start)"));
         OnRackStartNotify();
     }
-    else if (NotifyName == FName("RackEnd"))
+    // Phase 3 Complete: Chambered
+    // Common names: RackEnd, Chambered, Finalize, Complete, Done
+    else if (NotifyName == FName("RackEnd") ||
+             NotifyName == FName("Chambered") ||
+             NotifyName == FName("Finalize") ||
+             NotifyName == FName("Complete") ||
+             NotifyName == FName("Done") ||
+             NotifyStr.Contains(TEXT("Chamber")) ||
+             NotifyStr.Contains(TEXT("Finalize")))
     {
-        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnRackEndNotify"));
+        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnRackEndNotify (Phase 3: Chambered)"));
         OnRackEndNotify();
     }
     else
     {
-        RELOAD_LOG(Verbose, TEXT("  -> Unknown notify, ignoring"));
+        RELOAD_LOG(Verbose, TEXT("  -> Unknown notify '%s', ignoring"), *NotifyStr);
     }
 }
 

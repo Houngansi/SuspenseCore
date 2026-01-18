@@ -770,6 +770,47 @@ void USuspenseCoreAmmoLoadingService::ProcessLoadingTick(FSuspenseCoreActiveLoad
             CancelOperationWithReason(Operation.Request.MagazineInstanceID, CancelReason);
             return;
         }
+
+        // CRITICAL FIX: Actually load the rounds into the magazine (not just update counters!)
+        FSuspenseCoreMagazineInstance* Mag = ManagedMagazines.Find(Operation.Request.MagazineInstanceID);
+        if (Mag)
+        {
+            const int32 RoundsToProcess = Operation.RoundsRemaining;
+
+            if (Operation.State == ESuspenseCoreAmmoLoadingState::Loading)
+            {
+                Mag->LoadRounds(Operation.Request.AmmoID, RoundsToProcess);
+            }
+            else if (Operation.State == ESuspenseCoreAmmoLoadingState::Unloading)
+            {
+                Mag->UnloadRounds(RoundsToProcess);
+            }
+
+            // Publish completion event for UI/inventory updates
+            if (USuspenseCoreEventBus* Bus = EventBus.Get())
+            {
+                FSuspenseCoreEventData RoundLoadedData;
+                RoundLoadedData.SetString(TEXT("MagazineInstanceID"), Operation.Request.MagazineInstanceID.ToString());
+                RoundLoadedData.SetString(TEXT("SourceContainerID"), Operation.Request.SourceContainerID.ToString());
+                RoundLoadedData.SetString(TEXT("AmmoID"), Operation.Request.AmmoID.ToString());
+                RoundLoadedData.SetInt(TEXT("SourceInventorySlot"), Operation.Request.SourceInventorySlot);
+                RoundLoadedData.SetInt(TEXT("NewRoundCount"), Mag->CurrentRoundCount);
+                RoundLoadedData.SetInt(TEXT("MaxCapacity"), Mag->MaxCapacity);
+                RoundLoadedData.SetInt(TEXT("RoundsProcessed"), RoundsToProcess);
+                RoundLoadedData.SetFloat(TEXT("Progress"), 1.0f);
+
+                FGameplayTag EventTag = (Operation.State == ESuspenseCoreAmmoLoadingState::Loading)
+                    ? SuspenseCoreEquipmentTags::Magazine::TAG_Equipment_Event_Ammo_RoundLoaded
+                    : SuspenseCoreEquipmentTags::Magazine::TAG_Equipment_Event_Ammo_RoundUnloaded;
+
+                Bus->Publish(EventTag, RoundLoadedData);
+
+                AMMO_LOG(Log, TEXT("ProcessLoadingTick: Instant load complete - Mag %s, %d rounds, NewCount=%d/%d"),
+                    *Operation.Request.MagazineInstanceID.ToString().Left(8),
+                    RoundsToProcess, Mag->CurrentRoundCount, Mag->MaxCapacity);
+            }
+        }
+
         Operation.RoundsProcessed += Operation.RoundsRemaining;
         Operation.RoundsRemaining = 0;
         return;

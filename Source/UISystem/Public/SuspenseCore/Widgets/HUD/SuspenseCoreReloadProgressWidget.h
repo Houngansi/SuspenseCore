@@ -21,37 +21,36 @@ class USuspenseCoreEventBus;
  * USuspenseCoreReloadProgressWidget
  *
  * Tarkov-style reload progress HUD widget displaying:
- * - Reload progress bar
+ * - Reload progress bar (auto-fills based on elapsed time)
  * - Reload type text (Tactical/Empty/Emergency/Chamber)
- * - Phase indicators (Eject/Insert/Chamber)
+ * - Phase indicators (Eject/Insert/Chamber) with opacity animation
+ * - Time remaining countdown
  * - Cancel hint (if applicable)
  *
  * Features:
  * - Real-time updates via EventBus (NO direct component polling!)
+ * - Automatic progress calculation based on elapsed time
  * - Smooth progress interpolation
- * - Phase-based visual feedback
+ * - Phase-based visual feedback with opacity transitions
  * - ALL components are MANDATORY (BindWidget)
  * - Widget starts Collapsed, shown only during reload
  * - NO programmatic color changes - ALL colors from materials in Editor!
  *
- * Layout:
+ * Layout (UMG Designer Hierarchy):
  * ┌────────────────────────────────────────┐
- * │           TACTICAL RELOAD              │  ← Reload type text
- * │       1.5s                             │  ← Time remaining
- * │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  ← Progress bar
- * │  [EJECT] → [INSERT] → [CHAMBER]        │  ← Phase indicators
- * │           Press [R] to cancel          │  ← Cancel hint
+ * │           TACTICAL RELOAD              │  ← ReloadTypeText
+ * │              1.5s                      │  ← TimeRemainingText
+ * │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  ← ReloadProgressBar
+ * │  [●] EJECT → [●] INSERT → [●] CHAMBER  │  ← Phase indicators
+ * │         Press [R] to cancel            │  ← CancelHintText
  * └────────────────────────────────────────┘
  *
  * EventBus Events (subscribed):
- * - TAG_Equipment_Event_Weapon_ReloadStart
- * - TAG_Equipment_Event_Weapon_ReloadEnd
- * - TAG_Equipment_Event_Reload_Tactical
- * - TAG_Equipment_Event_Reload_Empty
- * - TAG_Equipment_Event_Reload_Emergency
- * - TAG_Equipment_Event_Magazine_Ejected
- * - TAG_Equipment_Event_Magazine_Inserted
- * - TAG_Equipment_Event_Chamber_Chambered
+ * - TAG_Equipment_Event_Weapon_ReloadStart  → Show widget, start progress
+ * - TAG_Equipment_Event_Weapon_ReloadEnd    → Hide widget
+ * - TAG_Equipment_Event_Magazine_Ejected    → Phase 1 active
+ * - TAG_Equipment_Event_Magazine_Inserted   → Phase 2 active
+ * - TAG_Equipment_Event_Chamber_Chambered   → Phase 3 active
  */
 UCLASS(Blueprintable, BlueprintType)
 class UISYSTEM_API USuspenseCoreReloadProgressWidget : public UUserWidget, public ISuspenseCoreReloadProgressWidgetInterface
@@ -205,9 +204,6 @@ private:
 	// EventBus handlers
 	void OnReloadStartEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnReloadEndEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-	void OnReloadTacticalEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-	void OnReloadEmptyEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-	void OnReloadEmergencyEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnMagazineEjectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnMagazineInsertedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnChamberEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
@@ -230,21 +226,30 @@ private:
 
 	FSuspenseCoreSubscriptionHandle ReloadStartHandle;
 	FSuspenseCoreSubscriptionHandle ReloadEndHandle;
-	FSuspenseCoreSubscriptionHandle ReloadTacticalHandle;
-	FSuspenseCoreSubscriptionHandle ReloadEmptyHandle;
-	FSuspenseCoreSubscriptionHandle ReloadEmergencyHandle;
 	FSuspenseCoreSubscriptionHandle MagazineEjectedHandle;
 	FSuspenseCoreSubscriptionHandle MagazineInsertedHandle;
 	FSuspenseCoreSubscriptionHandle ChamberHandle;
 
 	FSuspenseCoreReloadProgressData CachedReloadData;
 
+	/** Current displayed progress (interpolated) */
 	float DisplayedProgress = 0.0f;
+
+	/** Target progress based on elapsed time */
 	float TargetProgress = 0.0f;
-	float CachedRemainingTime = 0.0f;
 
-	int32 CurrentPhase = 0; // 0=None, 1=Eject, 2=Insert, 3=Chamber
+	/** Total reload duration in seconds */
+	float TotalReloadDuration = 0.0f;
 
+	/** Elapsed time since reload started */
+	float ElapsedReloadTime = 0.0f;
+
+	/** Current phase: 0=None, 1=Eject, 2=Insert, 3=Chamber */
+	int32 CurrentPhase = 0;
+
+	/** Is reload currently in progress? */
 	bool bIsReloading = false;
+
+	/** Can this reload be cancelled? */
 	bool bCanCancel = true;
 };

@@ -494,7 +494,7 @@ bool USuspenseCoreMagazineComponent::ChamberRoundInternal()
             {
                 FSuspenseCoreEventData EventData;
                 EventData.SetString(TEXT("AmmoID"), WeaponAmmoState.ChamberedRound.AmmoID.ToString());
-                EventBus->Publish(SuspenseCoreEquipmentTags::Chamber::TAG_Equipment_Event_Chamber_Chambered, EventData);
+                EventBus->Publish(SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Chamber_Chambered, EventData);
             }
         }
 

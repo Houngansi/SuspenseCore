@@ -280,9 +280,14 @@ void USuspenseCoreReloadTimerWidget::UpdateUI()
 	if (TimeRemainingText && bShowTimeRemaining)
 	{
 		float RemainingTime = FMath::Max(0.0f, TotalDuration - ElapsedTime);
+
+		// Create formatting options (DefaultNoGrouping returns const, so we need a copy)
+		FNumberFormattingOptions NumberFormat = FNumberFormattingOptions::DefaultNoGrouping();
+		NumberFormat.SetMaximumFractionalDigits(1);
+
 		FText TimeText = FText::Format(
 			NSLOCTEXT("ReloadTimer", "TimeFormat", "{0}s"),
-			FText::AsNumber(RemainingTime, &FNumberFormattingOptions::DefaultNoGrouping().SetMaximumFractionalDigits(1))
+			FText::AsNumber(RemainingTime, &NumberFormat)
 		);
 		TimeRemainingText->SetText(TimeText);
 	}

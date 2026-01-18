@@ -351,11 +351,11 @@ private:
     /** Cached InventoryProvider interface - avoids repeated lookups */
     mutable TWeakObjectPtr<UObject> CachedInventoryProvider;
 
-    /** Cached AnimInstance for notify binding */
+    /** Cached AnimInstance for montage notify binding */
     UPROPERTY()
     TWeakObjectPtr<UAnimInstance> CachedAnimInstance;
 
-    /** Dispatches AnimNotify callbacks to the correct handler based on notify name */
+    /** Handles montage AnimNotify events and dispatches to phase handlers */
     UFUNCTION()
     void OnAnimNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload);
 };

@@ -561,6 +561,10 @@ void USuspenseCoreReloadAbility::OnMagInNotify()
             // Clear the inventory instance ID
             NewMagazineInventoryInstanceID = FGuid();
         }
+
+        // CRITICAL: Mark NewMagazine as consumed so ExecuteReloadOnMontageComplete()
+        // knows AnimNotify handled the swap and doesn't run the fallback logic
+        NewMagazine = FSuspenseCoreMagazineInstance();
     }
 
     // CRITICAL FIX: Store ejected magazine AFTER removing the source magazine
@@ -625,71 +629,36 @@ void USuspenseCoreReloadAbility::OnRackEndNotify()
 
 void USuspenseCoreReloadAbility::OnAnimNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload)
 {
-    // Dispatch to correct handler based on notify name
-    // Supports multiple common naming conventions for reload phases
+    // Dispatch AnimNotify to appropriate handler based on notify name
+    // Real notify names from montages: Continue, ClipIn, Finalize
 
     RELOAD_LOG(Log, TEXT("AnimNotify received: '%s'"), *NotifyName.ToString());
 
-    const FString NotifyStr = NotifyName.ToString();
-
-    // Phase 1: Magazine Eject
-    // Common names: MagOut, ClipOut, EjectMag, Eject, MagazineOut, MagazineEject, Continue (generic start)
-    if (NotifyName == FName("MagOut") ||
+    // Phase 1: Magazine Eject - "Continue" marks start of reload sequence
+    if (NotifyName == FName("Continue") ||
+        NotifyName == FName("MagOut") ||
         NotifyName == FName("ClipOut") ||
-        NotifyName == FName("EjectMag") ||
-        NotifyName == FName("Eject") ||
-        NotifyName == FName("MagazineOut") ||
-        NotifyName == FName("MagazineEject") ||
-        NotifyName == FName("Continue") ||
-        NotifyStr.Contains(TEXT("MagOut")) ||
-        NotifyStr.Contains(TEXT("ClipOut")) ||
-        NotifyStr.Contains(TEXT("Eject")))
+        NotifyName == FName("Eject"))
     {
-        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnMagOutNotify (Phase 1: Eject)"));
+        RELOAD_LOG(Log, TEXT("  -> Phase 1: Eject (OnMagOutNotify)"));
         OnMagOutNotify();
     }
-    // Phase 2: Magazine Insert
-    // Common names: MagIn, ClipIn, InsertMag, Insert, MagazineIn, MagazineInsert
-    else if (NotifyName == FName("MagIn") ||
-             NotifyName == FName("ClipIn") ||
-             NotifyName == FName("InsertMag") ||
-             NotifyName == FName("Insert") ||
-             NotifyName == FName("MagazineIn") ||
-             NotifyName == FName("MagazineInsert") ||
-             NotifyStr.Contains(TEXT("MagIn")) ||
-             NotifyStr.Contains(TEXT("ClipIn")) ||
-             NotifyStr.Contains(TEXT("Insert")))
+    // Phase 2: Magazine Insert - "ClipIn" when new magazine goes in
+    else if (NotifyName == FName("ClipIn") ||
+             NotifyName == FName("MagIn") ||
+             NotifyName == FName("Insert"))
     {
-        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnMagInNotify (Phase 2: Insert)"));
+        RELOAD_LOG(Log, TEXT("  -> Phase 2: Insert (OnMagInNotify)"));
         OnMagInNotify();
     }
-    // Phase 3: Chambering (Rack)
-    // Common names: RackStart, Rack, Chamber, Bolt, Finalize, Charge
-    else if (NotifyName == FName("RackStart") ||
-             NotifyName == FName("Rack") ||
+    // Phase 3: Chamber - "Finalize" when round is chambered
+    else if (NotifyName == FName("Finalize") ||
+             NotifyName == FName("RackEnd") ||
              NotifyName == FName("Chamber") ||
-             NotifyName == FName("Bolt") ||
-             NotifyName == FName("Charge"))
+             NotifyName == FName("Chambered"))
     {
-        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnRackStartNotify (Phase 3: Rack Start)"));
-        OnRackStartNotify();
-    }
-    // Phase 3 Complete: Chambered
-    // Common names: RackEnd, Chambered, Finalize, Complete, Done
-    else if (NotifyName == FName("RackEnd") ||
-             NotifyName == FName("Chambered") ||
-             NotifyName == FName("Finalize") ||
-             NotifyName == FName("Complete") ||
-             NotifyName == FName("Done") ||
-             NotifyStr.Contains(TEXT("Chamber")) ||
-             NotifyStr.Contains(TEXT("Finalize")))
-    {
-        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnRackEndNotify (Phase 3: Chambered)"));
+        RELOAD_LOG(Log, TEXT("  -> Phase 3: Chamber (OnRackEndNotify)"));
         OnRackEndNotify();
-    }
-    else
-    {
-        RELOAD_LOG(Verbose, TEXT("  -> Unknown notify '%s', ignoring"), *NotifyStr);
     }
 }
 
@@ -1093,8 +1062,7 @@ bool USuspenseCoreReloadAbility::PlayReloadMontage()
     BlendOutDelegate.BindUObject(this, &USuspenseCoreReloadAbility::OnMontageBlendOut);
     AnimInstance->Montage_SetBlendingOutDelegate(BlendOutDelegate, Montage);
 
-    // Bind to AnimNotify callbacks for phase events (MagOut, MagIn, RackStart, RackEnd)
-    // These notifies must exist in the reload montage with matching names
+    // Bind to AnimNotify events for reload phase indicators
     CachedAnimInstance = AnimInstance;
     AnimInstance->OnPlayMontageNotifyBegin.AddDynamic(this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
 
@@ -1103,7 +1071,7 @@ bool USuspenseCoreReloadAbility::PlayReloadMontage()
 
 void USuspenseCoreReloadAbility::StopReloadMontage()
 {
-    // Unbind AnimNotify callback first
+    // Unbind AnimNotify callback
     if (CachedAnimInstance.IsValid())
     {
         CachedAnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);

@@ -188,10 +188,33 @@ void USuspenseCoreAmmoCounterWidget::InitializeWithWeapon_Implementation(AActor*
 			bHasMagazine = AmmoState.bHasMagazine;
 			TargetFillPercent = CachedAmmoData.GetMagazineFillPercent();
 
-			UE_LOG(LogTemp, Log, TEXT("AmmoCounterWidget: Initialized from MagazineComponent - Rounds=%d/%d, Chambered=%s"),
+			UE_LOG(LogAmmoCounterWidget, Log, TEXT("Initialized ammo from MagazineComponent - Rounds=%d/%d, Chambered=%s"),
 				CachedAmmoData.MagazineRounds,
 				CachedAmmoData.MagazineCapacity,
 				CachedAmmoData.bHasChamberedRound ? TEXT("Yes") : TEXT("No"));
+		}
+
+		// CRITICAL FIX: Read initial fire mode from weapon via ISuspenseCoreWeapon interface
+		// Without this, fire mode display stays empty until player switches mode
+		if (WeaponActor->Implements<USuspenseCoreWeapon>())
+		{
+			FGameplayTag CurrentFireMode = ISuspenseCoreWeapon::Execute_GetCurrentFireMode(WeaponActor);
+			if (CurrentFireMode.IsValid())
+			{
+				CachedAmmoData.FireModeTag = CurrentFireMode;
+
+				// Extract display name from tag (last segment)
+				FString FireModeDisplayName = CurrentFireMode.GetTagName().ToString();
+				int32 LastDotIndex;
+				if (FireModeDisplayName.FindLastChar('.', LastDotIndex))
+				{
+					FireModeDisplayName = FireModeDisplayName.RightChop(LastDotIndex + 1);
+				}
+				CachedAmmoData.FireModeText = FText::FromString(FireModeDisplayName);
+
+				UE_LOG(LogAmmoCounterWidget, Log, TEXT("Initialized fire mode from weapon: %s"),
+					*FireModeDisplayName);
+			}
 		}
 	}
 
@@ -430,6 +453,16 @@ void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
+	// CRITICAL FIX: Also subscribe to BridgeSystem tag (SuspenseCoreTags::Event::Weapon::FireModeChanged)
+	// GAS SwitchFireModeAbility and FireModeProvider broadcast on this tag
+	// because GAS cannot depend on EquipmentSystem (DI principle)
+	FireModeChangedGASHandle = EventBus->SubscribeNative(
+		SuspenseCoreTags::Event::Weapon::FireModeChanged,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
 	UE_LOG(LogAmmoCounterWidget, Log, TEXT("Event subscriptions setup complete"));
 }
 
@@ -454,6 +487,7 @@ void USuspenseCoreAmmoCounterWidget::TeardownEventSubscriptions()
 	EventBus->Unsubscribe(WeaponAmmoChangedHandle);
 	EventBus->Unsubscribe(WeaponAmmoChangedGASHandle);  // BridgeSystem tag (from GAS fire abilities)
 	EventBus->Unsubscribe(FireModeChangedHandle);
+	EventBus->Unsubscribe(FireModeChangedGASHandle);  // BridgeSystem tag (from GAS SwitchFireModeAbility)
 
 	UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Event subscriptions torn down"));
 }
@@ -580,17 +614,32 @@ void USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent(FGameplayTag EventTa
 		return;
 	}
 
-	FString FireModeStr = EventData.GetString(TEXT("FireMode"));
+	// Get fire mode tag string - broadcasts use "FireModeTag" field
+	FString FireModeTagStr = EventData.GetString(TEXT("FireModeTag"));
+
+	// Get display name - SwitchFireModeAbility uses "FireModeName", fallback to extracting from tag
+	FString FireModeDisplayName = EventData.GetString(TEXT("FireModeName"));
 
 	// Get fire mode tag using native tag mapping
 	// CRITICAL: Use helper function instead of RequestGameplayTag() per project architecture
-	FString FireModeTagStr = EventData.GetString(TEXT("FireModeTag"));
-	FGameplayTag FireModeTag = FireModeTagStr.IsEmpty()
-		? GetFireModeTagFromString(FireModeStr)   // Fallback to display name if tag string not provided
-		: GetFireModeTagFromString(FireModeTagStr);
+	FGameplayTag FireModeTag = GetFireModeTagFromString(FireModeTagStr);
+
+	// If display name not provided, extract from tag (last segment)
+	if (FireModeDisplayName.IsEmpty() && FireModeTag.IsValid())
+	{
+		FireModeDisplayName = FireModeTag.GetTagName().ToString();
+		int32 LastDotIndex;
+		if (FireModeDisplayName.FindLastChar('.', LastDotIndex))
+		{
+			FireModeDisplayName = FireModeDisplayName.RightChop(LastDotIndex + 1);
+		}
+	}
 
 	CachedAmmoData.FireModeTag = FireModeTag;
-	CachedAmmoData.FireModeText = FText::FromString(FireModeStr);
+	CachedAmmoData.FireModeText = FText::FromString(FireModeDisplayName);
+
+	UE_LOG(LogAmmoCounterWidget, Log, TEXT("Fire mode changed: %s (%s)"),
+		*FireModeDisplayName, *FireModeTag.ToString());
 
 	UpdateFireModeUI();
 	OnFireModeChanged(CachedAmmoData.FireModeText);

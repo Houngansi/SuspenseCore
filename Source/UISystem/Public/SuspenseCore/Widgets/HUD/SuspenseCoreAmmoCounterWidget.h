@@ -299,6 +299,7 @@ private:
 	FSuspenseCoreSubscriptionHandle WeaponAmmoChangedHandle;
 	FSuspenseCoreSubscriptionHandle WeaponAmmoChangedGASHandle;  // BridgeSystem tag subscription (from GAS fire abilities)
 	FSuspenseCoreSubscriptionHandle FireModeChangedHandle;
+	FSuspenseCoreSubscriptionHandle FireModeChangedGASHandle;  // BridgeSystem tag subscription (from GAS SwitchFireModeAbility)
 	FSuspenseCoreSubscriptionHandle ActiveWeaponChangedHandle;
 	FSuspenseCoreSubscriptionHandle ReloadStartHandle;
 	FSuspenseCoreSubscriptionHandle ReloadEndHandle;

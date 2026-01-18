@@ -484,12 +484,16 @@ void USuspenseCoreReloadProgressWidget::CreateMaterialInstanceForProgressBar()
 		return;
 	}
 
-	// Get the fill image style from the progress bar
+	// Reset fill color to white so material displays correctly
+	ReloadProgressBar->SetFillColorAndOpacity(FLinearColor::White);
+
+	// Get the BACKGROUND image style from the progress bar (NOT FillImage!)
+	// The material handles both background and fill portions via FillAmount parameter
 	const FProgressBarStyle& Style = ReloadProgressBar->GetWidgetStyle();
-	const FSlateBrush& FillBrush = Style.FillImage;
+	const FSlateBrush& BackgroundBrush = Style.BackgroundImage;
 
 	// Check if brush has a material resource
-	UObject* ResourceObject = FillBrush.GetResourceObject();
+	UObject* ResourceObject = BackgroundBrush.GetResourceObject();
 	if (!ResourceObject)
 	{
 		return;
@@ -506,9 +510,9 @@ void USuspenseCoreReloadProgressWidget::CreateMaterialInstanceForProgressBar()
 	ReloadProgressMaterial = UMaterialInstanceDynamic::Create(MaterialInterface, this);
 	if (ReloadProgressMaterial)
 	{
-		// Apply the dynamic material back to the progress bar
+		// Apply the dynamic material back to the progress bar's BACKGROUND image
 		FProgressBarStyle NewStyle = Style;
-		NewStyle.FillImage.SetResourceObject(ReloadProgressMaterial);
+		NewStyle.BackgroundImage.SetResourceObject(ReloadProgressMaterial);
 		ReloadProgressBar->SetWidgetStyle(NewStyle);
 
 		// Initialize to 0 progress

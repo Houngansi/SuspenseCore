@@ -937,12 +937,16 @@ void USuspenseCoreAmmoCounterWidget::CreateMaterialInstanceForFillBar()
 		return;
 	}
 
-	// Get the fill image style from the progress bar
+	// Reset fill color to white so material displays correctly
+	MagazineFillBar->SetFillColorAndOpacity(FLinearColor::White);
+
+	// Get the BACKGROUND image style from the progress bar (NOT FillImage!)
+	// The material handles both background and fill portions via FillAmount parameter
 	const FProgressBarStyle& Style = MagazineFillBar->GetWidgetStyle();
-	const FSlateBrush& FillBrush = Style.FillImage;
+	const FSlateBrush& BackgroundBrush = Style.BackgroundImage;
 
 	// Check if brush has a material resource
-	UObject* ResourceObject = FillBrush.GetResourceObject();
+	UObject* ResourceObject = BackgroundBrush.GetResourceObject();
 	if (!ResourceObject)
 	{
 		return;
@@ -959,9 +963,9 @@ void USuspenseCoreAmmoCounterWidget::CreateMaterialInstanceForFillBar()
 	MagazineFillMaterial = UMaterialInstanceDynamic::Create(MaterialInterface, this);
 	if (MagazineFillMaterial)
 	{
-		// Apply the dynamic material back to the progress bar
+		// Apply the dynamic material back to the progress bar's BACKGROUND image
 		FProgressBarStyle NewStyle = Style;
-		NewStyle.FillImage.SetResourceObject(MagazineFillMaterial);
+		NewStyle.BackgroundImage.SetResourceObject(MagazineFillMaterial);
 		MagazineFillBar->SetWidgetStyle(NewStyle);
 
 		// Initialize to full

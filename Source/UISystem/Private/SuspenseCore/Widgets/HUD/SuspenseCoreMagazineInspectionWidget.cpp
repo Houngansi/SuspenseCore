@@ -469,10 +469,21 @@ void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingStartedEvent(FGameplayT
 		return;
 	}
 
-	int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), 0);
-	float LoadTime = EventData.GetFloat(TEXT("LoadTime"), 1.0f);
+	// AmmoLoadingService sends: TotalDuration, RoundsRemaining
+	float TotalDuration = EventData.GetFloat(TEXT("TotalDuration"), 1.0f);
+	int32 RoundsRemaining = EventData.GetInt(TEXT("RoundsRemaining"), 1);
 
-	StartLoadingSlot_Implementation(SlotIndex, LoadTime);
+	// Calculate time per round for the loading animation
+	float TimePerRound = RoundsRemaining > 0 ? TotalDuration / RoundsRemaining : 0.5f;
+
+	// Find first empty slot to start loading
+	int32 FirstEmptySlot = CachedInspectionData.GetFirstEmptySlot();
+	if (FirstEmptySlot >= 0)
+	{
+		// Store total duration for progress calculation
+		LoadingTotalTime = TotalDuration;
+		StartLoadingSlot_Implementation(FirstEmptySlot, TimePerRound);
+	}
 }
 
 void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingProgressEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -485,31 +496,38 @@ void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingProgressEvent(FGameplay
 		return;
 	}
 
-	int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), 0);
-	int32 CurrentRound = EventData.GetInt(TEXT("CurrentRound"), 0);
-	int32 TotalRounds = EventData.GetInt(TEXT("TotalRounds"), 0);
+	// AmmoLoadingService sends: NewRoundCount, MaxCapacity, RoundsProcessed, Progress, AmmoID
+	int32 NewRoundCount = EventData.GetInt(TEXT("NewRoundCount"), 0);
+	int32 MaxCapacity = EventData.GetInt(TEXT("MaxCapacity"), CachedInspectionData.MaxCapacity);
+	int32 RoundsProcessed = EventData.GetInt(TEXT("RoundsProcessed"), 0);
+	float Progress = EventData.GetFloat(TEXT("Progress"), 0.0f);
+	FString AmmoIDStr = EventData.GetString(TEXT("AmmoID"));
+
+	// The slot that was just loaded is (NewRoundCount - 1) since we just added a round
+	int32 LoadedSlotIndex = NewRoundCount - 1;
 
 	// Update the slot that was just loaded
-	if (SlotIndex >= 0 && SlotIndex < CachedInspectionData.RoundSlots.Num())
+	if (LoadedSlotIndex >= 0 && LoadedSlotIndex < CachedInspectionData.MaxCapacity)
 	{
 		FSuspenseCoreRoundSlotData LoadedSlot;
-		LoadedSlot.SlotIndex = SlotIndex;
+		LoadedSlot.SlotIndex = LoadedSlotIndex;
 		LoadedSlot.bIsOccupied = true;
-		LoadedSlot.AmmoID = *EventData.GetString(TEXT("AmmoID"));
-		LoadedSlot.AmmoDisplayName = FText::FromString(EventData.GetString(TEXT("AmmoName")));
+		LoadedSlot.AmmoID = FName(*AmmoIDStr);
+		// AmmoDisplayName would need to come from DataManager - use AmmoID for now
+		LoadedSlot.AmmoDisplayName = FText::FromName(LoadedSlot.AmmoID);
 
-		CompleteLoadingSlot_Implementation(SlotIndex, LoadedSlot);
+		CompleteLoadingSlot_Implementation(LoadedSlotIndex, LoadedSlot);
 
-		// If more rounds to load, start next
-		if (CurrentRound < TotalRounds)
-		{
-			int32 NextSlotIndex = CachedInspectionData.GetFirstEmptySlot();
-			if (NextSlotIndex >= 0)
-			{
-				float LoadTime = EventData.GetFloat(TEXT("LoadTime"), 1.0f);
-				StartLoadingSlot_Implementation(NextSlotIndex, LoadTime);
-			}
-		}
+		// Update cached data for progress bar
+		CachedInspectionData.CurrentRounds = NewRoundCount;
+		CachedInspectionData.MaxCapacity = MaxCapacity;
+
+		// Update footer UI (FillProgressBar)
+		UpdateFooterUI();
+
+		// Update loading progress bar
+		LoadingProgress = Progress;
+		UpdateLoadingUI();
 	}
 }
 
@@ -523,9 +541,19 @@ void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingCompletedEvent(FGamepla
 		return;
 	}
 
+	// Update cached data with final values from service
+	int32 NewRoundCount = EventData.GetInt(TEXT("NewRoundCount"), CachedInspectionData.CurrentRounds);
+	int32 MaxCapacity = EventData.GetInt(TEXT("MaxCapacity"), CachedInspectionData.MaxCapacity);
+	CachedInspectionData.CurrentRounds = NewRoundCount;
+	CachedInspectionData.MaxCapacity = MaxCapacity;
+
 	bIsLoadingInProgress = false;
 	LoadingSlotIndex = -1;
+	LoadingProgress = 0.0f;
+
+	// Update both loading UI and footer (FillProgressBar)
 	UpdateLoadingUI();
+	UpdateFooterUI();
 }
 
 void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingCancelledEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -538,7 +566,18 @@ void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingCancelledEvent(FGamepla
 		return;
 	}
 
+	// Update cached data with partial progress
+	int32 RoundsProcessed = EventData.GetInt(TEXT("RoundsProcessed"), 0);
+	if (RoundsProcessed > 0)
+	{
+		// Some rounds were loaded before cancellation
+		CachedInspectionData.CurrentRounds += RoundsProcessed;
+	}
+
 	CancelLoadingOperation_Implementation();
+
+	// Update footer to reflect any partially loaded rounds
+	UpdateFooterUI();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

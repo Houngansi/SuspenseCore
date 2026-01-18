@@ -628,23 +628,32 @@ void USuspenseCoreReloadAbility::OnAnimNotifyBegin(FName NotifyName, const FBran
     // Dispatch to correct handler based on notify name
     // Montage AnimNotifies should be named: "MagOut", "MagIn", "RackStart", "RackEnd"
 
+    RELOAD_LOG(Log, TEXT("AnimNotify received: '%s'"), *NotifyName.ToString());
+
     if (NotifyName == FName("MagOut"))
     {
+        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnMagOutNotify"));
         OnMagOutNotify();
     }
     else if (NotifyName == FName("MagIn"))
     {
+        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnMagInNotify"));
         OnMagInNotify();
     }
     else if (NotifyName == FName("RackStart"))
     {
+        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnRackStartNotify"));
         OnRackStartNotify();
     }
     else if (NotifyName == FName("RackEnd"))
     {
+        RELOAD_LOG(Log, TEXT("  -> Dispatching to OnRackEndNotify"));
         OnRackEndNotify();
     }
-    // Note: Unknown notifies are silently ignored - they may be used for other purposes
+    else
+    {
+        RELOAD_LOG(Verbose, TEXT("  -> Unknown notify, ignoring"));
+    }
 }
 
 void USuspenseCoreReloadAbility::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)

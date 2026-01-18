@@ -7,6 +7,9 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -181,20 +184,53 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::Execute(
 
 	ESuspenseCoreGrenadeType GrenadeType = GetGrenadeType(ItemTags);
 
-	HANDLER_LOG(Log, TEXT("Execute: Preparing grenade %s (type=%d)"),
+	HANDLER_LOG(Log, TEXT("Execute: Activating GrenadeThrowAbility for %s (type=%d)"),
 		*Request.SourceItem.ItemID.ToString(),
 		static_cast<int32>(GrenadeType));
 
-	// Get duration for prepare phase
-	float Duration = GetDuration(Request);
+	// CRITICAL: Trigger GAS GrenadeThrowAbility instead of handling directly
+	// The ability handles animation montage, AnimNotify events, and spawning via EventBus
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerActor);
+	if (ASC)
+	{
+		// Try to activate GrenadeThrowAbility by tag
+		FGameplayTagContainer AbilityTags;
+		AbilityTags.AddTag(SuspenseCoreTags::Ability::Throwable::Grenade);
 
-	// Return InProgress response - grenade is thrown in OnOperationComplete
+		bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags);
+
+		if (bActivated)
+		{
+			HANDLER_LOG(Log, TEXT("GrenadeThrowAbility activated successfully"));
+
+			// Return success with zero duration - ability handles timing internally
+			FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
+			Response.HandlerTag = GetHandlerTag();
+			Response.Cooldown = GetCooldown(Request);
+			Response.Metadata.Add(TEXT("GrenadeType"), FString::FromInt(static_cast<int32>(GrenadeType)));
+			Response.Metadata.Add(TEXT("ActivatedViaGAS"), TEXT("true"));
+
+			return Response;
+		}
+		else
+		{
+			HANDLER_LOG(Warning, TEXT("Failed to activate GrenadeThrowAbility - ability not granted or blocked"));
+		}
+	}
+	else
+	{
+		HANDLER_LOG(Warning, TEXT("No AbilitySystemComponent found on %s"), *GetNameSafe(OwnerActor));
+	}
+
+	// Fallback: Use legacy direct handling if GAS not available
+	HANDLER_LOG(Log, TEXT("Falling back to legacy grenade handling"));
+
+	float Duration = GetDuration(Request);
 	FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, Duration);
 	Response.HandlerTag = GetHandlerTag();
 	Response.Cooldown = GetCooldown(Request);
-
-	// Add grenade type to metadata
 	Response.Metadata.Add(TEXT("GrenadeType"), FString::FromInt(static_cast<int32>(GrenadeType)));
+	Response.Metadata.Add(TEXT("ActivatedViaGAS"), TEXT("false"));
 
 	// Publish prepare started event
 	PublishGrenadeEvent(Request, Response, OwnerActor);

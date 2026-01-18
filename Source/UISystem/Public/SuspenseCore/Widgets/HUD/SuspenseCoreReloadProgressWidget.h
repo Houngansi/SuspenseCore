@@ -174,7 +174,7 @@ protected:
 
 	/** Material parameter name for progress value (0-1) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config", meta = (EditCondition = "bUseMaterialProgress"))
-	FName MaterialProgressParameterName = FName("Progress");
+	FName MaterialProgressParameterName = FName("FillAmount");
 
 	/** Show phase indicators (Eject/Insert/Chamber) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")

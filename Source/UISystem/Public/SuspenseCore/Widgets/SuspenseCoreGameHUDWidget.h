@@ -245,7 +245,7 @@ protected:
 
 	/** Material parameter name for progress value (0-1) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config", meta = (EditCondition = "bUseMaterialProgress"))
-	FName MaterialProgressParameterName = FName("Progress");
+	FName MaterialProgressParameterName = FName("FillAmount");
 
 	/** Threshold for critical health (0-1) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config")

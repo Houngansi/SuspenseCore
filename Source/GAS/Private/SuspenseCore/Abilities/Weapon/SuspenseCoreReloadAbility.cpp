@@ -1050,8 +1050,7 @@ bool USuspenseCoreReloadAbility::PlayReloadMontage()
     // Bind to AnimNotify callbacks for phase events (MagOut, MagIn, RackStart, RackEnd)
     // These notifies must exist in the reload montage with matching names
     CachedAnimInstance = AnimInstance;
-    NotifyBeginDelegateHandle = AnimInstance->OnPlayMontageNotifyBegin.AddUObject(
-        this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
+    AnimInstance->OnPlayMontageNotifyBegin.AddDynamic(this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
 
     return true;
 }
@@ -1059,10 +1058,9 @@ bool USuspenseCoreReloadAbility::PlayReloadMontage()
 void USuspenseCoreReloadAbility::StopReloadMontage()
 {
     // Unbind AnimNotify callback first
-    if (CachedAnimInstance.IsValid() && NotifyBeginDelegateHandle.IsValid())
+    if (CachedAnimInstance.IsValid())
     {
-        CachedAnimInstance->OnPlayMontageNotifyBegin.Remove(NotifyBeginDelegateHandle);
-        NotifyBeginDelegateHandle.Reset();
+        CachedAnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
     }
     CachedAnimInstance.Reset();
 

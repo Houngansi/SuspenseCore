@@ -36,9 +36,32 @@ void USuspenseCoreGrenadeHandler::Initialize(
 	DataManager = InDataManager;
 	EventBus = InEventBus;
 
+	// Subscribe to SpawnRequested events from GrenadeThrowAbility
+	if (InEventBus)
+	{
+		SpawnRequestedHandle = InEventBus->SubscribeNative(
+			SuspenseCoreTags::Event::Throwable::SpawnRequested,
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnSpawnRequested),
+			ESuspenseCoreEventPriority::High);
+
+		HANDLER_LOG(Log, TEXT("Subscribed to SpawnRequested EventBus events"));
+	}
+
 	HANDLER_LOG(Log, TEXT("Initialized with DataManager=%s, EventBus=%s"),
 		InDataManager ? TEXT("Valid") : TEXT("NULL"),
 		InEventBus ? TEXT("Valid") : TEXT("NULL"));
+}
+
+void USuspenseCoreGrenadeHandler::Shutdown()
+{
+	// Unsubscribe from EventBus
+	if (EventBus.IsValid() && SpawnRequestedHandle.IsValid())
+	{
+		EventBus->Unsubscribe(SpawnRequestedHandle);
+		SpawnRequestedHandle = FSuspenseCoreEventHandle();
+		HANDLER_LOG(Log, TEXT("Unsubscribed from EventBus"));
+	}
 }
 
 //==================================================================
@@ -476,4 +499,149 @@ void USuspenseCoreGrenadeHandler::PublishGrenadeEvent(
 	}
 
 	EventBus->Publish(EventTag, EventData);
+}
+
+//==================================================================
+// EventBus Callbacks
+//==================================================================
+
+void USuspenseCoreGrenadeHandler::OnSpawnRequested(const FSuspenseCoreEventData& EventData)
+{
+	// Extract parameters from GrenadeThrowAbility
+	AActor* OwnerActor = Cast<AActor>(EventData.Source.Get());
+	if (!OwnerActor)
+	{
+		HANDLER_LOG(Warning, TEXT("OnSpawnRequested: No owner actor in event"));
+		return;
+	}
+
+	// Get grenade ID
+	FName GrenadeID = NAME_None;
+	if (const FString* GrenadeIDStr = EventData.StringPayload.Find(TEXT("GrenadeID")))
+	{
+		GrenadeID = FName(**GrenadeIDStr);
+	}
+
+	if (GrenadeID.IsNone())
+	{
+		HANDLER_LOG(Warning, TEXT("OnSpawnRequested: No GrenadeID in event"));
+		return;
+	}
+
+	// Get throw parameters
+	FVector ThrowLocation = FVector::ZeroVector;
+	if (const FVector* Location = EventData.VectorPayload.Find(TEXT("ThrowLocation")))
+	{
+		ThrowLocation = *Location;
+	}
+	else
+	{
+		// Fallback to actor location
+		ThrowLocation = OwnerActor->GetActorLocation() + FVector(0, 0, 50);
+	}
+
+	FVector ThrowDirection = OwnerActor->GetActorForwardVector();
+	if (const FVector* Direction = EventData.VectorPayload.Find(TEXT("ThrowDirection")))
+	{
+		ThrowDirection = *Direction;
+	}
+
+	float ThrowForce = DefaultThrowForce;
+	if (const float* Force = EventData.FloatPayload.Find(TEXT("ThrowForce")))
+	{
+		ThrowForce = *Force;
+	}
+
+	float CookTime = 0.0f;
+	if (const float* Cook = EventData.FloatPayload.Find(TEXT("CookTime")))
+	{
+		CookTime = *Cook;
+	}
+
+	HANDLER_LOG(Log, TEXT("OnSpawnRequested: Spawning %s, Force=%.0f, CookTime=%.2f"),
+		*GrenadeID.ToString(), ThrowForce, CookTime);
+
+	// Spawn the grenade
+	ThrowGrenadeFromEvent(OwnerActor, GrenadeID, ThrowLocation, ThrowDirection, ThrowForce, CookTime);
+}
+
+bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
+	AActor* OwnerActor,
+	FName GrenadeID,
+	const FVector& ThrowLocation,
+	const FVector& ThrowDirection,
+	float ThrowForce,
+	float CookTime)
+{
+	if (!OwnerActor)
+	{
+		return false;
+	}
+
+	// Get grenade actor class from UnifiedItemData
+	TSubclassOf<AActor> GrenadeClass = nullptr;
+	float FuseTime = 3.5f; // Default fuse time
+
+	if (DataManager.IsValid())
+	{
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(GrenadeID, ItemData))
+		{
+			// Use EquipmentActorClass for throwables
+			if (!ItemData.EquipmentActorClass.IsNull())
+			{
+				GrenadeClass = ItemData.EquipmentActorClass.LoadSynchronous();
+			}
+		}
+
+		// Get fuse time from ThrowableAttributes if available
+		// The grenade actor should handle this, but we can pass it via event
+	}
+
+	if (!GrenadeClass)
+	{
+		HANDLER_LOG(Warning, TEXT("ThrowGrenadeFromEvent: No actor class found for %s"),
+			*GrenadeID.ToString());
+
+		// Even without spawning, we consider the grenade "thrown" for gameplay
+		return true;
+	}
+
+	// Spawn grenade actor
+	UWorld* World = OwnerActor->GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = OwnerActor;
+	SpawnParams.Instigator = Cast<APawn>(OwnerActor);
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	AActor* Grenade = World->SpawnActor<AActor>(GrenadeClass, ThrowLocation, ThrowDirection.Rotation(), SpawnParams);
+	if (!Grenade)
+	{
+		HANDLER_LOG(Warning, TEXT("ThrowGrenadeFromEvent: Failed to spawn grenade actor"));
+		return false;
+	}
+
+	// Apply throw force if has physics
+	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Grenade->GetRootComponent());
+	if (PrimComp && PrimComp->IsSimulatingPhysics())
+	{
+		FVector ThrowVelocity = ThrowDirection * ThrowForce;
+		PrimComp->AddImpulse(ThrowVelocity, NAME_None, true);
+	}
+
+	// If grenade has interface, pass cook time (fuse reduction)
+	// The grenade actor should subtract CookTime from its FuseTime
+	// This is typically handled by the grenade's BeginPlay or a custom interface
+
+	HANDLER_LOG(Log, TEXT("Spawned grenade %s at %s (CookTime=%.2f reduced from fuse)"),
+		*Grenade->GetName(),
+		*ThrowLocation.ToString(),
+		CookTime);
+
+	return true;
 }

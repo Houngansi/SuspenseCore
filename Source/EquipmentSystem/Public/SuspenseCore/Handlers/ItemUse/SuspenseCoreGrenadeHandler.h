@@ -47,6 +47,15 @@ enum class ESuspenseCoreGrenadeType : uint8
  * USuspenseCoreGrenadeHandler
  *
  * Handler for grenade prepare and throw operations.
+ * Routes through GAS GrenadeThrowAbility for animation montage support.
+ * Also listens to EventBus SpawnRequested events to spawn grenade actors.
+ *
+ * FLOW:
+ * 1. QuickSlot pressed → ItemUseService → Execute()
+ * 2. Execute() activates GrenadeThrowAbility via TryActivateAbilitiesByTag
+ * 3. GrenadeThrowAbility plays montage, handles AnimNotify phases
+ * 4. OnReleaseNotify → EventBus.Publish(SpawnRequested)
+ * 5. This handler receives SpawnRequested → ThrowGrenade() spawns actor
  *
  * SUPPORTED OPERATIONS:
  * - Hotkey: Direct grenade throw
@@ -61,6 +70,7 @@ enum class ESuspenseCoreGrenadeType : uint8
  * - Player not stunned/dead
  *
  * @see ISuspenseCoreItemUseHandler
+ * @see USuspenseCoreGrenadeThrowAbility
  */
 UCLASS(BlueprintType)
 class EQUIPMENTSYSTEM_API USuspenseCoreGrenadeHandler : public UObject, public ISuspenseCoreItemUseHandler
@@ -82,6 +92,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ItemUse|Handler")
 	void Initialize(USuspenseCoreDataManager* InDataManager, USuspenseCoreEventBus* InEventBus);
+
+	/**
+	 * Shutdown handler and unsubscribe from EventBus
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ItemUse|Handler")
+	void Shutdown();
 
 	//==================================================================
 	// ISuspenseCoreItemUseHandler - Identity
@@ -167,6 +183,28 @@ protected:
 
 private:
 	//==================================================================
+	// EventBus Callbacks
+	//==================================================================
+
+	/**
+	 * Called when GrenadeThrowAbility requests grenade spawn via EventBus
+	 * Extracts spawn parameters from event data and calls ThrowGrenadeFromEvent()
+	 */
+	void OnSpawnRequested(const FSuspenseCoreEventData& EventData);
+
+	/**
+	 * Spawn grenade from EventBus SpawnRequested event
+	 * Uses parameters from GrenadeThrowAbility (location, direction, force, cook time)
+	 */
+	bool ThrowGrenadeFromEvent(
+		AActor* OwnerActor,
+		FName GrenadeID,
+		const FVector& ThrowLocation,
+		const FVector& ThrowDirection,
+		float ThrowForce,
+		float CookTime);
+
+	//==================================================================
 	// Dependencies
 	//==================================================================
 
@@ -175,6 +213,13 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+
+	//==================================================================
+	// EventBus Subscription
+	//==================================================================
+
+	/** Handle for SpawnRequested event subscription */
+	FSuspenseCoreEventHandle SpawnRequestedHandle;
 
 	//==================================================================
 	// Configuration

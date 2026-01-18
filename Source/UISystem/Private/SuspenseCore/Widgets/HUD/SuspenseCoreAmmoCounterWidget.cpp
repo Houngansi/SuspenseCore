@@ -29,6 +29,8 @@
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Styling/SlateBrush.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/Pawn.h"
 #include "Engine/Texture2D.h"
@@ -99,6 +101,10 @@ USuspenseCoreAmmoCounterWidget::USuspenseCoreAmmoCounterWidget(const FObjectInit
 void USuspenseCoreAmmoCounterWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// Create dynamic material instance for fill bar (if using material-based progress)
+	CreateMaterialInstanceForFillBar();
+
 	// НЕ подписываемся на события здесь!
 	// Подписки создаются только в InitializeWithWeapon когда реально есть оружие
 }
@@ -901,7 +907,15 @@ void USuspenseCoreAmmoCounterWidget::UpdateFillBar(float DeltaTime)
 			FillBarInterpSpeed
 		);
 
-		MagazineFillBar->SetPercent(DisplayedFillPercent);
+		// Use material parameter if available, otherwise fallback to standard SetPercent
+		if (bUseMaterialProgress && MagazineFillMaterial)
+		{
+			MagazineFillMaterial->SetScalarParameterValue(MaterialProgressParameterName, DisplayedFillPercent);
+		}
+		else
+		{
+			MagazineFillBar->SetPercent(DisplayedFillPercent);
+		}
 	}
 }
 
@@ -913,5 +927,44 @@ void USuspenseCoreAmmoCounterWidget::CheckAmmoWarnings()
 	if (bNewLowAmmo != bIsLowAmmo || bNewCritical != bIsCriticalAmmo)
 	{
 		SetLowAmmoWarning_Implementation(bNewLowAmmo, bNewCritical);
+	}
+}
+
+void USuspenseCoreAmmoCounterWidget::CreateMaterialInstanceForFillBar()
+{
+	if (!bUseMaterialProgress || !MagazineFillBar)
+	{
+		return;
+	}
+
+	// Get the fill image style from the progress bar
+	const FProgressBarStyle& Style = MagazineFillBar->GetWidgetStyle();
+	const FSlateBrush& FillBrush = Style.FillImage;
+
+	// Check if brush has a material resource
+	UObject* ResourceObject = FillBrush.GetResourceObject();
+	if (!ResourceObject)
+	{
+		return;
+	}
+
+	// Try to get material interface from the brush
+	UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(ResourceObject);
+	if (!MaterialInterface)
+	{
+		return;
+	}
+
+	// Create dynamic material instance
+	MagazineFillMaterial = UMaterialInstanceDynamic::Create(MaterialInterface, this);
+	if (MagazineFillMaterial)
+	{
+		// Apply the dynamic material back to the progress bar
+		FProgressBarStyle NewStyle = Style;
+		NewStyle.FillImage.SetResourceObject(MagazineFillMaterial);
+		MagazineFillBar->SetWidgetStyle(NewStyle);
+
+		// Initialize to full
+		MagazineFillMaterial->SetScalarParameterValue(MaterialProgressParameterName, 1.0f);
 	}
 }

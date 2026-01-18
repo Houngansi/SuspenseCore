@@ -16,6 +16,7 @@ class UTextBlock;
 class UImage;
 class UProgressBar;
 class USuspenseCoreEventBus;
+class UMaterialInstanceDynamic;
 
 /**
  * USuspenseCoreAmmoCounterWidget
@@ -220,6 +221,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config", meta = (EditCondition = "bSmoothFillBar"))
 	float FillBarInterpSpeed = 15.0f;
 
+	/** Use material parameter for fill bar instead of SetPercent() - same as vital widgets */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
+	bool bUseMaterialProgress = true;
+
+	/** Material parameter name for fill value (0-1) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config", meta = (EditCondition = "bUseMaterialProgress"))
+	FName MaterialProgressParameterName = FName("FillAmount");
+
 	/** No magazine text */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
 	FText NoMagazineText = NSLOCTEXT("AmmoCounter", "NoMag", "---");
@@ -273,6 +282,9 @@ private:
 	void CheckAmmoWarnings();
 	void ResetToEmptyState();
 
+	/** Create dynamic material instance from fill bar brush */
+	void CreateMaterialInstanceForFillBar();
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// STATE
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -295,6 +307,10 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<AActor> CachedWeaponActor;
+
+	/** Dynamic material instance for magazine fill bar (when using material-based progress) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> MagazineFillMaterial;
 
 	float DisplayedFillPercent = 1.0f;
 	float TargetFillPercent = 1.0f;

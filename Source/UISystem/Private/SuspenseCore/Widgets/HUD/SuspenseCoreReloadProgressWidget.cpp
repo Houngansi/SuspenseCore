@@ -38,7 +38,22 @@ void USuspenseCoreReloadProgressWidget::NativeTick(const FGeometry& MyGeometry, 
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (bIsReloading && bSmoothProgress)
+	if (!bIsReloading)
+	{
+		return;
+	}
+
+	// Update elapsed time and calculate target progress
+	ElapsedReloadTime += InDeltaTime;
+
+	if (TotalReloadDuration > 0.0f)
+	{
+		// Calculate target progress based on elapsed time (0.0 to 1.0)
+		TargetProgress = FMath::Clamp(ElapsedReloadTime / TotalReloadDuration, 0.0f, 1.0f);
+	}
+
+	// Smooth interpolation of displayed progress
+	if (bSmoothProgress)
 	{
 		if (FMath::Abs(DisplayedProgress - TargetProgress) > KINDA_SMALL_NUMBER)
 		{
@@ -48,17 +63,16 @@ void USuspenseCoreReloadProgressWidget::NativeTick(const FGeometry& MyGeometry, 
 				InDeltaTime,
 				ProgressInterpSpeed
 			);
-
-			UpdateProgressUI();
-		}
-
-		// Update time remaining (decrements over time)
-		if (CachedRemainingTime > 0.0f)
-		{
-			CachedRemainingTime = FMath::Max(0.0f, CachedRemainingTime - InDeltaTime);
-			UpdateTimeRemainingUI();
 		}
 	}
+	else
+	{
+		DisplayedProgress = TargetProgress;
+	}
+
+	// Update UI
+	UpdateProgressUI();
+	UpdateTimeRemainingUI();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -72,9 +86,11 @@ void USuspenseCoreReloadProgressWidget::ShowReloadProgress_Implementation(const 
 	bCanCancel = ReloadData.bCanCancel;
 	CurrentPhase = 0;
 
+	// Initialize progress tracking
+	TotalReloadDuration = ReloadData.TotalDuration;
+	ElapsedReloadTime = 0.0f;
 	TargetProgress = 0.0f;
 	DisplayedProgress = 0.0f;
-	CachedRemainingTime = ReloadData.TotalDuration;
 
 	// Update reload type text
 	if (ReloadTypeText)
@@ -86,7 +102,7 @@ void USuspenseCoreReloadProgressWidget::ShowReloadProgress_Implementation(const 
 	UpdateProgressUI();
 	UpdateTimeRemainingUI();
 
-	// Reset phase indicators
+	// Reset phase indicators to dim state
 	UpdatePhaseIndicators(0);
 
 	// Show cancel hint if applicable
@@ -105,8 +121,14 @@ void USuspenseCoreReloadProgressWidget::ShowReloadProgress_Implementation(const 
 
 void USuspenseCoreReloadProgressWidget::UpdateReloadProgress_Implementation(float Progress, float RemainingTime)
 {
+	// External progress update (optional - widget calculates its own progress)
 	TargetProgress = FMath::Clamp(Progress, 0.0f, 1.0f);
-	CachedRemainingTime = RemainingTime;
+
+	// Sync elapsed time from remaining time
+	if (TotalReloadDuration > 0.0f)
+	{
+		ElapsedReloadTime = TotalReloadDuration - RemainingTime;
+	}
 
 	if (!bSmoothProgress)
 	{
@@ -122,8 +144,9 @@ void USuspenseCoreReloadProgressWidget::HideReloadProgress_Implementation(bool b
 
 	if (bCompleted)
 	{
-		// Brief completion state before hiding
+		// Show full completion before hiding
 		DisplayedProgress = 1.0f;
+		TargetProgress = 1.0f;
 		UpdateProgressUI();
 		OnReloadCompleted();
 	}
@@ -131,10 +154,12 @@ void USuspenseCoreReloadProgressWidget::HideReloadProgress_Implementation(bool b
 	// Hide widget
 	SetVisibility(ESlateVisibility::Collapsed);
 
-	// Reset state
+	// Reset all state
 	CurrentPhase = 0;
 	TargetProgress = 0.0f;
 	DisplayedProgress = 0.0f;
+	TotalReloadDuration = 0.0f;
+	ElapsedReloadTime = 0.0f;
 }
 
 void USuspenseCoreReloadProgressWidget::OnMagazineEjected_Implementation()
@@ -213,7 +238,7 @@ void USuspenseCoreReloadProgressWidget::SetupEventSubscriptions()
 	using namespace SuspenseCoreEquipmentTags::Event;
 	using namespace SuspenseCoreEquipmentTags::Magazine;
 
-	// Reload start/end
+	// Reload start/end - main lifecycle events
 	ReloadStartHandle = EventBus->SubscribeNative(
 		TAG_Equipment_Event_Weapon_ReloadStart,
 		this,
@@ -228,29 +253,7 @@ void USuspenseCoreReloadProgressWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	// Reload types
-	ReloadTacticalHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_Reload_Tactical,
-		this,
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnReloadTacticalEvent),
-		ESuspenseCoreEventPriority::Normal
-	);
-
-	ReloadEmptyHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_Reload_Empty,
-		this,
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnReloadEmptyEvent),
-		ESuspenseCoreEventPriority::Normal
-	);
-
-	ReloadEmergencyHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_Reload_Emergency,
-		this,
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnReloadEmergencyEvent),
-		ESuspenseCoreEventPriority::Normal
-	);
-
-	// Phase events
+	// Phase events - for phase indicator updates
 	MagazineEjectedHandle = EventBus->SubscribeNative(
 		TAG_Equipment_Event_Magazine_Ejected,
 		this,
@@ -283,9 +286,6 @@ void USuspenseCoreReloadProgressWidget::TeardownEventSubscriptions()
 
 	EventBus->Unsubscribe(ReloadStartHandle);
 	EventBus->Unsubscribe(ReloadEndHandle);
-	EventBus->Unsubscribe(ReloadTacticalHandle);
-	EventBus->Unsubscribe(ReloadEmptyHandle);
-	EventBus->Unsubscribe(ReloadEmergencyHandle);
 	EventBus->Unsubscribe(MagazineEjectedHandle);
 	EventBus->Unsubscribe(MagazineInsertedHandle);
 	EventBus->Unsubscribe(ChamberHandle);
@@ -344,24 +344,6 @@ void USuspenseCoreReloadProgressWidget::OnReloadEndEvent(FGameplayTag EventTag, 
 {
 	bool bCompleted = EventData.GetBool(TEXT("Completed"), true);
 	HideReloadProgress_Implementation(bCompleted);
-}
-
-void USuspenseCoreReloadProgressWidget::OnReloadTacticalEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
-{
-	CachedReloadData.ReloadType = ESuspenseCoreReloadType::Tactical;
-	SetReloadTypeDisplay_Implementation(ESuspenseCoreReloadType::Tactical, FText::GetEmpty());
-}
-
-void USuspenseCoreReloadProgressWidget::OnReloadEmptyEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
-{
-	CachedReloadData.ReloadType = ESuspenseCoreReloadType::Empty;
-	SetReloadTypeDisplay_Implementation(ESuspenseCoreReloadType::Empty, FText::GetEmpty());
-}
-
-void USuspenseCoreReloadProgressWidget::OnReloadEmergencyEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
-{
-	CachedReloadData.ReloadType = ESuspenseCoreReloadType::Emergency;
-	SetReloadTypeDisplay_Implementation(ESuspenseCoreReloadType::Emergency, FText::GetEmpty());
 }
 
 void USuspenseCoreReloadProgressWidget::OnMagazineEjectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -446,9 +428,17 @@ void USuspenseCoreReloadProgressWidget::UpdateTimeRemainingUI()
 		return;
 	}
 
+	// Calculate remaining time from elapsed and total
+	const float RemainingTime = FMath::Max(0.0f, TotalReloadDuration - ElapsedReloadTime);
+
+	// Format with one decimal place (e.g., "1.5s")
+	FNumberFormattingOptions NumberFormat;
+	NumberFormat.SetMaximumFractionalDigits(1);
+	NumberFormat.SetMinimumFractionalDigits(1);
+
 	FText TimeText = FText::Format(
 		NSLOCTEXT("Reload", "TimeRemaining", "{0}s"),
-		FText::AsNumber(FMath::CeilToInt(CachedRemainingTime * 10.0f) / 10.0f)
+		FText::AsNumber(RemainingTime, &NumberFormat)
 	);
 
 	TimeRemainingText->SetText(TimeText);

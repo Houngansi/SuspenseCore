@@ -12,6 +12,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Styling/SlateBrush.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogReloadProgressWidget, Log, All);
+
 USuspenseCoreReloadProgressWidget::USuspenseCoreReloadProgressWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -354,6 +356,7 @@ void USuspenseCoreReloadProgressWidget::OnReloadEndEvent(FGameplayTag EventTag, 
 
 void USuspenseCoreReloadProgressWidget::OnMagazineEjectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	UE_LOG(LogReloadProgressWidget, Log, TEXT("OnMagazineEjectedEvent received! bIsReloading=%s"), bIsReloading ? TEXT("true") : TEXT("false"));
 	if (bIsReloading)
 	{
 		OnMagazineEjected_Implementation();
@@ -362,6 +365,7 @@ void USuspenseCoreReloadProgressWidget::OnMagazineEjectedEvent(FGameplayTag Even
 
 void USuspenseCoreReloadProgressWidget::OnMagazineInsertedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	UE_LOG(LogReloadProgressWidget, Log, TEXT("OnMagazineInsertedEvent received! bIsReloading=%s"), bIsReloading ? TEXT("true") : TEXT("false"));
 	if (bIsReloading)
 	{
 		OnMagazineInserted_Implementation();
@@ -370,6 +374,7 @@ void USuspenseCoreReloadProgressWidget::OnMagazineInsertedEvent(FGameplayTag Eve
 
 void USuspenseCoreReloadProgressWidget::OnChamberEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	UE_LOG(LogReloadProgressWidget, Log, TEXT("OnChamberEvent received! bIsReloading=%s"), bIsReloading ? TEXT("true") : TEXT("false"));
 	if (bIsReloading)
 	{
 		OnChambering_Implementation();
@@ -400,6 +405,13 @@ void USuspenseCoreReloadProgressWidget::UpdateProgressUI()
 
 void USuspenseCoreReloadProgressWidget::UpdatePhaseIndicators(int32 NewPhase)
 {
+	UE_LOG(LogReloadProgressWidget, Log, TEXT("UpdatePhaseIndicators: Phase=%d, bShowPhaseIndicators=%s, EjectIndicator=%s, InsertIndicator=%s, ChamberIndicator=%s"),
+		NewPhase,
+		bShowPhaseIndicators ? TEXT("true") : TEXT("false"),
+		EjectPhaseIndicator ? TEXT("valid") : TEXT("NULL"),
+		InsertPhaseIndicator ? TEXT("valid") : TEXT("NULL"),
+		ChamberPhaseIndicator ? TEXT("valid") : TEXT("NULL"));
+
 	if (!bShowPhaseIndicators)
 	{
 		return;
@@ -408,8 +420,9 @@ void USuspenseCoreReloadProgressWidget::UpdatePhaseIndicators(int32 NewPhase)
 	// Phase 1: Eject
 	if (EjectPhaseIndicator)
 	{
-		// Opacity handled by Blueprint - we just set visibility
-		EjectPhaseIndicator->SetRenderOpacity(NewPhase >= 1 ? 1.0f : 0.3f);
+		float NewOpacity = NewPhase >= 1 ? 1.0f : 0.3f;
+		EjectPhaseIndicator->SetRenderOpacity(NewOpacity);
+		UE_LOG(LogReloadProgressWidget, Verbose, TEXT("  EjectPhaseIndicator opacity set to %.2f"), NewOpacity);
 	}
 	if (EjectPhaseText)
 	{
@@ -419,7 +432,9 @@ void USuspenseCoreReloadProgressWidget::UpdatePhaseIndicators(int32 NewPhase)
 	// Phase 2: Insert
 	if (InsertPhaseIndicator)
 	{
-		InsertPhaseIndicator->SetRenderOpacity(NewPhase >= 2 ? 1.0f : 0.3f);
+		float NewOpacity = NewPhase >= 2 ? 1.0f : 0.3f;
+		InsertPhaseIndicator->SetRenderOpacity(NewOpacity);
+		UE_LOG(LogReloadProgressWidget, Verbose, TEXT("  InsertPhaseIndicator opacity set to %.2f"), NewOpacity);
 	}
 	if (InsertPhaseText)
 	{
@@ -429,7 +444,9 @@ void USuspenseCoreReloadProgressWidget::UpdatePhaseIndicators(int32 NewPhase)
 	// Phase 3: Chamber
 	if (ChamberPhaseIndicator)
 	{
-		ChamberPhaseIndicator->SetRenderOpacity(NewPhase >= 3 ? 1.0f : 0.3f);
+		float NewOpacity = NewPhase >= 3 ? 1.0f : 0.3f;
+		ChamberPhaseIndicator->SetRenderOpacity(NewOpacity);
+		UE_LOG(LogReloadProgressWidget, Verbose, TEXT("  ChamberPhaseIndicator opacity set to %.2f"), NewOpacity);
 	}
 	if (ChamberPhaseText)
 	{

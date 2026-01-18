@@ -22,7 +22,7 @@
 10. [Code Examples](#10-code-examples)
 11. [Magazine System Widgets](#11-magazine-system-widgets-tarkov-style)
 12. [HUD Widgets (Weapon System)](#12-hud-widgets-weapon-system)
-13. [Ammo Loading System (Testing Configuration)](#13-ammo-loading-system-testing-configuration)
+13. [Ammo Loading System Configuration](#13-ammo-loading-system-configuration)
 
 ---
 
@@ -1181,7 +1181,7 @@ bool bAutoHideReloadProgress = true;   // Show only during reload
 
 ---
 
-## 13. Ammo Loading System (Testing Configuration)
+## 13. Ammo Loading System Configuration
 
 ### Load Time Configuration
 
@@ -1194,26 +1194,24 @@ USTRUCT(BlueprintType)
 struct FSuspenseCoreMagazineData
 {
     // Time to load one round into magazine (seconds)
-    // TODO: Restore to 0.5f for production - currently 0 for testing instant load
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magazine|Stats",
-        meta = (ClampMin = "0.0", ClampMax = "5.0"))
-    float LoadTimePerRound = 0.0f;  // Production: 0.5f
+        meta = (ClampMin = "0.1", ClampMax = "5.0"))
+    float LoadTimePerRound = 0.5f;
 
     // Time to unload one round from magazine (seconds)
-    // TODO: Restore to 0.3f for production - currently 0 for testing instant unload
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magazine|Stats",
-        meta = (ClampMin = "0.0", ClampMax = "3.0"))
-    float UnloadTimePerRound = 0.0f;  // Production: 0.3f
+        meta = (ClampMin = "0.1", ClampMax = "3.0"))
+    float UnloadTimePerRound = 0.3f;
 };
 ```
 
-**Production Values:**
-| Parameter | Testing | Production |
-|-----------|---------|------------|
-| `LoadTimePerRound` | 0.0f | 0.5f |
-| `UnloadTimePerRound` | 0.0f | 0.3f |
+**Default Values:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `LoadTimePerRound` | 0.5f | 0.5 sec per round (30 rounds = 15 sec) |
+| `UnloadTimePerRound` | 0.3f | 0.3 sec per round (faster than loading) |
 
-Search for `TODO: Restore to` to find all testing overrides before release.
+**Note:** Instant load (`TimePerRound = 0`) requires additional service changes and is not currently supported.
 
 ---
 

@@ -492,9 +492,12 @@ bool USuspenseCoreMagazineComponent::ChamberRoundInternal()
         {
             if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
             {
+                // Request tag by string to ensure consistent resolution
+                static const FGameplayTag ChamberTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Equipment.Chamber.Chambered"));
+
                 FSuspenseCoreEventData EventData;
                 EventData.SetString(TEXT("AmmoID"), WeaponAmmoState.ChamberedRound.AmmoID.ToString());
-                EventBus->Publish(SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Chamber_Chambered, EventData);
+                EventBus->Publish(ChamberTag, EventData);
             }
         }
 

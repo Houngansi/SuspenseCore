@@ -240,6 +240,19 @@ namespace SuspenseCoreTags
 				BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Failed);
 			}
 		}
+
+		//--------------------------------------------------------------
+		// Throwable Events (Grenades, etc.)
+		//--------------------------------------------------------------
+		namespace Throwable
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PrepareStarted);  // Started prepare phase
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PinPulled);       // Pin pulled, grenade armed
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(CookingStarted);  // Started cooking (holding)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Thrown);          // Grenade thrown
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cancelled);       // Throw cancelled (pin not pulled)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpawnRequested);  // Request to spawn grenade actor
+		}
 	}
 
 	//==================================================================
@@ -261,6 +274,7 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WeaponBlocked);  // Weapon blocked by obstacle/wall
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurstActive);    // Burst fire in progress
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AutoFireActive); // Auto fire active
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ThrowingGrenade); // Grenade throw in progress
 	}
 
 	//==================================================================
@@ -316,6 +330,12 @@ namespace SuspenseCoreTags
 		namespace Cooldown
 		{
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Interact);
+		}
+
+		// Throwable abilities (grenade, consumable throw)
+		namespace Throwable
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Grenade);
 		}
 	}
 

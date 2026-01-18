@@ -8,6 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCoreReloadTimerWidget.generated.h"
 
 // Forward declarations

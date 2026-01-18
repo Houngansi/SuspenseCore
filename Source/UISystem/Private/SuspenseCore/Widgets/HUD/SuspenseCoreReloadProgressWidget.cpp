@@ -9,6 +9,8 @@
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Styling/SlateBrush.h"
 
 USuspenseCoreReloadProgressWidget::USuspenseCoreReloadProgressWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -22,6 +24,10 @@ USuspenseCoreReloadProgressWidget::USuspenseCoreReloadProgressWidget(const FObje
 void USuspenseCoreReloadProgressWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// Create dynamic material instance for progress bar (if using material-based progress)
+	CreateMaterialInstanceForProgressBar();
+
 	SetupEventSubscriptions();
 
 	// Start hidden
@@ -376,7 +382,17 @@ void USuspenseCoreReloadProgressWidget::OnChamberEvent(FGameplayTag EventTag, co
 
 void USuspenseCoreReloadProgressWidget::UpdateProgressUI()
 {
-	if (ReloadProgressBar)
+	if (!ReloadProgressBar)
+	{
+		return;
+	}
+
+	// Use material parameter if available, otherwise fallback to standard SetPercent
+	if (bUseMaterialProgress && ReloadProgressMaterial)
+	{
+		ReloadProgressMaterial->SetScalarParameterValue(MaterialProgressParameterName, DisplayedProgress);
+	}
+	else
 	{
 		ReloadProgressBar->SetPercent(DisplayedProgress);
 	}
@@ -458,5 +474,44 @@ FText USuspenseCoreReloadProgressWidget::GetReloadTypeDisplayText(ESuspenseCoreR
 		return ChamberOnlyText;
 	default:
 		return FText::GetEmpty();
+	}
+}
+
+void USuspenseCoreReloadProgressWidget::CreateMaterialInstanceForProgressBar()
+{
+	if (!bUseMaterialProgress || !ReloadProgressBar)
+	{
+		return;
+	}
+
+	// Get the fill image style from the progress bar
+	const FProgressBarStyle& Style = ReloadProgressBar->GetWidgetStyle();
+	const FSlateBrush& FillBrush = Style.FillImage;
+
+	// Check if brush has a material resource
+	UObject* ResourceObject = FillBrush.GetResourceObject();
+	if (!ResourceObject)
+	{
+		return;
+	}
+
+	// Try to get material interface from the brush
+	UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(ResourceObject);
+	if (!MaterialInterface)
+	{
+		return;
+	}
+
+	// Create dynamic material instance
+	ReloadProgressMaterial = UMaterialInstanceDynamic::Create(MaterialInterface, this);
+	if (ReloadProgressMaterial)
+	{
+		// Apply the dynamic material back to the progress bar
+		FProgressBarStyle NewStyle = Style;
+		NewStyle.FillImage.SetResourceObject(ReloadProgressMaterial);
+		ReloadProgressBar->SetWidgetStyle(NewStyle);
+
+		// Initialize to 0 progress
+		ReloadProgressMaterial->SetScalarParameterValue(MaterialProgressParameterName, 0.0f);
 	}
 }

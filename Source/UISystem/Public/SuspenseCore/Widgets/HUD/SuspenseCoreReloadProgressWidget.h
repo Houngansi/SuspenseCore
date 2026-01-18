@@ -16,6 +16,7 @@ class UTextBlock;
 class UImage;
 class UProgressBar;
 class USuspenseCoreEventBus;
+class UMaterialInstanceDynamic;
 
 /**
  * USuspenseCoreReloadProgressWidget
@@ -167,6 +168,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config", meta = (EditCondition = "bSmoothProgress"))
 	float ProgressInterpSpeed = 20.0f;
 
+	/** Use material parameter for progress bar instead of SetPercent() - same as vital widgets */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")
+	bool bUseMaterialProgress = true;
+
+	/** Material parameter name for progress value (0-1) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config", meta = (EditCondition = "bUseMaterialProgress"))
+	FName MaterialProgressParameterName = FName("Progress");
+
 	/** Show phase indicators (Eject/Insert/Chamber) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")
 	bool bShowPhaseIndicators = true;
@@ -217,6 +226,9 @@ private:
 	void UpdateTimeRemainingUI();
 	FText GetReloadTypeDisplayText(ESuspenseCoreReloadType ReloadType) const;
 
+	/** Create dynamic material instance from progress bar brush */
+	void CreateMaterialInstanceForProgressBar();
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// STATE
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -231,6 +243,10 @@ private:
 	FSuspenseCoreSubscriptionHandle ChamberHandle;
 
 	FSuspenseCoreReloadProgressData CachedReloadData;
+
+	/** Dynamic material instance for progress bar (when using material-based progress) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> ReloadProgressMaterial;
 
 	/** Current displayed progress (interpolated) */
 	float DisplayedProgress = 0.0f;

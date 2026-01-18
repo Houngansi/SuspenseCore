@@ -20,6 +20,9 @@
 8. [Equipment Widget Requirements](#8-equipment-widget-requirements)
 9. [Task List & Issues](#9-task-list--issues)
 10. [Code Examples](#10-code-examples)
+11. [Magazine System Widgets](#11-magazine-system-widgets-tarkov-style)
+12. [HUD Widgets (Weapon System)](#12-hud-widgets-weapon-system)
+13. [Ammo Loading System (Testing Configuration)](#13-ammo-loading-system-testing-configuration)
 
 ---
 
@@ -939,5 +942,281 @@ USuspenseCoreDragDropHandler* DragHandler = USuspenseCoreDragDropHandler::Get(Wo
 
 ---
 
+## 12. HUD Widgets (Weapon System)
+
+### Widget Overview
+
+```
+Source/UISystem/
+└── Widgets/HUD/
+    ├── SuspenseCoreAmmoCounterWidget        # Ammo display + fire mode
+    ├── SuspenseCoreReloadProgressWidget     # Reload progress + phase indicators
+    └── SuspenseCoreMasterHUDWidget          # Main HUD coordinator
+```
+
+### AmmoCounterWidget (USuspenseCoreAmmoCounterWidget)
+
+Tarkov-style ammo counter displaying magazine state, fire mode, and reserve ammo.
+
+**Key Features:**
+- Magazine rounds with fill bar (material-based progress)
+- Chamber indicator (+1)
+- Fire mode display (Auto/Semi/Burst)
+- Reserve ammo count
+
+#### CRITICAL: Dual EventBus Subscription Pattern
+
+The widget must subscribe to **BOTH** EquipmentSystem and BridgeSystem tags for the same event type. This is required because:
+
+1. **GAS abilities** (like `SwitchFireModeAbility`) publish on BridgeSystem tags
+2. **EquipmentSystem components** publish on EquipmentSystem tags
+3. **GAS cannot depend on EquipmentSystem** (DI principle)
+
+```cpp
+// SetupEventSubscriptions() - CORRECT pattern
+void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
+{
+    // ═══════════════════════════════════════════════════════════════
+    // WEAPON AMMO EVENTS - Dual subscription required!
+    // ═══════════════════════════════════════════════════════════════
+
+    // 1. EquipmentSystem tag (from MagazineComponent, EquipmentComponent)
+    WeaponAmmoChangedHandle = EventBus->SubscribeNative(
+        TAG_Equipment_Event_Weapon_AmmoChanged,
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &ThisClass::OnWeaponAmmoChangedEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+
+    // 2. BridgeSystem tag (from GAS fire abilities - ConsumeAmmo())
+    WeaponAmmoChangedGASHandle = EventBus->SubscribeNative(
+        SuspenseCoreTags::Event::Weapon::AmmoChanged,
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &ThisClass::OnWeaponAmmoChangedEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // FIRE MODE EVENTS - Dual subscription required!
+    // ═══════════════════════════════════════════════════════════════
+
+    // 1. EquipmentSystem tag
+    FireModeChangedHandle = EventBus->SubscribeNative(
+        TAG_Equipment_Event_Weapon_FireModeChanged,
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &ThisClass::OnFireModeChangedEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+
+    // 2. BridgeSystem tag (from GAS SwitchFireModeAbility)
+    FireModeChangedGASHandle = EventBus->SubscribeNative(
+        SuspenseCoreTags::Event::Weapon::FireModeChanged,
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &ThisClass::OnFireModeChangedEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+}
+```
+
+**Tag Mapping Reference:**
+
+| Event | EquipmentSystem Tag | BridgeSystem Tag |
+|-------|---------------------|------------------|
+| Ammo Changed | `SuspenseCore.Event.Equipment.Weapon.AmmoChanged` | `SuspenseCore.Event.Weapon.AmmoChanged` |
+| Fire Mode Changed | `SuspenseCore.Event.Equipment.Weapon.FireModeChanged` | `SuspenseCore.Event.Weapon.FireModeChanged` |
+| Reload Started | `SuspenseCore.Event.Equipment.Weapon.ReloadStart` | `SuspenseCore.Event.Weapon.ReloadStarted` |
+
+#### Initial State Reading Pattern
+
+When initializing with a weapon, read current state directly from components - don't wait for events:
+
+```cpp
+void USuspenseCoreAmmoCounterWidget::InitializeWithWeapon_Implementation(AActor* WeaponActor)
+{
+    // 1. Read ammo state from MagazineComponent
+    if (USuspenseCoreMagazineComponent* MagComp = WeaponActor->FindComponentByClass<USuspenseCoreMagazineComponent>())
+    {
+        const FSuspenseCoreWeaponAmmoState& AmmoState = MagComp->GetWeaponAmmoState();
+        CachedAmmoData.MagazineRounds = AmmoState.InsertedMagazine.CurrentRoundCount;
+        CachedAmmoData.MagazineCapacity = AmmoState.InsertedMagazine.MaxCapacity;
+        CachedAmmoData.bHasChamberedRound = AmmoState.ChamberedRound.IsChambered();
+    }
+
+    // 2. Read fire mode from weapon interface
+    if (WeaponActor->Implements<USuspenseCoreWeapon>())
+    {
+        FGameplayTag CurrentFireMode = ISuspenseCoreWeapon::Execute_GetCurrentFireMode(WeaponActor);
+        if (CurrentFireMode.IsValid())
+        {
+            CachedAmmoData.FireModeTag = CurrentFireMode;
+            // Extract display name from tag (last segment after '.')
+            CachedAmmoData.FireModeText = ExtractDisplayNameFromTag(CurrentFireMode);
+        }
+    }
+
+    // 3. Now setup event subscriptions for future updates
+    SetupEventSubscriptions();
+    RefreshDisplay();
+}
+```
+
+#### EventData Field Names
+
+When handling fire mode events, use correct field names from broadcasters:
+
+| Field | Source | Used By |
+|-------|--------|---------|
+| `FireModeTag` | All broadcasters | Tag string like "Weapon.FireMode.Auto" |
+| `FireModeName` | SwitchFireModeAbility | Display name like "Auto" |
+| `CurrentSpread` | FireModeProvider | Spread value (float) |
+
+```cpp
+// ❌ WRONG - "FireMode" field doesn't exist
+FString FireModeStr = EventData.GetString(TEXT("FireMode"));
+
+// ✅ CORRECT - Use actual field names
+FString FireModeTagStr = EventData.GetString(TEXT("FireModeTag"));
+FString FireModeDisplayName = EventData.GetString(TEXT("FireModeName"));
+```
+
+### ReloadProgressWidget (USuspenseCoreReloadProgressWidget)
+
+Reload progress bar with three-phase indicators (Eject/Insert/Chamber).
+
+**BindWidget Requirements:**
+- `ProgressBar` - Main reload progress (material-based)
+- `EjectPhaseIndicator` - Phase 1 indicator
+- `InsertPhaseIndicator` - Phase 2 indicator
+- `ChamberPhaseIndicator` - Phase 3 indicator
+
+#### AnimNotify Integration for Phase Indicators
+
+Phase indicators are driven by montage AnimNotify events, not timers. This ensures visual sync with animation.
+
+**Ability Side (SuspenseCoreReloadAbility):**
+
+```cpp
+void USuspenseCoreReloadAbility::PlayReloadMontage()
+{
+    UAnimInstance* AnimInstance = GetAnimInstance();
+    if (!AnimInstance) return;
+
+    // Cache for cleanup
+    CachedAnimInstance = AnimInstance;
+
+    // Bind to montage AnimNotify events
+    AnimInstance->OnPlayMontageNotifyBegin.AddDynamic(
+        this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
+
+    // Play montage
+    AnimInstance->Montage_Play(ReloadMontage);
+}
+
+void USuspenseCoreReloadAbility::OnAnimNotifyBegin(
+    FName NotifyName,
+    const FBranchingPointNotifyPayload& BranchingPointPayload)
+{
+    // Phase 1: Magazine Eject
+    if (NotifyName == FName("Continue") || NotifyName == FName("MagOut"))
+    {
+        OnMagOutNotify();  // Broadcasts TAG_Equipment_Event_Reload_Phase1
+    }
+    // Phase 2: Magazine Insert
+    else if (NotifyName == FName("ClipIn") || NotifyName == FName("MagIn"))
+    {
+        OnMagInNotify();   // Broadcasts TAG_Equipment_Event_Reload_Phase2
+    }
+    // Phase 3: Chamber
+    else if (NotifyName == FName("Finalize") || NotifyName == FName("RackEnd"))
+    {
+        OnRackEndNotify(); // Broadcasts TAG_Equipment_Event_Reload_Phase3
+    }
+}
+
+void USuspenseCoreReloadAbility::StopReloadMontage()
+{
+    // CRITICAL: Unbind to prevent dangling delegate
+    if (CachedAnimInstance.IsValid())
+    {
+        CachedAnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(
+            this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
+    }
+    CachedAnimInstance.Reset();
+}
+```
+
+**CRITICAL: Dynamic Delegate Pattern**
+
+`OnPlayMontageNotifyBegin` is a `DECLARE_DYNAMIC_MULTICAST_DELEGATE` - use `AddDynamic`/`RemoveDynamic`:
+
+```cpp
+// ❌ WRONG - Compile error C2039
+AnimInstance->OnPlayMontageNotifyBegin.AddUObject(this, &ThisClass::Handler);
+
+// ✅ CORRECT - Dynamic delegates use AddDynamic
+AnimInstance->OnPlayMontageNotifyBegin.AddDynamic(this, &ThisClass::OnAnimNotifyBegin);
+```
+
+**AnimNotify → Phase Mapping:**
+
+| AnimNotify Name | Phase | Description |
+|-----------------|-------|-------------|
+| `Continue`, `MagOut`, `Eject` | Phase 1 | Magazine ejected |
+| `ClipIn`, `MagIn`, `Insert` | Phase 2 | New magazine inserted |
+| `Finalize`, `RackEnd`, `Chamber` | Phase 3 | Round chambered |
+
+### Removed Widget: ReloadTimerWidget
+
+`SuspenseCoreReloadTimerWidget` was removed as it duplicated `ReloadProgressWidget` functionality without phase indicators. All references cleaned from `MasterHUDWidget`.
+
+### MasterHUDWidget Configuration
+
+`SuspenseCoreMasterHUDWidget` coordinates all HUD elements with auto-hide config:
+
+```cpp
+// Config flags (EditDefaultsOnly)
+bool bAutoHideAmmoCounter = true;      // Show only when weapon equipped
+bool bAutoHideReloadProgress = true;   // Show only during reload
+```
+
+---
+
+## 13. Ammo Loading System (Testing Configuration)
+
+### Load Time Configuration
+
+Magazine load/unload times are configured in `FSuspenseCoreMagazineData`:
+
+**File:** `Source/BridgeSystem/Public/SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h`
+
+```cpp
+USTRUCT(BlueprintType)
+struct FSuspenseCoreMagazineData
+{
+    // Time to load one round into magazine (seconds)
+    // TODO: Restore to 0.5f for production - currently 0 for testing instant load
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magazine|Stats",
+        meta = (ClampMin = "0.0", ClampMax = "5.0"))
+    float LoadTimePerRound = 0.0f;  // Production: 0.5f
+
+    // Time to unload one round from magazine (seconds)
+    // TODO: Restore to 0.3f for production - currently 0 for testing instant unload
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magazine|Stats",
+        meta = (ClampMin = "0.0", ClampMax = "3.0"))
+    float UnloadTimePerRound = 0.0f;  // Production: 0.3f
+};
+```
+
+**Production Values:**
+| Parameter | Testing | Production |
+|-----------|---------|------------|
+| `LoadTimePerRound` | 0.0f | 0.5f |
+| `UnloadTimePerRound` | 0.0f | 0.3f |
+
+Search for `TODO: Restore to` to find all testing overrides before release.
+
+---
+
 **Document maintained by:** SuspenseCore Development Team
 **Architecture:** EventBus + DI + GameplayTags + GAS
+**Last Updated:** January 2026

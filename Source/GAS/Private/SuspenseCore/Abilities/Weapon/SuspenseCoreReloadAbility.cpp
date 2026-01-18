@@ -182,6 +182,11 @@ void USuspenseCoreReloadAbility::ActivateAbility(
     // Apply effects
     ApplyReloadEffects(ActorInfo);
 
+    // CRITICAL: Broadcast reload started BEFORE playing montage!
+    // This ensures UI widgets have bIsReloading=true before any AnimNotifies fire
+    // (prevents race condition where phase events arrive before ReloadStart event)
+    BroadcastReloadStarted();
+
     // Play montage
     if (!PlayReloadMontage())
     {
@@ -191,9 +196,6 @@ void USuspenseCoreReloadAbility::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-
-    // Broadcast reload started
-    BroadcastReloadStarted();
 
     RELOAD_LOG(Log, TEXT("Reload started: Type=%d, Duration=%.2f"),
         static_cast<int32>(CurrentReloadType), ReloadDuration);
@@ -621,6 +623,30 @@ void USuspenseCoreReloadAbility::OnRackEndNotify()
     ISuspenseCoreMagazineProvider::Execute_ChamberRound(Cast<UObject>(MagProvider));
 }
 
+void USuspenseCoreReloadAbility::OnAnimNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload)
+{
+    // Dispatch to correct handler based on notify name
+    // Montage AnimNotifies should be named: "MagOut", "MagIn", "RackStart", "RackEnd"
+
+    if (NotifyName == FName("MagOut"))
+    {
+        OnMagOutNotify();
+    }
+    else if (NotifyName == FName("MagIn"))
+    {
+        OnMagInNotify();
+    }
+    else if (NotifyName == FName("RackStart"))
+    {
+        OnRackStartNotify();
+    }
+    else if (NotifyName == FName("RackEnd"))
+    {
+        OnRackEndNotify();
+    }
+    // Note: Unknown notifies are silently ignored - they may be used for other purposes
+}
+
 void USuspenseCoreReloadAbility::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     if (bInterrupted)
@@ -1021,11 +1047,25 @@ bool USuspenseCoreReloadAbility::PlayReloadMontage()
     BlendOutDelegate.BindUObject(this, &USuspenseCoreReloadAbility::OnMontageBlendOut);
     AnimInstance->Montage_SetBlendingOutDelegate(BlendOutDelegate, Montage);
 
+    // Bind to AnimNotify callbacks for phase events (MagOut, MagIn, RackStart, RackEnd)
+    // These notifies must exist in the reload montage with matching names
+    CachedAnimInstance = AnimInstance;
+    NotifyBeginDelegateHandle = AnimInstance->OnPlayMontageNotifyBegin.AddUObject(
+        this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
+
     return true;
 }
 
 void USuspenseCoreReloadAbility::StopReloadMontage()
 {
+    // Unbind AnimNotify callback first
+    if (CachedAnimInstance.IsValid() && NotifyBeginDelegateHandle.IsValid())
+    {
+        CachedAnimInstance->OnPlayMontageNotifyBegin.Remove(NotifyBeginDelegateHandle);
+        NotifyBeginDelegateHandle.Reset();
+    }
+    CachedAnimInstance.Reset();
+
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character)
     {

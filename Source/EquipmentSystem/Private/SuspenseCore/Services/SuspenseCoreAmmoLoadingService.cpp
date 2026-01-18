@@ -293,8 +293,7 @@ bool USuspenseCoreAmmoLoadingService::StartLoading(const FSuspenseCoreAmmoLoadRe
     {
         // Try to find magazine by instance ID in managed magazines
         // For now, use a default time per round
-        // TODO: Restore to 0.5f for production - currently 0 for testing instant load
-        MagData.LoadTimePerRound = 0.0f;
+        MagData.LoadTimePerRound = 0.5f;
     }
 
     // Validate ammo compatibility

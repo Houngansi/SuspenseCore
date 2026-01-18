@@ -62,16 +62,14 @@ struct BRIDGESYSTEM_API FSuspenseCoreMagazineData : public FTableRowBase
     //==================================================================
 
     /** Time to load one round into magazine (seconds) */
-    // TODO: Restore to 0.5f for production - currently 0 for testing instant load
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magazine|Stats",
-        meta = (ClampMin = "0.0", ClampMax = "5.0"))
-    float LoadTimePerRound = 0.0f;
+        meta = (ClampMin = "0.1", ClampMax = "5.0"))
+    float LoadTimePerRound = 0.5f;
 
     /** Time to unload one round from magazine (seconds) */
-    // TODO: Restore to 0.3f for production - currently 0 for testing instant unload
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magazine|Stats",
-        meta = (ClampMin = "0.0", ClampMax = "3.0"))
-    float UnloadTimePerRound = 0.0f;
+        meta = (ClampMin = "0.1", ClampMax = "3.0"))
+    float UnloadTimePerRound = 0.3f;
 
     /** Multiplier on weapon's base reload time */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magazine|Stats",

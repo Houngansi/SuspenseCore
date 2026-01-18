@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Abilities/Weapon/SuspenseCoreReloadAbility.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
@@ -1057,8 +1058,46 @@ void USuspenseCoreReloadAbility::BroadcastReloadStarted()
             Cast<UObject>(MagProvider), true, CurrentReloadType, ReloadDuration);
     }
 
-    // EventBus broadcast (using native tags)
-    PublishSimpleEvent(SuspenseCoreTags::Event::Weapon::ReloadStarted);
+    // EventBus broadcast with full data for UI
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
+    {
+        using namespace SuspenseCoreEquipmentTags::Event;
+
+        // Emergency reload cannot be cancelled (magazine is dropped)
+        const bool bCanCancelThisReload = (CurrentReloadType != ESuspenseCoreReloadType::Emergency);
+
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
+        EventData.SetFloat(TEXT("Duration"), ReloadDuration);
+        EventData.SetBool(TEXT("CanCancel"), bCanCancelThisReload);
+
+        // Set reload type as string for widget parsing
+        FString ReloadTypeStr;
+        switch (CurrentReloadType)
+        {
+        case ESuspenseCoreReloadType::Tactical:
+            ReloadTypeStr = TEXT("Tactical");
+            break;
+        case ESuspenseCoreReloadType::Empty:
+            ReloadTypeStr = TEXT("Empty");
+            break;
+        case ESuspenseCoreReloadType::Emergency:
+            ReloadTypeStr = TEXT("Emergency");
+            break;
+        case ESuspenseCoreReloadType::ChamberOnly:
+            ReloadTypeStr = TEXT("ChamberOnly");
+            break;
+        default:
+            ReloadTypeStr = TEXT("None");
+            break;
+        }
+        EventData.SetString(TEXT("ReloadType"), ReloadTypeStr);
+
+        // Publish to correct tag that UI widget subscribes to
+        EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadStart, EventData);
+
+        // Also publish legacy tag for backward compatibility
+        PublishSimpleEvent(SuspenseCoreTags::Event::Weapon::ReloadStarted);
+    }
 }
 
 void USuspenseCoreReloadAbility::BroadcastReloadCompleted()
@@ -1076,10 +1115,16 @@ void USuspenseCoreReloadAbility::BroadcastReloadCompleted()
     // Publish EventBus events for UI and other systems
     if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        // Broadcast reload completed event
+        using namespace SuspenseCoreEquipmentTags::Event;
+
+        // Broadcast reload end event for UI widget (completed = true)
         FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
+        EventData.SetBool(TEXT("Completed"), true);
         EventData.SetInt(TEXT("ReloadType"), static_cast<int32>(CurrentReloadType));
         EventData.SetFloat(TEXT("Duration"), ReloadDuration);
+        EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadEnd, EventData);
+
+        // Also publish legacy tag for backward compatibility
         EventBus->Publish(SuspenseCoreTags::Event::Weapon::ReloadCompleted, EventData);
 
         // Broadcast spread reset after reload (weapon is now stable)
@@ -1098,6 +1143,16 @@ void USuspenseCoreReloadAbility::BroadcastReloadCancelled()
     {
         ISuspenseCoreMagazineProvider::Execute_NotifyReloadStateChanged(
             Cast<UObject>(MagProvider), false, ESuspenseCoreReloadType::None, 0.0f);
+    }
+
+    // Publish EventBus event for UI widget to hide (completed = false)
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
+    {
+        using namespace SuspenseCoreEquipmentTags::Event;
+
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
+        EventData.SetBool(TEXT("Completed"), false);
+        EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadEnd, EventData);
     }
 }
 

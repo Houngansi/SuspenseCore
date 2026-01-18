@@ -487,6 +487,17 @@ bool USuspenseCoreMagazineComponent::ChamberRoundInternal()
             OnChamberStateChanged.Broadcast(true);
         }
 
+        // Publish EventBus event for UI widgets (reload phase indicator)
+        if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
+        {
+            if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+            {
+                FSuspenseCoreEventData EventData;
+                EventData.SetString(TEXT("AmmoID"), WeaponAmmoState.ChamberedRound.AmmoID.ToString());
+                EventBus->Publish(SuspenseCoreEquipmentTags::Chamber::TAG_Equipment_Event_Chamber_Chambered, EventData);
+            }
+        }
+
         UE_LOG(LogMagazineComponent, Verbose, TEXT("Chambered round: %s"),
             *WeaponAmmoState.ChamberedRound.AmmoID.ToString());
 

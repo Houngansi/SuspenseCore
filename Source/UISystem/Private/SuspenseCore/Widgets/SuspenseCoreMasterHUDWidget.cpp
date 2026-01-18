@@ -8,7 +8,6 @@
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreCrosshairWidget.h"
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreQuickSlotHUDWidget.h"
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreReloadProgressWidget.h"
-#include "SuspenseCore/Widgets/HUD/SuspenseCoreReloadTimerWidget.h"
 #include "Components/CanvasPanel.h"
 #include "Widgets/SWidget.h"
 
@@ -153,14 +152,6 @@ void USuspenseCoreMasterHUDWidget::SetReloadProgressVisible(bool bVisible)
 	}
 }
 
-void USuspenseCoreMasterHUDWidget::SetReloadTimerVisible(bool bVisible)
-{
-	if (ReloadTimerWidget)
-	{
-		ReloadTimerWidget->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	}
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // INTERNAL METHODS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -180,12 +171,6 @@ void USuspenseCoreMasterHUDWidget::ApplyInitialVisibility()
 	if (bAutoHideReloadProgress)
 	{
 		SetReloadProgressVisible(false);
-	}
-
-	// Reload timer hidden by default (shown during reload)
-	if (bAutoHideReloadTimer)
-	{
-		SetReloadTimerVisible(false);
 	}
 }
 

@@ -15,7 +15,6 @@ class USuspenseCoreAmmoCounterWidget;
 class USuspenseCoreCrosshairWidget;
 class USuspenseCoreQuickSlotHUDWidget;
 class USuspenseCoreReloadProgressWidget;
-class USuspenseCoreReloadTimerWidget;
 class UCanvasPanel;
 class UOverlay;
 
@@ -28,7 +27,6 @@ class UOverlay;
  * - Crosshair (Dynamic spread indicator)
  * - Quick Slots (Equipment shortcuts)
  * - Reload Progress (Tarkov-style reload phases)
- * - Reload Timer (Simple reload timer display)
  *
  * ARCHITECTURE:
  * - Container widget that holds all HUD sub-widgets
@@ -59,7 +57,6 @@ class UOverlay;
  * @see USuspenseCoreCrosshairWidget
  * @see USuspenseCoreQuickSlotHUDWidget
  * @see USuspenseCoreReloadProgressWidget
- * @see USuspenseCoreReloadTimerWidget
  */
 UCLASS(Blueprintable, BlueprintType)
 class UISYSTEM_API USuspenseCoreMasterHUDWidget : public UUserWidget
@@ -156,13 +153,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MasterHUD|Sections")
 	void SetReloadProgressVisible(bool bVisible);
 
-	/**
-	 * Show/hide reload timer
-	 * @param bVisible New visibility state
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MasterHUD|Sections")
-	void SetReloadTimerVisible(bool bVisible);
-
 	// ═══════════════════════════════════════════════════════════════════════════
 	// GETTERS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -186,10 +176,6 @@ public:
 	/** Get reload progress widget */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|MasterHUD")
 	USuspenseCoreReloadProgressWidget* GetReloadProgressWidget() const { return ReloadProgressWidget; }
-
-	/** Get reload timer widget */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|MasterHUD")
-	USuspenseCoreReloadTimerWidget* GetReloadTimerWidget() const { return ReloadTimerWidget; }
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
@@ -240,10 +226,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<USuspenseCoreReloadProgressWidget> ReloadProgressWidget;
 
-	/** Reload timer widget (Simple timer display) */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	TObjectPtr<USuspenseCoreReloadTimerWidget> ReloadTimerWidget;
-
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -255,10 +237,6 @@ protected:
 	/** Auto-hide reload progress when not reloading */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|MasterHUD|Config")
 	bool bAutoHideReloadProgress = true;
-
-	/** Auto-hide reload timer when not reloading */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|MasterHUD|Config")
-	bool bAutoHideReloadTimer = true;
 
 	/** Show crosshair only when weapon equipped */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|MasterHUD|Config")

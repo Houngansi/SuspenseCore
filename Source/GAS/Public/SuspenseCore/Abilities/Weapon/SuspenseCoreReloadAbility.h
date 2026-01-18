@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
+#include "Animation/AnimInstance.h"
 #include "SuspenseCoreReloadAbility.generated.h"
 
 // Forward declarations - use interfaces instead of concrete types
@@ -349,4 +350,12 @@ private:
 
     /** Cached InventoryProvider interface - avoids repeated lookups */
     mutable TWeakObjectPtr<UObject> CachedInventoryProvider;
+
+    /** Cached AnimInstance for montage notify binding */
+    UPROPERTY()
+    TWeakObjectPtr<UAnimInstance> CachedAnimInstance;
+
+    /** Handles montage AnimNotify events and dispatches to phase handlers */
+    UFUNCTION()
+    void OnAnimNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload);
 };

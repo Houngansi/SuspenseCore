@@ -625,6 +625,41 @@ void USuspenseCoreReloadAbility::OnRackEndNotify()
     ISuspenseCoreMagazineProvider::Execute_ChamberRound(Cast<UObject>(MagProvider));
 }
 
+void USuspenseCoreReloadAbility::OnAnimNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload)
+{
+    // Dispatch AnimNotify to appropriate handler based on notify name
+    // Real notify names from montages: Continue, ClipIn, Finalize
+
+    RELOAD_LOG(Log, TEXT("AnimNotify received: '%s'"), *NotifyName.ToString());
+
+    // Phase 1: Magazine Eject - "Continue" marks start of reload sequence
+    if (NotifyName == FName("Continue") ||
+        NotifyName == FName("MagOut") ||
+        NotifyName == FName("ClipOut") ||
+        NotifyName == FName("Eject"))
+    {
+        RELOAD_LOG(Log, TEXT("  -> Phase 1: Eject (OnMagOutNotify)"));
+        OnMagOutNotify();
+    }
+    // Phase 2: Magazine Insert - "ClipIn" when new magazine goes in
+    else if (NotifyName == FName("ClipIn") ||
+             NotifyName == FName("MagIn") ||
+             NotifyName == FName("Insert"))
+    {
+        RELOAD_LOG(Log, TEXT("  -> Phase 2: Insert (OnMagInNotify)"));
+        OnMagInNotify();
+    }
+    // Phase 3: Chamber - "Finalize" when round is chambered
+    else if (NotifyName == FName("Finalize") ||
+             NotifyName == FName("RackEnd") ||
+             NotifyName == FName("Chamber") ||
+             NotifyName == FName("Chambered"))
+    {
+        RELOAD_LOG(Log, TEXT("  -> Phase 3: Chamber (OnRackEndNotify)"));
+        OnRackEndNotify();
+    }
+}
+
 void USuspenseCoreReloadAbility::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     if (bInterrupted)
@@ -1025,11 +1060,22 @@ bool USuspenseCoreReloadAbility::PlayReloadMontage()
     BlendOutDelegate.BindUObject(this, &USuspenseCoreReloadAbility::OnMontageBlendOut);
     AnimInstance->Montage_SetBlendingOutDelegate(BlendOutDelegate, Montage);
 
+    // Bind to AnimNotify events for reload phase indicators
+    CachedAnimInstance = AnimInstance;
+    AnimInstance->OnPlayMontageNotifyBegin.AddDynamic(this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
+
     return true;
 }
 
 void USuspenseCoreReloadAbility::StopReloadMontage()
 {
+    // Unbind AnimNotify callback
+    if (CachedAnimInstance.IsValid())
+    {
+        CachedAnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(this, &USuspenseCoreReloadAbility::OnAnimNotifyBegin);
+        CachedAnimInstance.Reset();
+    }
+
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character)
     {

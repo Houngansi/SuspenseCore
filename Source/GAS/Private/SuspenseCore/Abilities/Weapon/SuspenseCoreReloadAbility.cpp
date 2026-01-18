@@ -559,6 +559,10 @@ void USuspenseCoreReloadAbility::OnMagInNotify()
             // Clear the inventory instance ID
             NewMagazineInventoryInstanceID = FGuid();
         }
+
+        // CRITICAL: Mark NewMagazine as consumed so ExecuteReloadOnMontageComplete()
+        // knows AnimNotify handled the swap and doesn't run the fallback logic
+        NewMagazine = FSuspenseCoreMagazineInstance();
     }
 
     // CRITICAL FIX: Store ejected magazine AFTER removing the source magazine

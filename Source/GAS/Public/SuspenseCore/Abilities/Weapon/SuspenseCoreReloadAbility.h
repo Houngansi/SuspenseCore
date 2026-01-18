@@ -355,9 +355,6 @@ private:
     UPROPERTY()
     TWeakObjectPtr<UAnimInstance> CachedAnimInstance;
 
-    /** Handle for AnimNotify callback - must be unbound on cleanup */
-    FDelegateHandle NotifyBeginDelegateHandle;
-
     /** Dispatches AnimNotify callbacks to the correct handler based on notify name */
     UFUNCTION()
     void OnAnimNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload);

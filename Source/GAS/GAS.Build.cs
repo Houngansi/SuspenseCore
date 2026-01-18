@@ -25,8 +25,7 @@ public class GAS : ModuleRules
 				"NetCore",
 				"Slate",
 				"SlateCore",
-				"Niagara",
-				"EquipmentSystem"  // For SuspenseCoreEquipmentNativeTags (reload events)
+				"Niagara"
 			}
 		);
 	}

@@ -4,7 +4,6 @@
 
 #include "SuspenseCore/Abilities/Weapon/SuspenseCoreReloadAbility.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
-#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
@@ -1061,7 +1060,8 @@ void USuspenseCoreReloadAbility::BroadcastReloadStarted()
     // EventBus broadcast with full data for UI
     if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        using namespace SuspenseCoreEquipmentTags::Event;
+        // Request tags by string to avoid circular dependency with EquipmentSystem module
+        static const FGameplayTag ReloadStartTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Equipment.Weapon.ReloadStart"));
 
         // Emergency reload cannot be cancelled (magazine is dropped)
         const bool bCanCancelThisReload = (CurrentReloadType != ESuspenseCoreReloadType::Emergency);
@@ -1093,7 +1093,7 @@ void USuspenseCoreReloadAbility::BroadcastReloadStarted()
         EventData.SetString(TEXT("ReloadType"), ReloadTypeStr);
 
         // Publish to correct tag that UI widget subscribes to
-        EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadStart, EventData);
+        EventBus->Publish(ReloadStartTag, EventData);
 
         // Also publish legacy tag for backward compatibility
         PublishSimpleEvent(SuspenseCoreTags::Event::Weapon::ReloadStarted);
@@ -1115,14 +1115,15 @@ void USuspenseCoreReloadAbility::BroadcastReloadCompleted()
     // Publish EventBus events for UI and other systems
     if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        using namespace SuspenseCoreEquipmentTags::Event;
+        // Request tags by string to avoid circular dependency with EquipmentSystem module
+        static const FGameplayTag ReloadEndTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Equipment.Weapon.ReloadEnd"));
 
         // Broadcast reload end event for UI widget (completed = true)
         FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
         EventData.SetBool(TEXT("Completed"), true);
         EventData.SetInt(TEXT("ReloadType"), static_cast<int32>(CurrentReloadType));
         EventData.SetFloat(TEXT("Duration"), ReloadDuration);
-        EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadEnd, EventData);
+        EventBus->Publish(ReloadEndTag, EventData);
 
         // Also publish legacy tag for backward compatibility
         EventBus->Publish(SuspenseCoreTags::Event::Weapon::ReloadCompleted, EventData);
@@ -1148,11 +1149,12 @@ void USuspenseCoreReloadAbility::BroadcastReloadCancelled()
     // Publish EventBus event for UI widget to hide (completed = false)
     if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        using namespace SuspenseCoreEquipmentTags::Event;
+        // Request tags by string to avoid circular dependency with EquipmentSystem module
+        static const FGameplayTag ReloadEndTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Equipment.Weapon.ReloadEnd"));
 
         FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
         EventData.SetBool(TEXT("Completed"), false);
-        EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadEnd, EventData);
+        EventBus->Publish(ReloadEndTag, EventData);
     }
 }
 

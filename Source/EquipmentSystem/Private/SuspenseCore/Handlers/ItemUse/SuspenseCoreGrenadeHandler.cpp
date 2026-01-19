@@ -8,6 +8,7 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeThrowAbility.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -99,8 +100,9 @@ FGameplayTagContainer USuspenseCoreGrenadeHandler::GetSupportedSourceTags() cons
 TArray<ESuspenseCoreItemUseContext> USuspenseCoreGrenadeHandler::GetSupportedContexts() const
 {
 	return {
-		ESuspenseCoreItemUseContext::Hotkey,
-		ESuspenseCoreItemUseContext::QuickSlot
+		ESuspenseCoreItemUseContext::Hotkey,      // Legacy instant throw
+		ESuspenseCoreItemUseContext::QuickSlot,   // Equip grenade
+		ESuspenseCoreItemUseContext::Fire         // Throw equipped grenade
 	};
 }
 
@@ -200,7 +202,121 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::Execute(
 	const FSuspenseCoreItemUseRequest& Request,
 	AActor* OwnerActor)
 {
-	// Get item tags from DataManager
+	// TARKOV-STYLE TWO-PHASE GRENADE FLOW:
+	// Context == QuickSlot → EQUIP grenade (draw animation, change stance)
+	// Context == Fire → THROW equipped grenade (only if State.GrenadeEquipped)
+	// Context == Hotkey → LEGACY instant throw
+
+	HANDLER_LOG(Log, TEXT("Execute: Context=%d, GrenadeID=%s"),
+		static_cast<int32>(Request.Context),
+		*Request.SourceItem.ItemID.ToString());
+
+	switch (Request.Context)
+	{
+		case ESuspenseCoreItemUseContext::QuickSlot:
+		{
+			// PHASE 1: Equip grenade from QuickSlot
+			// Check if already equipped - if so, unequip instead
+			if (IsGrenadeEquipped(OwnerActor))
+			{
+				HANDLER_LOG(Log, TEXT("Grenade already equipped - requesting unequip"));
+				// TODO: Request unequip via EventBus or cancel ability
+				return FSuspenseCoreItemUseResponse::Failure(
+					Request.RequestID,
+					ESuspenseCoreItemUseResult::Failed_Blocked,
+					FText::FromString(TEXT("Grenade already equipped")));
+			}
+
+			return ExecuteEquip(Request, OwnerActor);
+		}
+
+		case ESuspenseCoreItemUseContext::Fire:
+		{
+			// PHASE 2: Throw equipped grenade
+			// Only if State.GrenadeEquipped is present
+			if (!IsGrenadeEquipped(OwnerActor))
+			{
+				HANDLER_LOG(Verbose, TEXT("Fire context but no grenade equipped - ignoring"));
+				return FSuspenseCoreItemUseResponse::Failure(
+					Request.RequestID,
+					ESuspenseCoreItemUseResult::Failed_MissingRequirement,
+					FText::FromString(TEXT("No grenade equipped")));
+			}
+
+			return ExecuteThrow(Request, OwnerActor);
+		}
+
+		case ESuspenseCoreItemUseContext::Hotkey:
+		{
+			// LEGACY: Direct instant throw (for dedicated grenade keybind)
+			HANDLER_LOG(Log, TEXT("Hotkey context - instant throw"));
+			return ExecuteThrow(Request, OwnerActor);
+		}
+
+		default:
+		{
+			HANDLER_LOG(Warning, TEXT("Unsupported context: %d"), static_cast<int32>(Request.Context));
+			return FSuspenseCoreItemUseResponse::Failure(
+				Request.RequestID,
+				ESuspenseCoreItemUseResult::Failed_NotUsable,
+				FText::FromString(TEXT("Unsupported context")));
+		}
+	}
+}
+
+//==================================================================
+// Internal Methods - Ability Activation
+//==================================================================
+
+FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::ExecuteEquip(
+	const FSuspenseCoreItemUseRequest& Request,
+	AActor* OwnerActor)
+{
+	HANDLER_LOG(Log, TEXT("ExecuteEquip: Equipping grenade %s"), *Request.SourceItem.ItemID.ToString());
+
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerActor);
+	if (!ASC)
+	{
+		HANDLER_LOG(Warning, TEXT("ExecuteEquip: No ASC found on %s"), *GetNameSafe(OwnerActor));
+		return FSuspenseCoreItemUseResponse::Failure(
+			Request.RequestID,
+			ESuspenseCoreItemUseResult::Failed_SystemError,
+			FText::FromString(TEXT("No ability system")));
+	}
+
+	// Activate GA_GrenadeEquip by tag
+	FGameplayTagContainer AbilityTags;
+	AbilityTags.AddTag(SuspenseCoreTags::Ability::Throwable::Equip);
+
+	bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags);
+
+	if (bActivated)
+	{
+		HANDLER_LOG(Log, TEXT("GA_GrenadeEquip activated successfully"));
+
+		FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
+		Response.HandlerTag = GetHandlerTag();
+		Response.Cooldown = 0.0f; // No cooldown on equip
+		Response.Metadata.Add(TEXT("Phase"), TEXT("Equip"));
+		Response.Metadata.Add(TEXT("GrenadeID"), Request.SourceItem.ItemID.ToString());
+
+		return Response;
+	}
+	else
+	{
+		HANDLER_LOG(Warning, TEXT("Failed to activate GA_GrenadeEquip"));
+		return FSuspenseCoreItemUseResponse::Failure(
+			Request.RequestID,
+			ESuspenseCoreItemUseResult::Failed_Blocked,
+			FText::FromString(TEXT("Cannot equip grenade")));
+	}
+}
+
+FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::ExecuteThrow(
+	const FSuspenseCoreItemUseRequest& Request,
+	AActor* OwnerActor)
+{
+	// Get item tags for grenade type
 	FGameplayTagContainer ItemTags;
 	if (DataManager.IsValid())
 	{
@@ -208,7 +324,6 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::Execute(
 		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
 		{
 			ItemTags = ItemData.ItemTags;
-			// Add throwable type tag if present
 			if (ItemData.ThrowableType.IsValid())
 			{
 				ItemTags.AddTag(ItemData.ThrowableType);
@@ -218,58 +333,131 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::Execute(
 
 	ESuspenseCoreGrenadeType GrenadeType = GetGrenadeType(ItemTags);
 
-	HANDLER_LOG(Log, TEXT("Execute: Activating GrenadeThrowAbility for %s (type=%d)"),
+	HANDLER_LOG(Log, TEXT("ExecuteThrow: Throwing grenade %s (type=%d)"),
 		*Request.SourceItem.ItemID.ToString(),
 		static_cast<int32>(GrenadeType));
 
-	// CRITICAL: Trigger GAS GrenadeThrowAbility instead of handling directly
-	// The ability handles animation montage, AnimNotify events, and spawning via EventBus
 	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerActor);
-	if (ASC)
+	if (!ASC)
 	{
-		// Try to activate GrenadeThrowAbility by tag
-		FGameplayTagContainer AbilityTags;
-		AbilityTags.AddTag(SuspenseCoreTags::Ability::Throwable::Grenade);
+		HANDLER_LOG(Warning, TEXT("ExecuteThrow: No ASC found on %s"), *GetNameSafe(OwnerActor));
+		return FSuspenseCoreItemUseResponse::Failure(
+			Request.RequestID,
+			ESuspenseCoreItemUseResult::Failed_SystemError,
+			FText::FromString(TEXT("No ability system")));
+	}
 
-		bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags);
+	// Tarkov-style flow: Set grenade info on the throw ability before activation
+	// Find the GrenadeThrowAbility and set grenade info
+	FGameplayTag ThrowTag = SuspenseCoreTags::Ability::Throwable::Grenade;
+	TArray<FGameplayAbilitySpec*> MatchingSpecs;
+	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(FGameplayTagContainer(ThrowTag), MatchingSpecs, false);
 
-		if (bActivated)
+	for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+	{
+		if (Spec && Spec->Ability)
 		{
-			HANDLER_LOG(Log, TEXT("GrenadeThrowAbility activated successfully"));
+			// Get the primary instanced ability (if instanced) or CDO
+			USuspenseCoreGrenadeThrowAbility* ThrowAbility = nullptr;
 
-			// Return success with zero duration - ability handles timing internally
-			FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
-			Response.HandlerTag = GetHandlerTag();
-			Response.Cooldown = GetCooldown(Request);
-			Response.Metadata.Add(TEXT("GrenadeType"), FString::FromInt(static_cast<int32>(GrenadeType)));
-			Response.Metadata.Add(TEXT("ActivatedViaGAS"), TEXT("true"));
+			if (Spec->IsActive())
+			{
+				// Already active - shouldn't happen, but handle it
+				HANDLER_LOG(Warning, TEXT("ExecuteThrow: Ability already active"));
+				continue;
+			}
 
-			return Response;
+			// For InstancedPerActor, get the instanced ability
+			if (Spec->GetPrimaryInstance())
+			{
+				ThrowAbility = Cast<USuspenseCoreGrenadeThrowAbility>(Spec->GetPrimaryInstance());
+			}
+			else
+			{
+				// For non-instanced, we need to use the CDO - but this won't persist
+				// Instead, we'll pass data via FGameplayEventData
+				ThrowAbility = Cast<USuspenseCoreGrenadeThrowAbility>(Spec->Ability);
+			}
+
+			if (ThrowAbility)
+			{
+				// Set grenade info before activation
+				ThrowAbility->SetGrenadeInfo(
+					Request.SourceItem.ItemID,
+					Request.QuickSlotIndex);
+
+				HANDLER_LOG(Log, TEXT("Set grenade info on ThrowAbility: ID=%s, Slot=%d"),
+					*Request.SourceItem.ItemID.ToString(),
+					Request.QuickSlotIndex);
+
+				// Activate this specific ability spec
+				bool bActivated = ASC->TryActivateAbility(Spec->Handle);
+
+				if (bActivated)
+				{
+					HANDLER_LOG(Log, TEXT("GA_GrenadeThrow activated successfully (Tarkov-style)"));
+
+					FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
+					Response.HandlerTag = GetHandlerTag();
+					Response.Cooldown = GetCooldown(Request);
+					Response.Metadata.Add(TEXT("Phase"), TEXT("Throw"));
+					Response.Metadata.Add(TEXT("GrenadeType"), FString::FromInt(static_cast<int32>(GrenadeType)));
+					Response.Metadata.Add(TEXT("ActivatedViaGAS"), TEXT("true"));
+					Response.Metadata.Add(TEXT("Flow"), TEXT("Tarkov-style"));
+
+					return Response;
+				}
+			}
 		}
-		else
-		{
-			HANDLER_LOG(Warning, TEXT("Failed to activate GrenadeThrowAbility - ability not granted or blocked"));
-		}
+	}
+
+	// Fallback: Try tag-based activation if spec search failed
+	HANDLER_LOG(Log, TEXT("ExecuteThrow: Falling back to tag-based activation"));
+
+	FGameplayTagContainer AbilityTags;
+	AbilityTags.AddTag(SuspenseCoreTags::Ability::Throwable::Grenade);
+
+	bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags);
+
+	if (bActivated)
+	{
+		HANDLER_LOG(Log, TEXT("GA_GrenadeThrow activated successfully (fallback)"));
+
+		FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
+		Response.HandlerTag = GetHandlerTag();
+		Response.Cooldown = GetCooldown(Request);
+		Response.Metadata.Add(TEXT("Phase"), TEXT("Throw"));
+		Response.Metadata.Add(TEXT("GrenadeType"), FString::FromInt(static_cast<int32>(GrenadeType)));
+		Response.Metadata.Add(TEXT("ActivatedViaGAS"), TEXT("true"));
+
+		return Response;
 	}
 	else
 	{
-		HANDLER_LOG(Warning, TEXT("No AbilitySystemComponent found on %s"), *GetNameSafe(OwnerActor));
+		HANDLER_LOG(Warning, TEXT("Failed to activate GA_GrenadeThrow"));
+		return FSuspenseCoreItemUseResponse::Failure(
+			Request.RequestID,
+			ESuspenseCoreItemUseResult::Failed_Blocked,
+			FText::FromString(TEXT("Cannot throw grenade")));
+	}
+}
+
+bool USuspenseCoreGrenadeHandler::IsGrenadeEquipped(AActor* Actor) const
+{
+	if (!Actor)
+	{
+		return false;
 	}
 
-	// Fallback: Use legacy direct handling if GAS not available
-	HANDLER_LOG(Log, TEXT("Falling back to legacy grenade handling"));
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
+	if (!ASC)
+	{
+		return false;
+	}
 
-	float Duration = GetDuration(Request);
-	FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, Duration);
-	Response.HandlerTag = GetHandlerTag();
-	Response.Cooldown = GetCooldown(Request);
-	Response.Metadata.Add(TEXT("GrenadeType"), FString::FromInt(static_cast<int32>(GrenadeType)));
-	Response.Metadata.Add(TEXT("ActivatedViaGAS"), TEXT("false"));
-
-	// Publish prepare started event
-	PublishGrenadeEvent(Request, Response, OwnerActor);
-
-	return Response;
+	// Check for State.GrenadeEquipped tag
+	FGameplayTag EquippedTag = FGameplayTag::RequestGameplayTag(FName("State.GrenadeEquipped"));
+	return ASC->HasMatchingGameplayTag(EquippedTag);
 }
 
 float USuspenseCoreGrenadeHandler::GetDuration(const FSuspenseCoreItemUseRequest& Request) const

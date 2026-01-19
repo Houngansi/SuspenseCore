@@ -71,6 +71,10 @@ USuspenseCoreGrenadeThrowAbility::USuspenseCoreGrenadeThrowAbility()
     ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
     ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
 
+    // Tarkov-style flow: require grenade to be equipped first
+    // State.GrenadeEquipped is granted by GA_GrenadeEquip
+    ActivationRequiredTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.GrenadeEquipped")));
+
     // Tags applied while throwing
     ActivationOwnedTags.AddTag(SuspenseCoreTags::State::ThrowingGrenade);
 
@@ -109,6 +113,16 @@ void USuspenseCoreGrenadeThrowAbility::SetThrowType(ESuspenseCoreGrenadeThrowTyp
     }
 }
 
+void USuspenseCoreGrenadeThrowAbility::SetGrenadeInfo(FName InGrenadeID, int32 InSlotIndex)
+{
+    CurrentGrenadeID = InGrenadeID;
+    CurrentGrenadeSlotIndex = InSlotIndex;
+    bGrenadeInfoSet = true;
+
+    GRENADE_LOG(Log, TEXT("SetGrenadeInfo (Tarkov-style): GrenadeID=%s, SlotIndex=%d"),
+        *InGrenadeID.ToString(), InSlotIndex);
+}
+
 //==================================================================
 // GameplayAbility Interface
 //==================================================================
@@ -122,9 +136,11 @@ bool USuspenseCoreGrenadeThrowAbility::CanActivateAbility(
 {
     GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Starting validation"));
 
+    // Super check includes ActivationRequiredTags (State.GrenadeEquipped)
+    // This enforces Tarkov-style flow: grenade must be equipped first
     if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
     {
-        GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Super check failed (blocking tags)"));
+        GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Super check failed (blocking/required tags - need State.GrenadeEquipped)"));
         return false;
     }
 
@@ -135,7 +151,16 @@ bool USuspenseCoreGrenadeThrowAbility::CanActivateAbility(
         return false;
     }
 
-    // Find grenade in QuickSlots
+    // Tarkov-style flow: grenade info is pre-set via SetGrenadeInfo()
+    // Called by GrenadeHandler before ability activation
+    if (bGrenadeInfoSet && !CurrentGrenadeID.IsNone())
+    {
+        GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Passed (Tarkov-style), GrenadeID=%s"),
+            *CurrentGrenadeID.ToString());
+        return true;
+    }
+
+    // Fallback: Find grenade in QuickSlots (legacy flow)
     int32 SlotIndex;
     FName GrenadeID;
     if (!FindGrenadeInQuickSlots(SlotIndex, GrenadeID))
@@ -144,7 +169,7 @@ bool USuspenseCoreGrenadeThrowAbility::CanActivateAbility(
         return false;
     }
 
-    GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Passed, Grenade=%s in Slot=%d"),
+    GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Passed (legacy), Grenade=%s in Slot=%d"),
         *GrenadeID.ToString(), SlotIndex);
     return true;
 }
@@ -166,8 +191,14 @@ void USuspenseCoreGrenadeThrowAbility::ActivateAbility(
     CachedSpecHandle = Handle;
     CachedActivationInfo = ActivationInfo;
 
-    // Find grenade to throw
-    if (!FindGrenadeInQuickSlots(CurrentGrenadeSlotIndex, CurrentGrenadeID))
+    // Tarkov-style flow: grenade info was pre-set via SetGrenadeInfo()
+    if (bGrenadeInfoSet && !CurrentGrenadeID.IsNone())
+    {
+        GRENADE_LOG(Log, TEXT("ActivateAbility: Using pre-set grenade info (Tarkov-style): %s"),
+            *CurrentGrenadeID.ToString());
+    }
+    // Legacy flow: find grenade in QuickSlots
+    else if (!FindGrenadeInQuickSlots(CurrentGrenadeSlotIndex, CurrentGrenadeID))
     {
         GRENADE_LOG(Warning, TEXT("ActivateAbility: No grenade found"));
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -235,12 +266,29 @@ void USuspenseCoreGrenadeThrowAbility::EndAbility(
     bIsPreparing = false;
     bIsCooking = false;
     bPinPulled = false;
+    bGrenadeInfoSet = false;
     CookStartTime = 0.0f;
     CurrentGrenadeSlotIndex = -1;
     CurrentGrenadeID = NAME_None;
 
     // Clear cached provider
     CachedQuickSlotProvider.Reset();
+
+    // Tarkov-style flow: Cancel GrenadeEquipAbility after successful throw
+    // This will remove State.GrenadeEquipped tag and restore previous weapon
+    if (!bWasCancelled)
+    {
+        UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+        if (ASC)
+        {
+            // Cancel GA_GrenadeEquip by tag
+            FGameplayTagContainer EquipTags;
+            EquipTags.AddTag(SuspenseCoreTags::Ability::Throwable::Equip);
+            ASC->CancelAbilities(&EquipTags);
+
+            GRENADE_LOG(Log, TEXT("Cancelled GrenadeEquipAbility after successful throw"));
+        }
+    }
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

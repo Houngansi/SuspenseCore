@@ -252,6 +252,8 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Thrown);          // Grenade thrown
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cancelled);       // Throw cancelled (pin not pulled)
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpawnRequested);  // Request to spawn grenade actor
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Equipped);        // Grenade equipped (draw complete)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Unequipped);      // Grenade unequipped (holstered)
 		}
 	}
 
@@ -335,7 +337,8 @@ namespace SuspenseCoreTags
 		// Throwable abilities (grenade, consumable throw)
 		namespace Throwable
 		{
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Grenade);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Equip);    // Equip grenade from QuickSlot
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Grenade);  // Throw equipped grenade
 		}
 	}
 

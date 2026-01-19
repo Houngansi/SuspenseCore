@@ -172,6 +172,20 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Grenade")
     void SetThrowType(ESuspenseCoreGrenadeThrowType NewType);
 
+    /**
+     * Set grenade info from GrenadeEquipAbility (Tarkov-style flow)
+     * Called by GrenadeHandler when activating throw from equipped state
+     *
+     * @param InGrenadeID Item ID of the grenade
+     * @param InSlotIndex QuickSlot index the grenade came from
+     */
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Grenade")
+    void SetGrenadeInfo(FName InGrenadeID, int32 InSlotIndex);
+
+    /** Check if grenade info was set externally (Tarkov-style flow) */
+    UFUNCTION(BlueprintPure, Category = "SuspenseCore|Grenade")
+    bool HasGrenadeInfoSet() const { return bGrenadeInfoSet; }
+
 protected:
     //==================================================================
     // GameplayAbility Interface
@@ -314,6 +328,10 @@ private:
     /** Has the pin been pulled */
     UPROPERTY()
     bool bPinPulled = false;
+
+    /** Was grenade info set externally (Tarkov-style flow) */
+    UPROPERTY()
+    bool bGrenadeInfoSet = false;
 
     /** Time when cooking started */
     UPROPERTY()

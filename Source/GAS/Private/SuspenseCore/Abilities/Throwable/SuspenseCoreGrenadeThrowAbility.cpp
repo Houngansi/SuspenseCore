@@ -10,8 +10,10 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
+#include "Camera/CameraShakeBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreGrenade, Log, All);
 
@@ -42,6 +44,9 @@ USuspenseCoreGrenadeThrowAbility::USuspenseCoreGrenadeThrowAbility()
     UnderhandThrowForce = 800.0f;
     RollThrowForce = 500.0f;
     OverhandUpAngle = 15.0f;
+
+    // Camera shake for throw effect
+    ThrowCameraShakeScale = 0.5f;
 
     // Initialize runtime state
     CurrentThrowType = ESuspenseCoreGrenadeThrowType::Overhand;
@@ -305,6 +310,21 @@ void USuspenseCoreGrenadeThrowAbility::OnReleaseNotify()
     {
         // Play throw sound
         PlaySound(ThrowSound);
+
+        // Play camera shake (similar to FireAbility recoil shake)
+        if (ThrowCameraShake)
+        {
+            ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+            if (Character)
+            {
+                APlayerController* PC = Cast<APlayerController>(Character->GetController());
+                if (PC)
+                {
+                    PC->ClientStartCameraShake(ThrowCameraShake, ThrowCameraShakeScale);
+                    GRENADE_LOG(Verbose, TEXT("Camera shake played: Scale=%.2f"), ThrowCameraShakeScale);
+                }
+            }
+        }
 
         // Notify blueprint
         OnGrenadeThrown();

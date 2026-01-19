@@ -24,6 +24,7 @@
 class ISuspenseCoreQuickSlotProvider;
 class UAnimMontage;
 class USoundBase;
+class UCameraShakeBase;
 
 /**
  * Grenade type enum for different throw behaviors
@@ -138,6 +139,14 @@ public:
     /** GameplayEffect for movement speed reduction while preparing */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Grenade|Effects")
     TSubclassOf<UGameplayEffect> PrepareSpeedDebuffClass;
+
+    /** Camera shake when throwing grenade (similar to recoil shake in FireAbility) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Grenade|Effects")
+    TSubclassOf<UCameraShakeBase> ThrowCameraShake;
+
+    /** Camera shake scale multiplier (1.0 = full intensity) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Grenade|Effects")
+    float ThrowCameraShakeScale = 0.5f;
 
     //==================================================================
     // Runtime Accessors

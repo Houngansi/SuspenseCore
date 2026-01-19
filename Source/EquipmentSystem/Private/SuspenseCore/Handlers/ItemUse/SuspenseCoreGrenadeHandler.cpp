@@ -117,13 +117,13 @@ bool USuspenseCoreGrenadeHandler::CanHandle(const FSuspenseCoreItemUseRequest& R
 		return false;
 	}
 
-	// Must have source item
-	if (!Request.SourceItem.IsValid())
+	// Must have source item with valid ItemID
+	if (Request.SourceItem.ItemID.IsNone())
 	{
 		return false;
 	}
 
-	// Check if item has grenade/throwable tag by looking up in DataManager
+	// Primary: Check via DataManager (authoritative SSOT lookup)
 	if (DataManager.IsValid())
 	{
 		FSuspenseCoreUnifiedItemData ItemData;
@@ -149,6 +149,17 @@ bool USuspenseCoreGrenadeHandler::CanHandle(const FSuspenseCoreItemUseRequest& R
 				return true;
 			}
 		}
+	}
+
+	// Fallback: Check ItemID naming convention when DataManager unavailable
+	// This matches the item database convention: Throwable_F1, Throwable_RGD5, etc.
+	FString ItemIDString = Request.SourceItem.ItemID.ToString();
+	if (ItemIDString.StartsWith(TEXT("Throwable_")) ||
+		ItemIDString.StartsWith(TEXT("Grenade_")) ||
+		ItemIDString.Contains(TEXT("Grenade")))
+	{
+		HANDLER_LOG(Log, TEXT("CanHandle: Matched item '%s' via naming convention fallback"), *ItemIDString);
+		return true;
 	}
 
 	return false;

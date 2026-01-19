@@ -4,7 +4,6 @@
 
 #include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeEquipAbility.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
-#include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "AbilitySystemComponent.h"
@@ -120,14 +119,6 @@ bool USuspenseCoreGrenadeEquipAbility::CanActivateAbility(
 		return false;
 	}
 
-	// Check we have a stance component
-	USuspenseCoreWeaponStanceComponent* StanceComp = const_cast<USuspenseCoreGrenadeEquipAbility*>(this)->GetStanceComponent();
-	if (!StanceComp)
-	{
-		EQUIP_LOG(Warning, TEXT("CanActivate: No WeaponStanceComponent found"));
-		return false;
-	}
-
 	return true;
 }
 
@@ -151,23 +142,12 @@ void USuspenseCoreGrenadeEquipAbility::ActivateAbility(
 	bUnequipRequested = false;
 	EquipStartTime = 0.0f;
 
-	// Store previous weapon state for restoration after throw/cancel
+	// Store previous weapon type (via gameplay tag query)
 	StorePreviousWeaponState();
 
-	// Change weapon stance to grenade type
-	USuspenseCoreWeaponStanceComponent* StanceComp = GetStanceComponent();
-	if (StanceComp)
-	{
-		// Use grenade type tag or fallback to generic grenade tag
-		FGameplayTag StanceTag = GrenadeTypeTag.IsValid() ?
-			GrenadeTypeTag :
-			FGameplayTag::RequestGameplayTag(FName("Weapon.Grenade.Frag"));
-
-		StanceComp->SetWeaponStance(StanceTag, false);
-		StanceComp->SetWeaponDrawn(true);
-
-		EQUIP_LOG(Log, TEXT("Set weapon stance to: %s"), *StanceTag.ToString());
-	}
+	// Request stance change via EventBus (WeaponStanceComponent listens for this)
+	// This avoids circular dependency: GAS cannot directly depend on EquipmentSystem
+	RequestStanceChange(true);
 
 	// Grant State.GrenadeEquipped tag
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
@@ -242,15 +222,40 @@ void USuspenseCoreGrenadeEquipAbility::InputReleased(
 // Internal Methods
 //==================================================================
 
-USuspenseCoreWeaponStanceComponent* USuspenseCoreGrenadeEquipAbility::GetStanceComponent() const
+void USuspenseCoreGrenadeEquipAbility::RequestStanceChange(bool bEquipping)
 {
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!AvatarActor)
-	{
-		return nullptr;
-	}
+	// Broadcast stance change request via EventBus
+	// WeaponStanceComponent (in EquipmentSystem) listens for this event
+	// This decouples GAS from EquipmentSystem (avoids circular dependency)
 
-	return AvatarActor->FindComponentByClass<USuspenseCoreWeaponStanceComponent>();
+	if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
+	{
+		if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+		{
+			FSuspenseCoreEventData EventData;
+			EventData.Source = GetAvatarActorFromActorInfo();
+			EventData.Timestamp = FPlatformTime::Seconds();
+
+			// Grenade type tag for animation selection
+			FGameplayTag StanceTag = GrenadeTypeTag.IsValid() ?
+				GrenadeTypeTag :
+				FGameplayTag::RequestGameplayTag(FName("Weapon.Grenade.Frag"));
+
+			EventData.StringPayload.Add(TEXT("WeaponType"), StanceTag.ToString());
+			EventData.BoolPayload.Add(TEXT("IsDrawn"), bEquipping);
+			EventData.BoolPayload.Add(TEXT("IsGrenade"), true);
+
+			// Use a generic weapon stance change event
+			FGameplayTag EventTag = bEquipping ?
+				FGameplayTag::RequestGameplayTag(FName("Event.Weapon.StanceChangeRequested")) :
+				FGameplayTag::RequestGameplayTag(FName("Event.Weapon.StanceRestoreRequested"));
+
+			EventBus->Publish(EventTag, EventData);
+
+			EQUIP_LOG(Log, TEXT("Requested stance change: %s, Equipping=%s"),
+				*StanceTag.ToString(), bEquipping ? TEXT("true") : TEXT("false"));
+		}
+	}
 }
 
 void USuspenseCoreGrenadeEquipAbility::PlayDrawMontage()
@@ -263,21 +268,9 @@ void USuspenseCoreGrenadeEquipAbility::PlayDrawMontage()
 		return;
 	}
 
-	// Try to get draw montage from animation data (DataTable)
-	UAnimMontage* DrawMontage = nullptr;
-
-	USuspenseCoreWeaponStanceComponent* StanceComp = GetStanceComponent();
-	if (StanceComp)
-	{
-		// TODO: Get from animation interface
-		// DrawMontage = StanceComp->GetAnimationInterface()->GetDrawMontage();
-	}
-
-	// Fallback to default
-	if (!DrawMontage)
-	{
-		DrawMontage = DefaultDrawMontage;
-	}
+	// Use default draw montage
+	// Animation data lookup can be added via EventBus request if needed
+	UAnimMontage* DrawMontage = DefaultDrawMontage;
 
 	if (!DrawMontage)
 	{
@@ -406,11 +399,27 @@ void USuspenseCoreGrenadeEquipAbility::OnHolsterMontageCompleted()
 
 void USuspenseCoreGrenadeEquipAbility::StorePreviousWeaponState()
 {
-	USuspenseCoreWeaponStanceComponent* StanceComp = GetStanceComponent();
-	if (StanceComp)
+	// Query current weapon type from ASC tags
+	// WeaponStanceComponent adds Weapon.Type.* tags when weapon is equipped
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (ASC)
 	{
-		PreviousWeaponType = StanceComp->GetCurrentWeaponType();
-		bPreviousWeaponDrawn = StanceComp->IsWeaponDrawn();
+		FGameplayTagContainer OwnedTags;
+		ASC->GetOwnedGameplayTags(OwnedTags);
+
+		// Find current weapon type tag
+		FGameplayTag WeaponTypeParent = FGameplayTag::RequestGameplayTag(FName("Weapon.Type"));
+		for (const FGameplayTag& Tag : OwnedTags)
+		{
+			if (Tag.MatchesTag(WeaponTypeParent))
+			{
+				PreviousWeaponType = Tag;
+				break;
+			}
+		}
+
+		// Check if weapon is drawn
+		bPreviousWeaponDrawn = OwnedTags.HasTag(FGameplayTag::RequestGameplayTag(FName("State.WeaponDrawn")));
 
 		EQUIP_LOG(Verbose, TEXT("Stored previous weapon: %s (drawn=%s)"),
 			*PreviousWeaponType.ToString(),
@@ -420,13 +429,11 @@ void USuspenseCoreGrenadeEquipAbility::StorePreviousWeaponState()
 
 void USuspenseCoreGrenadeEquipAbility::RestorePreviousWeaponState()
 {
-	USuspenseCoreWeaponStanceComponent* StanceComp = GetStanceComponent();
-	if (StanceComp && PreviousWeaponType.IsValid())
+	// Request stance restoration via EventBus
+	if (PreviousWeaponType.IsValid())
 	{
-		StanceComp->SetWeaponStance(PreviousWeaponType, false);
-		StanceComp->SetWeaponDrawn(bPreviousWeaponDrawn);
-
-		EQUIP_LOG(Log, TEXT("Restored previous weapon: %s"), *PreviousWeaponType.ToString());
+		RequestStanceChange(false);
+		EQUIP_LOG(Log, TEXT("Requested restore to previous weapon: %s"), *PreviousWeaponType.ToString());
 	}
 }
 

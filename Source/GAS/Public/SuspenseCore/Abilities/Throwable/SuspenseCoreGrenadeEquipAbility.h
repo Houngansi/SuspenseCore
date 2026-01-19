@@ -35,7 +35,6 @@
 #include "SuspenseCoreGrenadeEquipAbility.generated.h"
 
 // Forward declarations
-class USuspenseCoreWeaponStanceComponent;
 class UAnimMontage;
 
 /**
@@ -176,8 +175,12 @@ protected:
 	// Internal Methods
 	//==================================================================
 
-	/** Get WeaponStanceComponent from owner */
-	USuspenseCoreWeaponStanceComponent* GetStanceComponent() const;
+	/**
+	 * Request stance change via EventBus
+	 * WeaponStanceComponent listens for these events
+	 * This decouples GAS from EquipmentSystem (avoids circular dependency)
+	 */
+	void RequestStanceChange(bool bEquipping);
 
 	/** Play draw montage and wait for completion */
 	void PlayDrawMontage();

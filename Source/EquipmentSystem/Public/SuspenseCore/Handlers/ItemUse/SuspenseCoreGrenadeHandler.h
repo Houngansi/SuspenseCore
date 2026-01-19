@@ -14,9 +14,10 @@
 // 4. GA_GrenadeEquip plays draw montage, grants State.GrenadeEquipped tag
 // 5. Grenade is now in hand, ready for throw
 //
-// PHASE 2 - THROW (Fire press while equipped):
+// PHASE 2 - THROW (Fire/LMB press while equipped):
 // 1. User presses Fire (LMB) with grenade equipped
-// 2. ItemUseService routes to this handler (Context = Fire)
+// 2. Input system detects State.GrenadeEquipped and routes to ItemUseService
+//    (Context = Hotkey, the Fire input is redirected when grenade is equipped)
 // 3. Handler checks State.GrenadeEquipped tag
 // 4. Handler activates GA_GrenadeThrow ability
 // 5. GA_GrenadeThrow plays throw animation, spawns grenade
@@ -67,8 +68,8 @@ enum class ESuspenseCoreGrenadeType : uint8
  *
  * SUPPORTED CONTEXTS:
  * - QuickSlot: Equip grenade (activate GA_GrenadeEquip)
- * - Fire: Throw equipped grenade (activate GA_GrenadeThrow)
- * - Hotkey: Legacy instant throw (for key bindings)
+ * - Hotkey: Throw grenade (checks State.GrenadeEquipped first, Fire input routed here)
+ * - Programmatic: AI/script-triggered throw
  *
  * ABILITIES USED:
  * - GA_GrenadeEquip: Draw montage, grants State.GrenadeEquipped

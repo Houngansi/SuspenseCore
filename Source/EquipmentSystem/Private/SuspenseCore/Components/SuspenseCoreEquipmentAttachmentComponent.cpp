@@ -1375,20 +1375,43 @@ USkeletalMeshComponent* USuspenseCoreEquipmentAttachmentComponent::GetCharacterM
         return nullptr;
     }
 
-    // Try character class first
-    if (ACharacter* CharacterPawn = Cast<ACharacter>(Character))
-    {
-        return CharacterPawn->GetMesh();
-    }
-
-    // Look for first skeletal mesh component
+    // Get all skeletal mesh components
     TArray<USkeletalMeshComponent*> MeshComponents;
     Character->GetComponents<USkeletalMeshComponent>(MeshComponents);
 
-    // Return first valid mesh that's not an equipment mesh
+    // Priority: Find mesh with weapon attachment socket (weapon_r or GripPoint)
+    // This handles MetaHuman/modular character setups where Body has the skeleton
     for (USkeletalMeshComponent* Mesh : MeshComponents)
     {
-        if (Mesh && !Mesh->IsA<USuspenseCoreEquipmentMeshComponent>())
+        if (Mesh && Mesh->GetSkeletalMeshAsset() && !Mesh->IsA<USuspenseCoreEquipmentMeshComponent>())
+        {
+            // Check for weapon sockets
+            for (const FName& SocketName : WeaponSocketPriority)
+            {
+                if (Mesh->DoesSocketExist(SocketName))
+                {
+                    EQUIPMENT_LOG(Verbose, TEXT("Found attachment mesh '%s' with socket '%s'"),
+                        *Mesh->GetName(), *SocketName.ToString());
+                    return Mesh;
+                }
+            }
+        }
+    }
+
+    // Fallback: Try ACharacter::GetMesh()
+    if (ACharacter* CharacterPawn = Cast<ACharacter>(Character))
+    {
+        USkeletalMeshComponent* MainMesh = CharacterPawn->GetMesh();
+        if (MainMesh && MainMesh->GetSkeletalMeshAsset())
+        {
+            return MainMesh;
+        }
+    }
+
+    // Last resort: Return first valid mesh that's not equipment
+    for (USkeletalMeshComponent* Mesh : MeshComponents)
+    {
+        if (Mesh && Mesh->GetSkeletalMeshAsset() && !Mesh->IsA<USuspenseCoreEquipmentMeshComponent>())
         {
             return Mesh;
         }

@@ -20,7 +20,8 @@ public class EquipmentSystem : ModuleRules
 
                 // Suspense modules
                 "BridgeSystem",
-                "GAS"
+                "GAS",
+                "PlayerCore"  // For CameraShake system
             }
         );
 

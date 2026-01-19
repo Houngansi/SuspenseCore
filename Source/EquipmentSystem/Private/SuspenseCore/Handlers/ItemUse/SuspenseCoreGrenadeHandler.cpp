@@ -59,7 +59,7 @@ void USuspenseCoreGrenadeHandler::Shutdown()
 	if (EventBus.IsValid() && SpawnRequestedHandle.IsValid())
 	{
 		EventBus->Unsubscribe(SpawnRequestedHandle);
-		SpawnRequestedHandle = FSuspenseCoreEventHandle();
+		SpawnRequestedHandle.Invalidate();
 		HANDLER_LOG(Log, TEXT("Unsubscribed from EventBus"));
 	}
 }
@@ -505,7 +505,7 @@ void USuspenseCoreGrenadeHandler::PublishGrenadeEvent(
 // EventBus Callbacks
 //==================================================================
 
-void USuspenseCoreGrenadeHandler::OnSpawnRequested(const FSuspenseCoreEventData& EventData)
+void USuspenseCoreGrenadeHandler::OnSpawnRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	// Extract parameters from GrenadeThrowAbility
 	AActor* OwnerActor = Cast<AActor>(EventData.Source.Get());

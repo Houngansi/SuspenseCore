@@ -24,6 +24,7 @@
 #include "UObject/NoExportTypes.h"
 #include "SuspenseCore/Interfaces/ItemUse/ISuspenseCoreItemUseHandler.h"
 #include "SuspenseCore/Tags/SuspenseCoreItemUseNativeTags.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreGrenadeHandler.generated.h"
 
 // Forward declarations
@@ -190,7 +191,7 @@ private:
 	 * Called when GrenadeThrowAbility requests grenade spawn via EventBus
 	 * Extracts spawn parameters from event data and calls ThrowGrenadeFromEvent()
 	 */
-	void OnSpawnRequested(const FSuspenseCoreEventData& EventData);
+	void OnSpawnRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/**
 	 * Spawn grenade from EventBus SpawnRequested event
@@ -219,7 +220,7 @@ private:
 	//==================================================================
 
 	/** Handle for SpawnRequested event subscription */
-	FSuspenseCoreEventHandle SpawnRequestedHandle;
+	FSuspenseCoreSubscriptionHandle SpawnRequestedHandle;
 
 	//==================================================================
 	// Configuration

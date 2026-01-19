@@ -6,7 +6,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
-#include "SuspenseCore/CameraShake/SuspenseCoreExplosionCameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -496,10 +496,11 @@ void ASuspenseCoreGrenadeProjectile::Multicast_SpawnExplosionEffects_Implementat
         SpawnEffect(SmokeEffect, ExplosionLocation, ExplosionRotation);
     }
 
-    // Camera shake using SuspenseCoreExplosionCameraShake with Grenade preset
-    // Find all local player controllers and apply distance-based shake
+    // Camera shake - uses Blueprint-configured ExplosionCameraShake class
+    // This allows using SuspenseCoreExplosionCameraShake from PlayerCore via Blueprint
+    // without creating circular module dependencies
     UWorld* World = GetWorld();
-    if (World)
+    if (World && ExplosionCameraShake)
     {
         for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
         {
@@ -514,52 +515,19 @@ void ASuspenseCoreGrenadeProjectile::Multicast_SpawnExplosionEffects_Implementat
                     // Only shake if within camera shake radius
                     if (Distance <= CameraShakeRadius)
                     {
-                        // Use SuspenseCoreExplosionCameraShake with distance-based preset
-                        FSuspenseCoreExplosionShakeParams ShakeParams;
-
-                        // Select preset based on distance (Grenade-specific, then distance falloff)
-                        if (Distance < InnerRadius)
-                        {
-                            // Very close - use Grenade preset at full intensity
-                            ShakeParams = FSuspenseCoreExplosionShakeParams::GetGrenadePreset();
-                        }
-                        else if (Distance < OuterRadius)
-                        {
-                            // Medium distance
-                            ShakeParams = FSuspenseCoreExplosionShakeParams::GetMediumPreset();
-                        }
-                        else
-                        {
-                            // Far away - distant rumble
-                            ShakeParams = FSuspenseCoreExplosionShakeParams::GetDistantPreset();
-                        }
-
-                        // Calculate scale based on distance (1.0 at InnerRadius, 0.0 at CameraShakeRadius)
+                        // Calculate scale based on distance (1.0 at center, 0.0 at edge)
                         float DistanceScale = 1.0f - FMath::Clamp(
-                            (Distance - InnerRadius) / (CameraShakeRadius - InnerRadius),
+                            Distance / CameraShakeRadius,
                             0.0f, 1.0f);
 
                         // Apply shake via PlayerCameraManager
                         if (APlayerCameraManager* CameraManager = PC->PlayerCameraManager)
                         {
-                            // Use the project's ExplosionCameraShake class if set, otherwise use default
-                            TSubclassOf<UCameraShakeBase> ShakeClass = ExplosionCameraShake;
-                            if (!ShakeClass)
-                            {
-                                ShakeClass = USuspenseCoreExplosionCameraShake::StaticClass();
-                            }
-
-                            UCameraShakeBase* ShakeInstance = CameraManager->StartCameraShake(
-                                ShakeClass,
+                            CameraManager->StartCameraShake(
+                                ExplosionCameraShake,
                                 DistanceScale,
                                 ECameraShakePlaySpace::World,
                                 FRotator::ZeroRotator);
-
-                            // If it's our custom shake, apply the grenade params
-                            if (USuspenseCoreExplosionCameraShake* ExplosionShake = Cast<USuspenseCoreExplosionCameraShake>(ShakeInstance))
-                            {
-                                ExplosionShake->SetShakeParams(ShakeParams);
-                            }
                         }
                     }
                 }

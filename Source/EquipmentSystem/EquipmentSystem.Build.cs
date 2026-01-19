@@ -20,8 +20,9 @@ public class EquipmentSystem : ModuleRules
 
                 // Suspense modules
                 "BridgeSystem",
-                "GAS",
-                "PlayerCore"  // For CameraShake system
+                "GAS"
+                // NOTE: Do NOT add PlayerCore here - creates circular dependency
+                // CameraShake is configured via Blueprint TSubclassOf<UCameraShakeBase>
             }
         );
 

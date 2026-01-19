@@ -699,7 +699,89 @@ GrenadeProjectile.ForceExplode
 
 ---
 
-## Appendix A: Complete Configuration Checklist
+## Appendix A: Module Dependencies
+
+### EquipmentSystem.Build.cs Dependencies
+
+The GrenadeProjectile uses the CameraShake system from `PlayerCore` module. Ensure these dependencies are in your `EquipmentSystem.Build.cs`:
+
+```csharp
+PublicDependencyModuleNames.AddRange(
+    new string[]
+    {
+        "Core",
+        "CoreUObject",
+        "Engine",
+        "GameplayAbilities",  // GAS integration
+        "GameplayTags",       // Tag system
+        "GameplayTasks",      // Task system
+
+        // Suspense modules
+        "BridgeSystem",
+        "GAS",
+        "PlayerCore"  // For CameraShake system (required for grenade explosions)
+    }
+);
+
+PrivateDependencyModuleNames.AddRange(
+    new string[]
+    {
+        "Slate",
+        "SlateCore",
+        "InputCore",
+        "NetCore",
+        "Niagara",  // For particle effects
+        "Json",
+        "JsonUtilities",
+        "OnlineSubsystem",
+        "OnlineSubsystemUtils"
+    }
+);
+```
+
+### Required Includes for GrenadeProjectile.cpp
+
+```cpp
+// Grenade header
+#include "SuspenseCore/Actors/SuspenseCoreGrenadeProjectile.h"
+
+// EventBus - use EventManager pattern
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+
+// CameraShake from PlayerCore module (requires PlayerCore dependency)
+#include "SuspenseCore/CameraShake/SuspenseCoreExplosionCameraShake.h"
+
+// Engine includes for damage/overlap
+#include "Engine/OverlapResult.h"
+#include "Engine/DamageEvents.h"
+```
+
+### EventBus Access Pattern
+
+Always use the project-standard `USuspenseCoreEventManager` pattern:
+
+```cpp
+// CORRECT - Project standard pattern
+USuspenseCoreEventBus* GetEventBus()
+{
+    if (!EventBus.IsValid())
+    {
+        if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
+        {
+            EventBus = EventManager->GetEventBus();
+        }
+    }
+    return EventBus.Get();
+}
+
+// WRONG - Do NOT use TActorIterator
+// TActorIterator<ASuspenseCoreEventBus> It(GetWorld()); // DON'T DO THIS
+```
+
+---
+
+## Appendix B: Complete Configuration Checklist
 
 - [ ] GrenadeThrowAbility granted to player
 - [ ] GrenadeHandler registered with ItemUseService
@@ -714,7 +796,7 @@ GrenadeProjectile.ForceExplode
 
 ---
 
-## Appendix B: Performance Considerations
+## Appendix C: Performance Considerations
 
 | Optimization | Implementation |
 |--------------|----------------|

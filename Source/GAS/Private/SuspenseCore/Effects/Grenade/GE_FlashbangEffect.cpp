@@ -26,10 +26,13 @@ UGE_FlashbangEffect::UGE_FlashbangEffect()
 	Period = 0.0f;
 
 	// Stacking: refresh duration on reapply, only one active
+	// NOTE: Stacking API will be made private in future UE versions
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	StackingType = EGameplayEffectStackingType::AggregateByTarget;
 	StackLimitCount = 1;
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Add State.Blinded and State.Deafened tags
 	// These tags can be used for:
@@ -68,10 +71,12 @@ UGE_FlashbangEffect_Partial::UGE_FlashbangEffect_Partial()
 	Period = 0.0f;
 
 	// Stacking: same as full effect
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	StackingType = EGameplayEffectStackingType::AggregateByTarget;
 	StackLimitCount = 1;
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Partial effect - only applies Disoriented tag (reduced impairment)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS

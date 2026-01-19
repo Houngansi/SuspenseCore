@@ -699,11 +699,18 @@ GrenadeProjectile.ForceExplode
 
 ---
 
-## Appendix A: Module Dependencies
+## Appendix A: Module Architecture & Dependencies
+
+### CRITICAL: Avoiding Circular Dependencies
+
+**DO NOT** add `PlayerCore` as a dependency to `EquipmentSystem`. This creates a circular dependency:
+```
+EquipmentSystem -> PlayerCore -> EquipmentSystem (CIRCULAR!)
+```
+
+**Solution:** Use Blueprint configuration for cross-module features like CameraShake.
 
 ### EquipmentSystem.Build.cs Dependencies
-
-The GrenadeProjectile uses the CameraShake system from `PlayerCore` module. Ensure these dependencies are in your `EquipmentSystem.Build.cs`:
 
 ```csharp
 PublicDependencyModuleNames.AddRange(
@@ -718,8 +725,9 @@ PublicDependencyModuleNames.AddRange(
 
         // Suspense modules
         "BridgeSystem",
-        "GAS",
-        "PlayerCore"  // For CameraShake system (required for grenade explosions)
+        "GAS"
+        // NOTE: Do NOT add PlayerCore - creates circular dependency!
+        // CameraShake is configured via Blueprint TSubclassOf<UCameraShakeBase>
     }
 );
 
@@ -730,14 +738,24 @@ PrivateDependencyModuleNames.AddRange(
         "SlateCore",
         "InputCore",
         "NetCore",
-        "Niagara",  // For particle effects
-        "Json",
-        "JsonUtilities",
-        "OnlineSubsystem",
-        "OnlineSubsystemUtils"
+        "Niagara"  // For particle effects
     }
 );
 ```
+
+### CameraShake Integration (Without Circular Dependency)
+
+The GrenadeProjectile uses a **Blueprint-configurable** CameraShake:
+
+```cpp
+// In header (SuspenseCoreGrenadeProjectile.h)
+UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|Effects")
+TSubclassOf<UCameraShakeBase> ExplosionCameraShake;
+```
+
+In your Blueprint (BP_Grenade_F1):
+1. Set `ExplosionCameraShake` to `SuspenseCoreExplosionCameraShake`
+2. This references PlayerCore's class without C++ dependency
 
 ### Required Includes for GrenadeProjectile.cpp
 
@@ -749,8 +767,8 @@ PrivateDependencyModuleNames.AddRange(
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 
-// CameraShake from PlayerCore module (requires PlayerCore dependency)
-#include "SuspenseCore/CameraShake/SuspenseCoreExplosionCameraShake.h"
+// Base CameraShake (NOT PlayerCore-specific)
+#include "Camera/CameraShakeBase.h"
 
 // Engine includes for damage/overlap
 #include "Engine/OverlapResult.h"

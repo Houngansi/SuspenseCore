@@ -448,16 +448,47 @@ bool USuspenseCoreEquipmentAttachmentSystem::ValidateSocket(
 
 USkeletalMeshComponent* USuspenseCoreEquipmentAttachmentSystem::FindPrimarySkelMesh(AActor* Character) const
 {
+	if (!Character) return nullptr;
+
+	// Priority list of weapon sockets
+	static const TArray<FName> WeaponSockets = {
+		FName("weapon_r"),
+		FName("GripPoint"),
+		FName("RightHandSocket"),
+		FName("hand_r")
+	};
+
+	TArray<USkeletalMeshComponent*> Skels;
+	Character->GetComponents(Skels);
+
+	// First pass: Find mesh with weapon socket (handles MetaHuman Body component)
+	for (USkeletalMeshComponent* S : Skels)
+	{
+		if (S && S->IsRegistered() && S->GetSkeletalMeshAsset())
+		{
+			for (const FName& Socket : WeaponSockets)
+			{
+				if (S->DoesSocketExist(Socket))
+				{
+					return S;
+				}
+			}
+		}
+	}
+
+	// Fallback: ACharacter::GetMesh()
 	if (ACharacter* C = Cast<ACharacter>(Character))
 	{
 		if (USkeletalMeshComponent* Mesh = C->GetMesh())
 		{
-			if (Mesh->IsRegistered()) return Mesh;
+			if (Mesh->IsRegistered() && Mesh->GetSkeletalMeshAsset())
+			{
+				return Mesh;
+			}
 		}
 	}
 
-	TArray<USkeletalMeshComponent*> Skels;
-	Character->GetComponents(Skels);
+	// Last resort: first registered mesh
 	for (USkeletalMeshComponent* S : Skels)
 	{
 		if (S && S->IsRegistered()) return S;

@@ -6,12 +6,20 @@
 // Handles grenade preparation and throwing operations.
 // Two-phase operation: Prepare (hold) → Throw (release)
 //
-// FLOW:
-// 1. User presses grenade key or uses QuickSlot
-// 2. ItemUseService routes to this handler
-// 3. Handler starts prepare phase (pin pull animation)
-// 4. OnOperationComplete() transitions to throw phase
-// 5. Grenade spawned and thrown in world
+// FLOW (Tarkov-style two-phase):
+// PHASE 1 - EQUIP (QuickSlot press):
+// 1. User presses QuickSlot (4-7) with grenade
+// 2. ItemUseService routes to this handler (Context = QuickSlot)
+// 3. Handler activates GA_GrenadeEquip ability
+// 4. GA_GrenadeEquip plays draw montage, grants State.GrenadeEquipped tag
+// 5. Grenade is now in hand, ready for throw
+//
+// PHASE 2 - THROW (Fire press while equipped):
+// 1. User presses Fire (LMB) with grenade equipped
+// 2. ItemUseService routes to this handler (Context = Fire)
+// 3. Handler checks State.GrenadeEquipped tag
+// 4. Handler activates GA_GrenadeThrow ability
+// 5. GA_GrenadeThrow plays throw animation, spawns grenade
 //
 // ARCHITECTURE:
 // - Duration-based prepare phase
@@ -47,24 +55,24 @@ enum class ESuspenseCoreGrenadeType : uint8
 /**
  * USuspenseCoreGrenadeHandler
  *
- * Handler for grenade prepare and throw operations.
- * Routes through GAS GrenadeThrowAbility for animation montage support.
- * Also listens to EventBus SpawnRequested events to spawn grenade actors.
+ * Handler for Tarkov-style grenade equip and throw operations.
+ * Implements two-phase grenade flow: Equip → Throw
  *
- * FLOW:
- * 1. QuickSlot pressed → ItemUseService → Execute()
- * 2. Execute() activates GrenadeThrowAbility via TryActivateAbilitiesByTag
- * 3. GrenadeThrowAbility plays montage, handles AnimNotify phases
- * 4. OnReleaseNotify → EventBus.Publish(SpawnRequested)
- * 5. This handler receives SpawnRequested → ThrowGrenade() spawns actor
+ * TARKOV-STYLE FLOW:
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  [QuickSlot Press]  →  GA_GrenadeEquip  →  State.GrenadeEquipped │
+ * │         ↓                                                        │
+ * │  [Fire Press]       →  GA_GrenadeThrow  →  Spawn Projectile     │
+ * └─────────────────────────────────────────────────────────────────┘
  *
- * SUPPORTED OPERATIONS:
- * - Hotkey: Direct grenade throw
- * - QuickSlot: Quick grenade from slot
+ * SUPPORTED CONTEXTS:
+ * - QuickSlot: Equip grenade (activate GA_GrenadeEquip)
+ * - Fire: Throw equipped grenade (activate GA_GrenadeThrow)
+ * - Hotkey: Legacy instant throw (for key bindings)
  *
- * PHASES:
- * 1. Prepare: Pull pin, ready to throw
- * 2. Throw: Release, grenade spawned
+ * ABILITIES USED:
+ * - GA_GrenadeEquip: Draw montage, grants State.GrenadeEquipped
+ * - GA_GrenadeThrow: Pin pull, cooking, throw montage, spawn
  *
  * REQUIREMENTS:
  * - Source: Item with Item.Category.Grenade tag
@@ -144,7 +152,43 @@ public:
 
 protected:
 	//==================================================================
-	// Internal Methods
+	// Internal Methods - Ability Activation
+	//==================================================================
+
+	/**
+	 * Activate GA_GrenadeEquip ability to equip grenade
+	 * Called when Context == QuickSlot
+	 *
+	 * @param Request Original use request
+	 * @param OwnerActor Actor equipping grenade
+	 * @return Response indicating success/failure
+	 */
+	FSuspenseCoreItemUseResponse ExecuteEquip(
+		const FSuspenseCoreItemUseRequest& Request,
+		AActor* OwnerActor);
+
+	/**
+	 * Activate GA_GrenadeThrow ability to throw equipped grenade
+	 * Called when Context == Fire AND State.GrenadeEquipped is present
+	 *
+	 * @param Request Original use request
+	 * @param OwnerActor Actor throwing grenade
+	 * @return Response indicating success/failure
+	 */
+	FSuspenseCoreItemUseResponse ExecuteThrow(
+		const FSuspenseCoreItemUseRequest& Request,
+		AActor* OwnerActor);
+
+	/**
+	 * Check if actor has State.GrenadeEquipped tag
+	 *
+	 * @param Actor Actor to check
+	 * @return true if grenade is currently equipped
+	 */
+	bool IsGrenadeEquipped(AActor* Actor) const;
+
+	//==================================================================
+	// Internal Methods - Grenade Data
 	//==================================================================
 
 	/**

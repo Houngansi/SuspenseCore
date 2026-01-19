@@ -39,11 +39,12 @@ The SuspenseCore Grenade System is a AAA-quality implementation for throwable we
 
 | Feature | Description |
 |---------|-------------|
+| **Tarkov-style Flow** | Two-phase: Equip (QuickSlot) → Throw (Fire/LMB) |
 | **Cooking Mechanic** | Hold grenade to reduce fuse time (risky!) |
 | **Cancel Support** | Release before pin pull to cancel safely |
 | **Impact Grenades** | Explode on contact with surfaces |
 | **Multiple Types** | Frag, Smoke, Flashbang, Incendiary, Impact |
-| **QuickSlot Integration** | Keys 4-7 for instant grenade access |
+| **QuickSlot Integration** | Keys 4-7 for grenade equip, LMB to throw |
 | **EventBus Events** | Full event system for UI/AI/Sound |
 
 ### Supported Grenade Types
@@ -60,30 +61,63 @@ The SuspenseCore Grenade System is a AAA-quality implementation for throwable we
 
 ## 2. Architecture
 
-### System Flow
+### System Flow (Tarkov-style Two-Phase)
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        GRENADE SYSTEM FLOW                          │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    TARKOV-STYLE GRENADE FLOW (TWO-PHASE)                     │
+└─────────────────────────────────────────────────────────────────────────────┘
 
+PHASE 1: EQUIP (QuickSlot press)
 ┌──────────────┐     ┌────────────────┐     ┌─────────────────────┐
 │   Player     │────▶│ QuickSlot (4-7)│────▶│  ItemUseService     │
-│   Input      │     │ or Hotkey (G)  │     │                     │
+│ Press Key 4  │     │ Context=       │     │                     │
+└──────────────┘     │ QuickSlot      │     └──────────┬──────────┘
+                     └────────────────┘                │
+                                                       ▼
+                                            ┌─────────────────────┐
+                                            │  GrenadeHandler     │
+                                            │ Context == QuickSlot│
+                                            └──────────┬──────────┘
+                                                       │
+                                            TryActivateAbilitiesByTag
+                                            (Ability.Throwable.Equip)
+                                                       │
+                                                       ▼
+                                            ┌─────────────────────┐
+                                            │ GrenadeEquipAbility │
+                                            │   GA_GrenadeEquip   │
+                                            └──────────┬──────────┘
+                                                       │
+                                             • Play draw montage
+                                             • Change WeaponStance
+                                             • Grant State.GrenadeEquipped
+                                                       │
+                                                       ▼
+                                            ┌─────────────────────┐
+                                            │ Grenade in hand,    │
+                                            │ waiting for LMB     │
+                                            └─────────────────────┘
+
+PHASE 2: THROW (Fire/LMB press while equipped)
+┌──────────────┐     ┌────────────────┐     ┌─────────────────────┐
+│   Player     │────▶│  Fire (LMB)    │────▶│  ItemUseService     │
+│ Press LMB    │     │ Context=Fire   │     │                     │
 └──────────────┘     └────────────────┘     └──────────┬──────────┘
                                                        │
                                                        ▼
                                             ┌─────────────────────┐
                                             │  GrenadeHandler     │
-                                            │  (Validate + Route) │
+                                            │ Context == Fire     │
+                                            │ Check: IsEquipped?  │
                                             └──────────┬──────────┘
                                                        │
-                                           TryActivateAbilitiesByTag
+                                              Has State.GrenadeEquipped?
                                                        │
                                                        ▼
                                             ┌─────────────────────┐
                                             │ GrenadeThrowAbility │
-                                            │    (GAS Ability)    │
+                                            │  GA_GrenadeThrow    │
                                             └──────────┬──────────┘
                                                        │
                                               Play Montage with
@@ -129,8 +163,9 @@ The SuspenseCore Grenade System is a AAA-quality implementation for throwable we
 
 | Class | Module | Purpose |
 |-------|--------|---------|
+| `USuspenseCoreGrenadeEquipAbility` | GAS | **NEW** GAS ability for equipping grenade from QuickSlot |
 | `USuspenseCoreGrenadeThrowAbility` | GAS | GAS ability for throw animation/phases |
-| `USuspenseCoreGrenadeHandler` | EquipmentSystem | Validates requests, spawns grenades |
+| `USuspenseCoreGrenadeHandler` | EquipmentSystem | Validates requests, routes equip/throw |
 | `ASuspenseCoreGrenadeProjectile` | EquipmentSystem | Physics projectile with fuse/damage |
 | `USuspenseCoreQuickSlotComponent` | EquipmentSystem | Stores grenades in QuickSlots 0-3 |
 
@@ -138,33 +173,51 @@ The SuspenseCore Grenade System is a AAA-quality implementation for throwable we
 
 | Event Tag | When Fired | Payload |
 |-----------|------------|---------|
-| `Event.Throwable.PrepareStarted` | Ability activated | GrenadeID, ThrowType |
+| `Event.Throwable.Equipped` | **NEW** Grenade equipped | GrenadeID, QuickSlotIndex |
+| `Event.Throwable.Unequipped` | **NEW** Grenade unequipped | GrenadeID |
+| `Event.Throwable.Ready` | **NEW** Draw complete, ready | GrenadeID, IsReady=true |
+| `Event.Throwable.PrepareStarted` | Throw ability activated | GrenadeID, ThrowType |
 | `Event.Throwable.PinPulled` | Pin pulled (armed) | GrenadeID, PinPulled=true |
 | `Event.Throwable.CookingStarted` | Ready to throw | GrenadeID, CookTime |
 | `Event.Throwable.Thrown` | Grenade released | GrenadeID, ThrowForce |
 | `Event.Throwable.Cancelled` | Cancelled (pin not pulled) | GrenadeID |
 | `Event.Throwable.SpawnRequested` | Request actor spawn | Location, Direction, Force |
 
+### State Tags
+
+| State Tag | Description |
+|-----------|-------------|
+| `State.GrenadeEquipped` | **NEW** Grenade is equipped and ready to throw with LMB |
+| `State.ThrowingGrenade` | Grenade throw animation in progress |
+
 ---
 
 ## 3. Quick Start
 
-### Step 1: Grant the Ability
+### Step 1: Grant the Abilities
 
-In your PlayerState or Character class:
+In your PlayerState or Character class, grant **both** equip and throw abilities:
 
 ```cpp
 void AMyPlayerState::GrantStartupAbilities()
 {
     if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
     {
-        // Grant GrenadeThrowAbility
-        FGameplayAbilitySpec Spec(
+        // Grant GrenadeEquipAbility (for QuickSlot press)
+        FGameplayAbilitySpec EquipSpec(
+            USuspenseCoreGrenadeEquipAbility::StaticClass(),
+            1,  // Level
+            INDEX_NONE,  // No input binding (uses TryActivateAbilitiesByTag)
+            this);
+        ASC->GiveAbility(EquipSpec);
+
+        // Grant GrenadeThrowAbility (for Fire/LMB press)
+        FGameplayAbilitySpec ThrowSpec(
             USuspenseCoreGrenadeThrowAbility::StaticClass(),
             1,  // Level
             INDEX_NONE,  // No input binding (uses TryActivateAbilitiesByTag)
             this);
-        ASC->GiveAbility(Spec);
+        ASC->GiveAbility(ThrowSpec);
     }
 }
 ```
@@ -211,9 +264,71 @@ Create a montage with these AnimNotify names:
 
 ## 4. Components Reference
 
+### USuspenseCoreGrenadeEquipAbility (NEW)
+
+**Header:** `Source/GAS/Public/SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeEquipAbility.h`
+
+The equip ability handles the first phase of the Tarkov-style flow: equipping a grenade from QuickSlot.
+
+#### Key Features
+
+- Activated when player presses QuickSlot key (4-7)
+- Plays draw/equip montage
+- Changes `WeaponStanceComponent` to grenade stance
+- Grants `State.GrenadeEquipped` tag
+- Stores previous weapon state for restoration after throw/cancel
+
+#### Configuration Properties
+
+```cpp
+// Animation
+UPROPERTY(EditDefaultsOnly, Category = "Grenade|Montages")
+TObjectPtr<UAnimMontage> DefaultDrawMontage;
+
+UPROPERTY(EditDefaultsOnly, Category = "Grenade|Montages")
+TObjectPtr<UAnimMontage> DefaultHolsterMontage;
+
+// Timing
+UPROPERTY(EditDefaultsOnly, Category = "Grenade|Timing")
+float MinEquipTime = 0.3f;
+
+UPROPERTY(EditDefaultsOnly, Category = "Grenade|Timing")
+float DrawMontagePlayRate = 1.0f;
+```
+
+#### Public Methods
+
+```cpp
+// Set grenade info before activation
+void SetGrenadeInfo(FName InGrenadeID, FGameplayTag InGrenadeTypeTag, int32 InSlotIndex);
+
+// Request unequip (holster grenade)
+void RequestUnequip();
+
+// Check if grenade is ready (draw complete)
+bool IsGrenadeReady() const;
+
+// Get time since equip completed
+float GetEquipTime() const;
+```
+
+#### Blueprint Events
+
+```cpp
+UFUNCTION(BlueprintImplementableEvent)
+void OnGrenadeEquipped();
+
+UFUNCTION(BlueprintImplementableEvent)
+void OnGrenadeUnequipping();
+```
+
+---
+
 ### USuspenseCoreGrenadeThrowAbility
 
 **Header:** `Source/GAS/Public/SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeThrowAbility.h`
+
+**Note:** This ability now **requires** `State.GrenadeEquipped` tag to activate (Tarkov-style flow).
 
 #### Configuration Properties
 

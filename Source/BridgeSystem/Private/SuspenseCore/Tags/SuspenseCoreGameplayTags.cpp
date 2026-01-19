@@ -230,6 +230,8 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Thrown, "SuspenseCore.Event.Throwable.Thrown");
 			UE_DEFINE_GAMEPLAY_TAG(Cancelled, "SuspenseCore.Event.Throwable.Cancelled");
 			UE_DEFINE_GAMEPLAY_TAG(SpawnRequested, "SuspenseCore.Event.Throwable.SpawnRequested");
+			UE_DEFINE_GAMEPLAY_TAG(Equipped, "SuspenseCore.Event.Throwable.Equipped");
+			UE_DEFINE_GAMEPLAY_TAG(Unequipped, "SuspenseCore.Event.Throwable.Unequipped");
 		}
 	}
 
@@ -313,6 +315,7 @@ namespace SuspenseCoreTags
 		// Throwable abilities (grenade, consumable throw)
 		namespace Throwable
 		{
+			UE_DEFINE_GAMEPLAY_TAG(Equip, "SuspenseCore.Ability.Throwable.Equip");
 			UE_DEFINE_GAMEPLAY_TAG(Grenade, "SuspenseCore.Ability.Throwable.Grenade");
 		}
 	}

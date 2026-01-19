@@ -25,8 +25,10 @@ USuspenseCoreGrenadeEquipAbility::USuspenseCoreGrenadeEquipAbility()
 	// Instanced per execution - we need state
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
-	// Ability tags
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::Throwable::Equip);
+	// Ability tags - use SetAssetTags for new API
+	FGameplayTagContainer AssetTags;
+	AssetTags.AddTag(SuspenseCoreTags::Ability::Throwable::Equip);
+	SetAssetTags(AssetTags);
 
 	// Blocking tags - can't equip while these states are active
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
@@ -40,7 +42,7 @@ USuspenseCoreGrenadeEquipAbility::USuspenseCoreGrenadeEquipAbility()
 	// Cancel these abilities when we activate
 	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::Fire);
 	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::Reload);
-	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::Aim);
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::AimDownSight);
 
 	// Default timing
 	MinEquipTime = 0.3f;

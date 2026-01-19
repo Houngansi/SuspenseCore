@@ -43,10 +43,12 @@ UGE_IncendiaryEffect::UGE_IncendiaryEffect()
 
 	// Stacking: multiple sources can stack (up to 3)
 	// Duration refreshes when same source reapplies
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	StackingType = EGameplayEffectStackingType::AggregateBySource;
 	StackLimitCount = 3;
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::RemoveSingleStackAndRefreshDuration;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Add State.Burning tag
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -96,10 +98,12 @@ UGE_IncendiaryEffect_Zone::UGE_IncendiaryEffect_Zone()
 	Modifiers.Add(BurnDamageModifier);
 
 	// Stacking: only one zone effect at a time, refresh on reapply
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	StackingType = EGameplayEffectStackingType::AggregateByTarget;
 	StackLimitCount = 1;
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Add State.InFireZone tag (different from direct burn)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS

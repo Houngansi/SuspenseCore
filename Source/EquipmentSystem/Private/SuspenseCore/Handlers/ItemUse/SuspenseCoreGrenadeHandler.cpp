@@ -99,10 +99,13 @@ FGameplayTagContainer USuspenseCoreGrenadeHandler::GetSupportedSourceTags() cons
 
 TArray<ESuspenseCoreItemUseContext> USuspenseCoreGrenadeHandler::GetSupportedContexts() const
 {
+	// Hotkey: Used for throw when grenade is equipped (Fire input routed here)
+	// QuickSlot: Used for equipping grenade from QuickSlot
+	// Programmatic: Used for AI or script-triggered throws
 	return {
-		ESuspenseCoreItemUseContext::Hotkey,      // Legacy instant throw
-		ESuspenseCoreItemUseContext::QuickSlot,   // Equip grenade
-		ESuspenseCoreItemUseContext::Fire         // Throw equipped grenade
+		ESuspenseCoreItemUseContext::Hotkey,
+		ESuspenseCoreItemUseContext::QuickSlot,
+		ESuspenseCoreItemUseContext::Programmatic
 	};
 }
 
@@ -204,8 +207,8 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::Execute(
 {
 	// TARKOV-STYLE TWO-PHASE GRENADE FLOW:
 	// Context == QuickSlot → EQUIP grenade (draw animation, change stance)
-	// Context == Fire → THROW equipped grenade (only if State.GrenadeEquipped)
-	// Context == Hotkey → LEGACY instant throw
+	// Context == Hotkey → THROW if equipped, or instant throw if not
+	// Context == Programmatic → AI/script-triggered throw
 
 	HANDLER_LOG(Log, TEXT("Execute: Context=%d, GrenadeID=%s"),
 		static_cast<int32>(Request.Context),
@@ -223,33 +226,33 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::Execute(
 				// TODO: Request unequip via EventBus or cancel ability
 				return FSuspenseCoreItemUseResponse::Failure(
 					Request.RequestID,
-					ESuspenseCoreItemUseResult::Failed_Blocked,
+					ESuspenseCoreItemUseResult::Failed_NotUsable,
 					FText::FromString(TEXT("Grenade already equipped")));
 			}
 
 			return ExecuteEquip(Request, OwnerActor);
 		}
 
-		case ESuspenseCoreItemUseContext::Fire:
+		case ESuspenseCoreItemUseContext::Hotkey:
 		{
-			// PHASE 2: Throw equipped grenade
-			// Only if State.GrenadeEquipped is present
-			if (!IsGrenadeEquipped(OwnerActor))
+			// PHASE 2: Throw grenade
+			// If State.GrenadeEquipped is present, this is a throw from equipped state
+			// If not present but request has grenade, this is a legacy instant throw
+			if (IsGrenadeEquipped(OwnerActor))
 			{
-				HANDLER_LOG(Verbose, TEXT("Fire context but no grenade equipped - ignoring"));
-				return FSuspenseCoreItemUseResponse::Failure(
-					Request.RequestID,
-					ESuspenseCoreItemUseResult::Failed_MissingRequirement,
-					FText::FromString(TEXT("No grenade equipped")));
+				HANDLER_LOG(Log, TEXT("Hotkey context - throwing equipped grenade"));
 			}
-
+			else
+			{
+				HANDLER_LOG(Log, TEXT("Hotkey context - instant throw (legacy)"));
+			}
 			return ExecuteThrow(Request, OwnerActor);
 		}
 
-		case ESuspenseCoreItemUseContext::Hotkey:
+		case ESuspenseCoreItemUseContext::Programmatic:
 		{
-			// LEGACY: Direct instant throw (for dedicated grenade keybind)
-			HANDLER_LOG(Log, TEXT("Hotkey context - instant throw"));
+			// AI/script-triggered throw
+			HANDLER_LOG(Log, TEXT("Programmatic context - throwing grenade"));
 			return ExecuteThrow(Request, OwnerActor);
 		}
 
@@ -307,7 +310,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::ExecuteEquip(
 		HANDLER_LOG(Warning, TEXT("Failed to activate GA_GrenadeEquip"));
 		return FSuspenseCoreItemUseResponse::Failure(
 			Request.RequestID,
-			ESuspenseCoreItemUseResult::Failed_Blocked,
+			ESuspenseCoreItemUseResult::Failed_NotUsable,
 			FText::FromString(TEXT("Cannot equip grenade")));
 	}
 }
@@ -437,7 +440,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::ExecuteThrow(
 		HANDLER_LOG(Warning, TEXT("Failed to activate GA_GrenadeThrow"));
 		return FSuspenseCoreItemUseResponse::Failure(
 			Request.RequestID,
-			ESuspenseCoreItemUseResult::Failed_Blocked,
+			ESuspenseCoreItemUseResult::Failed_NotUsable,
 			FText::FromString(TEXT("Cannot throw grenade")));
 	}
 }

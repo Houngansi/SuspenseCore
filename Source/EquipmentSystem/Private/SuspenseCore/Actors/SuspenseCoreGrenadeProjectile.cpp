@@ -4,10 +4,13 @@
 
 #include "SuspenseCore/Actors/SuspenseCoreGrenadeProjectile.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/CameraShake/SuspenseCoreExplosionCameraShake.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -16,6 +19,8 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "Engine/OverlapResult.h"
+#include "Engine/DamageEvents.h"
 #include "Net/UnrealNetwork.h"
 #include "DrawDebugHelpers.h"
 
@@ -491,17 +496,75 @@ void ASuspenseCoreGrenadeProjectile::Multicast_SpawnExplosionEffects_Implementat
         SpawnEffect(SmokeEffect, ExplosionLocation, ExplosionRotation);
     }
 
-    // Camera shake
-    if (ExplosionCameraShake)
+    // Camera shake using SuspenseCoreExplosionCameraShake with Grenade preset
+    // Find all local player controllers and apply distance-based shake
+    UWorld* World = GetWorld();
+    if (World)
     {
-        UGameplayStatics::PlayWorldCameraShake(
-            GetWorld(),
-            ExplosionCameraShake,
-            ExplosionLocation,
-            InnerRadius,
-            CameraShakeRadius,
-            1.0f,
-            false);
+        for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+        {
+            APlayerController* PC = It->Get();
+            if (PC && PC->IsLocalController())
+            {
+                APawn* Pawn = PC->GetPawn();
+                if (Pawn)
+                {
+                    float Distance = FVector::Dist(ExplosionLocation, Pawn->GetActorLocation());
+
+                    // Only shake if within camera shake radius
+                    if (Distance <= CameraShakeRadius)
+                    {
+                        // Use SuspenseCoreExplosionCameraShake with distance-based preset
+                        FSuspenseCoreExplosionShakeParams ShakeParams;
+
+                        // Select preset based on distance (Grenade-specific, then distance falloff)
+                        if (Distance < InnerRadius)
+                        {
+                            // Very close - use Grenade preset at full intensity
+                            ShakeParams = FSuspenseCoreExplosionShakeParams::GetGrenadePreset();
+                        }
+                        else if (Distance < OuterRadius)
+                        {
+                            // Medium distance
+                            ShakeParams = FSuspenseCoreExplosionShakeParams::GetMediumPreset();
+                        }
+                        else
+                        {
+                            // Far away - distant rumble
+                            ShakeParams = FSuspenseCoreExplosionShakeParams::GetDistantPreset();
+                        }
+
+                        // Calculate scale based on distance (1.0 at InnerRadius, 0.0 at CameraShakeRadius)
+                        float DistanceScale = 1.0f - FMath::Clamp(
+                            (Distance - InnerRadius) / (CameraShakeRadius - InnerRadius),
+                            0.0f, 1.0f);
+
+                        // Apply shake via PlayerCameraManager
+                        if (APlayerCameraManager* CameraManager = PC->PlayerCameraManager)
+                        {
+                            // Use the project's ExplosionCameraShake class if set, otherwise use default
+                            TSubclassOf<UCameraShakeBase> ShakeClass = ExplosionCameraShake;
+                            if (!ShakeClass)
+                            {
+                                ShakeClass = USuspenseCoreExplosionCameraShake::StaticClass();
+                            }
+
+                            UCameraShakeBase* ShakeInstance = CameraManager->StartCameraShake(
+                                ShakeClass,
+                                DistanceScale,
+                                ECameraShakePlaySpace::World,
+                                FRotator::ZeroRotator);
+
+                            // If it's our custom shake, apply the grenade params
+                            if (USuspenseCoreExplosionCameraShake* ExplosionShake = Cast<USuspenseCoreExplosionCameraShake>(ShakeInstance))
+                            {
+                                ExplosionShake->SetShakeParams(ShakeParams);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     GRENADE_PROJECTILE_LOG(Verbose, TEXT("Spawned explosion effects at %s"), *ExplosionLocation.ToString());
@@ -628,27 +691,17 @@ UNiagaraComponent* ASuspenseCoreGrenadeProjectile::SpawnEffect(
 
 USuspenseCoreEventBus* ASuspenseCoreGrenadeProjectile::GetEventBus()
 {
-    // Get EventBus from game instance or world subsystem
-    // Implementation depends on how EventBus is registered in your project
-    // This is a simplified version
-
+    // Use cached EventBus if valid
     if (EventBus.IsValid())
     {
         return EventBus.Get();
     }
 
-    // Try to find EventBus in world
-    UWorld* World = GetWorld();
-    if (!World)
+    // Get EventBus through EventManager (project standard pattern)
+    if (USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this))
     {
-        return nullptr;
-    }
-
-    // Search for EventBus actor/component in world
-    // This is project-specific - adjust based on your EventBus setup
-    for (TActorIterator<AActor> It(World); It; ++It)
-    {
-        if (USuspenseCoreEventBus* FoundEventBus = It->FindComponentByClass<USuspenseCoreEventBus>())
+        USuspenseCoreEventBus* FoundEventBus = Manager->GetEventBus();
+        if (FoundEventBus)
         {
             EventBus = FoundEventBus;
             return FoundEventBus;

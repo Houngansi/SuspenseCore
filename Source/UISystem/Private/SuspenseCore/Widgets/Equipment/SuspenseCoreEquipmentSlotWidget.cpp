@@ -282,7 +282,18 @@ bool USuspenseCoreEquipmentSlotWidget::CanAcceptItemType(const FGameplayTag& Ite
 	}
 
 	// Check if item type matches any allowed type (using hierarchical matching)
-	return AllowedItemTypes.HasTag(ItemTypeTag);
+	// ItemTypeTag (e.g., Item.Throwable.Frag) should match if AllowedItemTypes
+	// contains a parent tag (e.g., Item.Throwable)
+	for (const FGameplayTag& AllowedType : AllowedItemTypes)
+	{
+		// Check if ItemTypeTag matches AllowedType or is a child of AllowedType
+		if (ItemTypeTag.MatchesTag(AllowedType))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 //==================================================================

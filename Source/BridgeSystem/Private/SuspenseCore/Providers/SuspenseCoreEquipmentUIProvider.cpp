@@ -468,10 +468,21 @@ FSuspenseCoreDropValidation USuspenseCoreEquipmentUIProvider::ValidateDrop(
 
 	const FEquipmentSlotConfig& SlotConfig = SlotConfigs[TargetSlot];
 
-	// Check if item type is allowed in this slot
+	// Check if item type is allowed in this slot (hierarchical matching)
+	// ItemType (e.g., Item.Throwable.Frag) should match if AllowedItemTypes
+	// contains a parent tag (e.g., Item.Throwable)
 	if (!SlotConfig.AllowedItemTypes.IsEmpty())
 	{
-		if (!SlotConfig.AllowedItemTypes.HasTag(DragData.Item.ItemType))
+		bool bTypeAllowed = false;
+		for (const FGameplayTag& AllowedType : SlotConfig.AllowedItemTypes)
+		{
+			if (DragData.Item.ItemType.MatchesTag(AllowedType))
+			{
+				bTypeAllowed = true;
+				break;
+			}
+		}
+		if (!bTypeAllowed)
 		{
 			return FSuspenseCoreDropValidation::Invalid(FText::FromString(TEXT("Item type not allowed in this slot")));
 		}
@@ -493,15 +504,26 @@ FSuspenseCoreDropValidation USuspenseCoreEquipmentUIProvider::ValidateDrop(
 
 bool USuspenseCoreEquipmentUIProvider::CanAcceptItemType(const FGameplayTag& ItemType) const
 {
-	// Check if any slot can accept this item type
+	// Check if any slot can accept this item type (hierarchical matching)
 	for (const FEquipmentSlotConfig& SlotConfig : SlotConfigs)
 	{
-		if (SlotConfig.AllowedItemTypes.IsEmpty() || SlotConfig.AllowedItemTypes.HasTag(ItemType))
+		// Check if allowed types is empty OR ItemType matches any allowed type
+		bool bTypeAllowed = SlotConfig.AllowedItemTypes.IsEmpty();
+		if (!bTypeAllowed)
 		{
-			if (!SlotConfig.DisallowedItemTypes.HasTag(ItemType))
+			for (const FGameplayTag& AllowedType : SlotConfig.AllowedItemTypes)
 			{
-				return true;
+				if (ItemType.MatchesTag(AllowedType))
+				{
+					bTypeAllowed = true;
+					break;
+				}
 			}
+		}
+
+		if (bTypeAllowed && !SlotConfig.DisallowedItemTypes.HasTag(ItemType))
+		{
+			return true;
 		}
 	}
 	return false;

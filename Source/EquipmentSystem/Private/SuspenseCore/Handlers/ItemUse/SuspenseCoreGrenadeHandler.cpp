@@ -868,8 +868,8 @@ void USuspenseCoreGrenadeHandler::OnSpawnRequested(FGameplayTag EventTag, const 
 		CookTime = *Cook;
 	}
 
-	HANDLER_LOG(Log, TEXT("OnSpawnRequested: Spawning %s, Force=%.0f, CookTime=%.2f"),
-		*GrenadeID.ToString(), ThrowForce, CookTime);
+	HANDLER_LOG(Log, TEXT("OnSpawnRequested: Spawning %s at Location=(%.1f, %.1f, %.1f), Force=%.0f, CookTime=%.2f"),
+		*GrenadeID.ToString(), ThrowLocation.X, ThrowLocation.Y, ThrowLocation.Z, ThrowForce, CookTime);
 
 	// Spawn the grenade
 	ThrowGrenadeFromEvent(OwnerActor, GrenadeID, ThrowLocation, ThrowDirection, ThrowForce, CookTime);

@@ -712,17 +712,20 @@ void USuspenseCoreGrenadeThrowAbility::StopThrowMontage()
 
 bool USuspenseCoreGrenadeThrowAbility::ExecuteThrow()
 {
-    AActor* OwnerActor = GetOwningActorFromActorInfo();
-    if (!OwnerActor)
+    // IMPORTANT: Use Avatar (Character), not Owner (PlayerState)!
+    // ASC is on PlayerState, but we need the Character's world position
+    AActor* AvatarActor = GetAvatarActorFromActorInfo();
+    if (!AvatarActor)
     {
+        GRENADE_LOG(Error, TEXT("ExecuteThrow: AvatarActor is null!"));
         return false;
     }
 
-    ACharacter* Character = Cast<ACharacter>(OwnerActor);
+    ACharacter* Character = Cast<ACharacter>(AvatarActor);
 
     // Calculate throw direction
-    FVector ThrowDirection = OwnerActor->GetActorForwardVector();
-    FVector ThrowLocation = OwnerActor->GetActorLocation();
+    FVector ThrowDirection = AvatarActor->GetActorForwardVector();
+    FVector ThrowLocation = AvatarActor->GetActorLocation();
 
     if (Character)
     {
@@ -752,7 +755,7 @@ bool USuspenseCoreGrenadeThrowAbility::ExecuteThrow()
     // The actual spawning is handled by SuspenseCoreGrenadeHandler or listeners
     if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(OwnerActor);
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(AvatarActor);
         EventData.SetString(TEXT("GrenadeID"), CurrentGrenadeID.ToString());
         EventData.SetVector(TEXT("ThrowLocation"), ThrowLocation);
         EventData.SetVector(TEXT("ThrowDirection"), ThrowDirection);
@@ -763,8 +766,8 @@ bool USuspenseCoreGrenadeThrowAbility::ExecuteThrow()
         // Publish spawn request event
         EventBus->Publish(SuspenseCoreTags::Event::Throwable::SpawnRequested, EventData);
 
-        GRENADE_LOG(Log, TEXT("ExecuteThrow: Published SpawnRequested event for %s, Force=%.0f, CookTime=%.2f"),
-            *CurrentGrenadeID.ToString(), ThrowForce, GetCookTime());
+        GRENADE_LOG(Log, TEXT("ExecuteThrow: Published SpawnRequested event for %s at Location=(%.1f, %.1f, %.1f), Force=%.0f, CookTime=%.2f"),
+            *CurrentGrenadeID.ToString(), ThrowLocation.X, ThrowLocation.Y, ThrowLocation.Z, ThrowForce, GetCookTime());
     }
 
     bIsCooking = false;

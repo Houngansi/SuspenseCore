@@ -14,6 +14,7 @@
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGrenadeHandler, Log, All);
 
@@ -38,16 +39,31 @@ void USuspenseCoreGrenadeHandler::Initialize(
 	DataManager = InDataManager;
 	EventBus = InEventBus;
 
-	// Subscribe to SpawnRequested events from GrenadeThrowAbility
+	// Subscribe to EventBus events
 	if (InEventBus)
 	{
+		// Subscribe to SpawnRequested events from GrenadeThrowAbility
 		SpawnRequestedHandle = InEventBus->SubscribeNative(
 			SuspenseCoreTags::Event::Throwable::SpawnRequested,
 			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnSpawnRequested),
 			ESuspenseCoreEventPriority::High);
 
-		HANDLER_LOG(Log, TEXT("Subscribed to SpawnRequested EventBus events"));
+		// Subscribe to grenade equipped event (spawn visual)
+		EquippedHandle = InEventBus->SubscribeNative(
+			SuspenseCoreTags::Event::Throwable::Equipped,
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeEquipped),
+			ESuspenseCoreEventPriority::High);
+
+		// Subscribe to grenade unequipped event (destroy visual)
+		UnequippedHandle = InEventBus->SubscribeNative(
+			SuspenseCoreTags::Event::Throwable::Unequipped,
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeUnequipped),
+			ESuspenseCoreEventPriority::High);
+
+		HANDLER_LOG(Log, TEXT("Subscribed to EventBus events (SpawnRequested, Equipped, Unequipped)"));
 	}
 
 	HANDLER_LOG(Log, TEXT("Initialized with DataManager=%s, EventBus=%s"),
@@ -58,12 +74,38 @@ void USuspenseCoreGrenadeHandler::Initialize(
 void USuspenseCoreGrenadeHandler::Shutdown()
 {
 	// Unsubscribe from EventBus
-	if (EventBus.IsValid() && SpawnRequestedHandle.IsValid())
+	if (EventBus.IsValid())
 	{
-		EventBus->Unsubscribe(SpawnRequestedHandle);
-		SpawnRequestedHandle.Invalidate();
+		if (SpawnRequestedHandle.IsValid())
+		{
+			EventBus->Unsubscribe(SpawnRequestedHandle);
+			SpawnRequestedHandle.Invalidate();
+		}
+
+		if (EquippedHandle.IsValid())
+		{
+			EventBus->Unsubscribe(EquippedHandle);
+			EquippedHandle.Invalidate();
+		}
+
+		if (UnequippedHandle.IsValid())
+		{
+			EventBus->Unsubscribe(UnequippedHandle);
+			UnequippedHandle.Invalidate();
+		}
+
 		HANDLER_LOG(Log, TEXT("Unsubscribed from EventBus"));
 	}
+
+	// Destroy any remaining visual grenades
+	for (auto& Pair : VisualGrenades)
+	{
+		if (AActor* Visual = Pair.Value.Get())
+		{
+			Visual->Destroy();
+		}
+	}
+	VisualGrenades.Empty();
 }
 
 //==================================================================
@@ -898,4 +940,228 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 		CookTime);
 
 	return true;
+}
+
+//==================================================================
+// Visual Grenade Spawn/Destroy
+//==================================================================
+
+void USuspenseCoreGrenadeHandler::OnGrenadeEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	AActor* Character = Cast<AActor>(EventData.Source.Get());
+	if (!Character)
+	{
+		HANDLER_LOG(Warning, TEXT("OnGrenadeEquipped: No character in event"));
+		return;
+	}
+
+	// Get grenade ID from event
+	FName GrenadeID = NAME_None;
+	if (const FString* GrenadeIDStr = EventData.StringPayload.Find(TEXT("GrenadeID")))
+	{
+		GrenadeID = FName(**GrenadeIDStr);
+	}
+
+	HANDLER_LOG(Log, TEXT("OnGrenadeEquipped: Character=%s, GrenadeID=%s"),
+		*Character->GetName(), *GrenadeID.ToString());
+
+	// Spawn visual grenade
+	if (!GrenadeID.IsNone())
+	{
+		SpawnVisualGrenade(Character, GrenadeID);
+	}
+}
+
+void USuspenseCoreGrenadeHandler::OnGrenadeUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	AActor* Character = Cast<AActor>(EventData.Source.Get());
+	if (!Character)
+	{
+		HANDLER_LOG(Warning, TEXT("OnGrenadeUnequipped: No character in event"));
+		return;
+	}
+
+	HANDLER_LOG(Log, TEXT("OnGrenadeUnequipped: Character=%s"), *Character->GetName());
+
+	// Destroy visual grenade
+	DestroyVisualGrenade(Character);
+}
+
+bool USuspenseCoreGrenadeHandler::SpawnVisualGrenade(AActor* Character, FName GrenadeID)
+{
+	if (!Character)
+	{
+		return false;
+	}
+
+	// Destroy any existing visual grenade for this character
+	DestroyVisualGrenade(Character);
+
+	// Get grenade actor class from DataManager
+	TSubclassOf<AActor> GrenadeClass = nullptr;
+	if (DataManager.IsValid())
+	{
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(GrenadeID, ItemData))
+		{
+			if (!ItemData.EquipmentActorClass.IsNull())
+			{
+				GrenadeClass = ItemData.EquipmentActorClass.LoadSynchronous();
+			}
+		}
+	}
+
+	if (!GrenadeClass)
+	{
+		HANDLER_LOG(Warning, TEXT("SpawnVisualGrenade: No actor class found for %s"), *GrenadeID.ToString());
+		return false;
+	}
+
+	// Spawn grenade actor (non-physics, visual only)
+	UWorld* World = Character->GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = Character;
+	SpawnParams.Instigator = Cast<APawn>(Character);
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AActor* VisualGrenade = World->SpawnActor<AActor>(GrenadeClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	if (!VisualGrenade)
+	{
+		HANDLER_LOG(Warning, TEXT("SpawnVisualGrenade: Failed to spawn actor"));
+		return false;
+	}
+
+	// CRITICAL: Disable physics on visual grenade - it's attached to hand
+	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(VisualGrenade->GetRootComponent());
+	if (PrimComp)
+	{
+		PrimComp->SetSimulatePhysics(false);
+		PrimComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	// ============================================================================
+	// ATTACH TO CHARACTER HAND
+	// Using the same pattern as EquipmentVisualizationService::AttachActorToCharacter
+	// MetaHuman/Modular character: Body component has weapon_r socket
+	// ============================================================================
+
+	// Alternative socket names for weapon attachment (prioritized order)
+	static const TArray<FName> WeaponSocketAlternatives = {
+		FName("weapon_r"),
+		FName("GripPoint"),
+		FName("RightHandSocket"),
+		FName("hand_r"),
+		FName("hand_rSocket")
+	};
+
+	USkeletalMeshComponent* TargetMesh = nullptr;
+	FName FinalSocket = FName("weapon_r");
+
+	// Search for skeletal mesh components
+	TArray<USkeletalMeshComponent*> SkelMeshes;
+	Character->GetComponents<USkeletalMeshComponent>(SkelMeshes);
+
+	// First pass: Find Body component with socket
+	for (USkeletalMeshComponent* SkelMesh : SkelMeshes)
+	{
+		if (SkelMesh && SkelMesh->GetSkeletalMeshAsset() && SkelMesh->GetName().Contains(TEXT("Body")))
+		{
+			for (const FName& Socket : WeaponSocketAlternatives)
+			{
+				if (SkelMesh->DoesSocketExist(Socket))
+				{
+					TargetMesh = SkelMesh;
+					FinalSocket = Socket;
+					HANDLER_LOG(Log, TEXT("SpawnVisualGrenade: Found Body with socket '%s': %s"),
+						*Socket.ToString(), *SkelMesh->GetName());
+					break;
+				}
+			}
+			if (TargetMesh) break;
+		}
+	}
+
+	// Second pass: Find any mesh with socket
+	if (!TargetMesh)
+	{
+		for (USkeletalMeshComponent* SkelMesh : SkelMeshes)
+		{
+			if (SkelMesh && SkelMesh->GetSkeletalMeshAsset())
+			{
+				for (const FName& Socket : WeaponSocketAlternatives)
+				{
+					if (SkelMesh->DoesSocketExist(Socket))
+					{
+						TargetMesh = SkelMesh;
+						FinalSocket = Socket;
+						HANDLER_LOG(Log, TEXT("SpawnVisualGrenade: Found mesh with socket '%s': %s"),
+							*Socket.ToString(), *SkelMesh->GetName());
+						break;
+					}
+				}
+				if (TargetMesh) break;
+			}
+		}
+	}
+
+	// Fallback: Use first skeletal mesh
+	if (!TargetMesh && SkelMeshes.Num() > 0)
+	{
+		for (USkeletalMeshComponent* SkelMesh : SkelMeshes)
+		{
+			if (SkelMesh && SkelMesh->GetSkeletalMeshAsset())
+			{
+				TargetMesh = SkelMesh;
+				HANDLER_LOG(Warning, TEXT("SpawnVisualGrenade: Socket not found, using fallback mesh: %s"),
+					*SkelMesh->GetName());
+				break;
+			}
+		}
+	}
+
+	if (!TargetMesh)
+	{
+		HANDLER_LOG(Error, TEXT("SpawnVisualGrenade: No skeletal mesh found on character"));
+		VisualGrenade->Destroy();
+		return false;
+	}
+
+	// Attach grenade to socket
+	USceneComponent* GrenadeRoot = VisualGrenade->GetRootComponent();
+	if (GrenadeRoot)
+	{
+		GrenadeRoot->AttachToComponent(TargetMesh, FAttachmentTransformRules::SnapToTargetIncludingScale, FinalSocket);
+
+		HANDLER_LOG(Log, TEXT("SpawnVisualGrenade: SUCCESS - Attached %s to %s at socket %s"),
+			*VisualGrenade->GetName(), *TargetMesh->GetName(), *FinalSocket.ToString());
+	}
+
+	// Track the visual grenade
+	VisualGrenades.Add(Character, VisualGrenade);
+
+	return true;
+}
+
+void USuspenseCoreGrenadeHandler::DestroyVisualGrenade(AActor* Character)
+{
+	if (!Character)
+	{
+		return;
+	}
+
+	TWeakObjectPtr<AActor>* FoundVisual = VisualGrenades.Find(Character);
+	if (FoundVisual && FoundVisual->IsValid())
+	{
+		AActor* Visual = FoundVisual->Get();
+		HANDLER_LOG(Log, TEXT("DestroyVisualGrenade: Destroying %s for %s"),
+			*Visual->GetName(), *Character->GetName());
+		Visual->Destroy();
+	}
+
+	VisualGrenades.Remove(Character);
 }

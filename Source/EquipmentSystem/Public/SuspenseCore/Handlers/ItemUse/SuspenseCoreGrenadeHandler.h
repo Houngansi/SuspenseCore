@@ -239,6 +239,28 @@ private:
 	void OnSpawnRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/**
+	 * Called when grenade is equipped (GA_GrenadeEquip broadcasts Event.Throwable.Equipped)
+	 * Spawns visual grenade and attaches to character's hand
+	 */
+	void OnGrenadeEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/**
+	 * Called when grenade is unequipped (GA_GrenadeEquip broadcasts Event.Throwable.Unequipped)
+	 * Destroys the visual grenade
+	 */
+	void OnGrenadeUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/**
+	 * Spawn and attach visual grenade to character hand
+	 */
+	bool SpawnVisualGrenade(AActor* Character, FName GrenadeID);
+
+	/**
+	 * Destroy visual grenade for character
+	 */
+	void DestroyVisualGrenade(AActor* Character);
+
+	/**
 	 * Spawn grenade from EventBus SpawnRequested event
 	 * Uses parameters from GrenadeThrowAbility (location, direction, force, cook time)
 	 */
@@ -266,6 +288,19 @@ private:
 
 	/** Handle for SpawnRequested event subscription */
 	FSuspenseCoreSubscriptionHandle SpawnRequestedHandle;
+
+	/** Handle for grenade equipped event subscription */
+	FSuspenseCoreSubscriptionHandle EquippedHandle;
+
+	/** Handle for grenade unequipped event subscription */
+	FSuspenseCoreSubscriptionHandle UnequippedHandle;
+
+	//==================================================================
+	// Visual Grenade Tracking
+	//==================================================================
+
+	/** Currently spawned visual grenade actors per character */
+	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> VisualGrenades;
 
 	//==================================================================
 	// Configuration

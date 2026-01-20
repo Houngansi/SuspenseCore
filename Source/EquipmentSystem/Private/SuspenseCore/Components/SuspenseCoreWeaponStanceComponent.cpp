@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Base/SuspenseCoreWeaponActor.h"
 
@@ -63,6 +64,22 @@ void USuspenseCoreWeaponStanceComponent::TickComponent(float DeltaTime, ELevelTi
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	UpdateInterpolatedValues(DeltaTime);
+}
+
+void USuspenseCoreWeaponStanceComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Subscribe to stance change events from GAS abilities (grenade equip, etc.)
+	SubscribeToStanceEvents();
+}
+
+void USuspenseCoreWeaponStanceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Unsubscribe from EventBus
+	UnsubscribeFromStanceEvents();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 // ============================================================================
@@ -667,4 +684,134 @@ void USuspenseCoreWeaponStanceComponent::BroadcastCombatStateEvent(FGameplayTag 
 
 	// Also publish generic stance changed event
 	EventBus->Publish(SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_Changed, EventData);
+}
+
+void USuspenseCoreWeaponStanceComponent::SubscribeToStanceEvents()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Failed to subscribe to stance events - no EventBus"));
+		return;
+	}
+
+	// Subscribe to stance change requests (from GAS abilities like grenade equip)
+	StanceChangeHandle = EventBus->SubscribeNative(
+		SuspenseCoreTags::Event::Weapon::StanceChangeRequested,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreWeaponStanceComponent::OnStanceChangeRequested)
+	);
+
+	// Subscribe to stance restore requests (from grenade unequip, etc.)
+	StanceRestoreHandle = EventBus->SubscribeNative(
+		SuspenseCoreTags::Event::Weapon::StanceRestoreRequested,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreWeaponStanceComponent::OnStanceRestoreRequested)
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("[StanceComp] Subscribed to stance change events"));
+}
+
+void USuspenseCoreWeaponStanceComponent::UnsubscribeFromStanceEvents()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	if (StanceChangeHandle.IsValid())
+	{
+		EventBus->Unsubscribe(StanceChangeHandle);
+		StanceChangeHandle = FSuspenseCoreSubscriptionHandle();
+	}
+
+	if (StanceRestoreHandle.IsValid())
+	{
+		EventBus->Unsubscribe(StanceRestoreHandle);
+		StanceRestoreHandle = FSuspenseCoreSubscriptionHandle();
+	}
+}
+
+void USuspenseCoreWeaponStanceComponent::OnStanceChangeRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Verify this event is for our owner
+	AActor* Owner = GetOwner();
+	if (!Owner || EventData.Source != Owner)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[StanceComp] OnStanceChangeRequested received"));
+
+	// Extract event data
+	const FString* WeaponTypeStr = EventData.StringPayload.Find(TEXT("WeaponType"));
+	const bool* bIsDrawn = EventData.BoolPayload.Find(TEXT("IsDrawn"));
+	const bool* bIsGrenade = EventData.BoolPayload.Find(TEXT("IsGrenade"));
+
+	// Store current state for restoration
+	StoredPreviousWeaponType = CurrentWeaponType;
+	bStoredPreviousDrawnState = bWeaponDrawn;
+
+	UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Stored previous state: WeaponType=%s, Drawn=%s"),
+		*StoredPreviousWeaponType.ToString(),
+		bStoredPreviousDrawnState ? TEXT("true") : TEXT("false"));
+
+	// Apply new weapon stance (grenade type)
+	if (WeaponTypeStr && !WeaponTypeStr->IsEmpty())
+	{
+		FGameplayTag NewWeaponType = FGameplayTag::RequestGameplayTag(FName(*(*WeaponTypeStr)), false);
+		if (NewWeaponType.IsValid())
+		{
+			SetWeaponStance(NewWeaponType, false);
+			UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Applied new stance: %s"), *NewWeaponType.ToString());
+		}
+	}
+
+	// Set drawn state
+	if (bIsDrawn && *bIsDrawn)
+	{
+		SetWeaponDrawnState(true);
+		UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Set weapon drawn state: true"));
+	}
+
+	// Notify animation layer immediately
+	PushToAnimationLayer(/*bSkipIfNoInterface=*/false);
+}
+
+void USuspenseCoreWeaponStanceComponent::OnStanceRestoreRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Verify this event is for our owner
+	AActor* Owner = GetOwner();
+	if (!Owner || EventData.Source != Owner)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[StanceComp] OnStanceRestoreRequested received"));
+
+	// Restore previous weapon state
+	if (StoredPreviousWeaponType.IsValid())
+	{
+		SetWeaponStance(StoredPreviousWeaponType, false);
+		UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Restored stance: %s"), *StoredPreviousWeaponType.ToString());
+	}
+	else
+	{
+		// Clear stance if no previous weapon
+		ClearWeaponStance(false);
+		UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Cleared stance (no previous weapon)"));
+	}
+
+	// Restore drawn state
+	SetWeaponDrawnState(bStoredPreviousDrawnState);
+	UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Restored drawn state: %s"),
+		bStoredPreviousDrawnState ? TEXT("true") : TEXT("false"));
+
+	// Clear stored state
+	StoredPreviousWeaponType = FGameplayTag();
+	bStoredPreviousDrawnState = false;
+
+	// Notify animation layer immediately
+	PushToAnimationLayer(/*bSkipIfNoInterface=*/false);
 }

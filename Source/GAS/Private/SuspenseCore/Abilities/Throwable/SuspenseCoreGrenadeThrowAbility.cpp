@@ -26,8 +26,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreGrenade, Log, All);
 
 USuspenseCoreGrenadeThrowAbility::USuspenseCoreGrenadeThrowAbility()
 {
-    // Input binding - triggered via QuickSlot ability
-    AbilityInputID = ESuspenseCoreAbilityInputID::None;
+    // Input binding - Fire (LMB) triggers throw when grenade is equipped
+    // ActivationRequiredTags ensures this only works when State.GrenadeEquipped is present
+    AbilityInputID = ESuspenseCoreAbilityInputID::Fire;
 
     // AbilityTags for activation via TryActivateAbilitiesByTag()
     FGameplayTagContainer AssetTags;

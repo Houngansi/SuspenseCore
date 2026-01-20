@@ -100,6 +100,7 @@ USuspenseCoreBaseFireAbility::USuspenseCoreBaseFireAbility()
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Reloading);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::GrenadeEquipped);  // Block weapon fire when grenade is equipped
 }
 
 //========================================================================

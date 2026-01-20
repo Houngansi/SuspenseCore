@@ -564,6 +564,7 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActivateAbilityByTag] No ASC!"));
 		return;
 	}
 
@@ -572,7 +573,24 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 		// Try to activate ability with matching tag
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
-		ASC->TryActivateAbilitiesByTag(TagContainer);
+
+		// Debug: Check if any abilities match this tag
+		TArray<FGameplayAbilitySpec*> MatchingSpecs;
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(TagContainer, MatchingSpecs);
+		UE_LOG(LogTemp, Warning, TEXT("[ActivateAbilityByTag] Tag: %s, Found %d matching abilities"), *AbilityTag.ToString(), MatchingSpecs.Num());
+
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+		{
+			if (Spec && Spec->Ability)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[ActivateAbilityByTag]   - %s (Active: %s)"),
+					*Spec->Ability->GetName(),
+					Spec->IsActive() ? TEXT("YES") : TEXT("NO"));
+			}
+		}
+
+		bool bSuccess = ASC->TryActivateAbilitiesByTag(TagContainer);
+		UE_LOG(LogTemp, Warning, TEXT("[ActivateAbilityByTag] TryActivateAbilitiesByTag result: %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
 	}
 	else
 	{

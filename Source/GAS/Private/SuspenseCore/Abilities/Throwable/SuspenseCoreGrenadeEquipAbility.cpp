@@ -32,6 +32,13 @@ USuspenseCoreGrenadeEquipAbility::USuspenseCoreGrenadeEquipAbility()
 	AssetTags.AddTag(SuspenseCoreTags::Ability::Throwable::Equip);
 	SetAssetTags(AssetTags);
 
+	// Configure ability trigger so HandleGameplayEvent can pass grenade data
+	// This allows the GrenadeHandler to send data when activating
+	FAbilityTriggerData TriggerData;
+	TriggerData.TriggerTag = SuspenseCoreTags::Ability::Throwable::Equip;
+	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+	AbilityTriggers.Add(TriggerData);
+
 	// Blocking tags - can't equip while these states are active
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
@@ -381,8 +388,8 @@ void USuspenseCoreGrenadeEquipAbility::OnDrawMontageCompleted()
 	// Notify blueprint
 	OnGrenadeEquipped();
 
-	// Broadcast ready event
-	BroadcastEquipEvent(FGameplayTag::RequestGameplayTag(FName("Event.Throwable.Ready")));
+	// Broadcast ready event (use native tag to avoid runtime lookup errors)
+	BroadcastEquipEvent(SuspenseCoreTags::Event::Throwable::Ready);
 
 	// Clear montage task reference
 	ActiveMontageTask = nullptr;

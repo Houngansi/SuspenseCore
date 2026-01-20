@@ -256,6 +256,7 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpawnRequested);  // Request to spawn grenade actor
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Equipped);        // Grenade equipped (draw complete)
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Unequipped);      // Grenade unequipped (holstered)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ready);           // Grenade ready to throw (equip done)
 		}
 	}
 

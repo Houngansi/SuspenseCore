@@ -400,12 +400,48 @@ void ASuspenseCorePlayerController::HandleAimReleased(const FInputActionValue& V
 
 void ASuspenseCorePlayerController::HandleFirePressed(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Fire, true);
+	// Check if grenade is equipped - if so, route to grenade throw instead of weapon fire
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (ASC && ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::GrenadeEquipped))
+	{
+		// Grenade is equipped - activate grenade throw ability
+		ActivateAbilityByTag(SuspenseCoreTags::Ability::Throwable::Grenade, true);
+	}
+	else
+	{
+		// Normal weapon fire
+		ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Fire, true);
+	}
 }
 
 void ASuspenseCorePlayerController::HandleFireReleased(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Fire, false);
+	// Check if grenade is equipped - if so, route to grenade throw instead of weapon fire
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (ASC && ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::GrenadeEquipped))
+	{
+		// Grenade is equipped - find and signal InputReleased to active grenade throw ability
+		// This is better than CancelAbilities because it lets the ability handle release gracefully
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(SuspenseCoreTags::Ability::Throwable::Grenade);
+
+		TArray<FGameplayAbilitySpec*> MatchingSpecs;
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(TagContainer, MatchingSpecs);
+
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+		{
+			if (Spec && Spec->IsActive())
+			{
+				// Signal input release to the active ability instance
+				ASC->AbilitySpecInputReleased(*Spec);
+			}
+		}
+	}
+	else
+	{
+		// Normal weapon fire release
+		ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Fire, false);
+	}
 }
 
 void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)

@@ -91,6 +91,8 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ReloadCompleted);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpreadChanged);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(RecoilImpulse);  // Recoil impulse for convergence
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(StanceChangeRequested);  // Request stance change (grenade equip)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(StanceRestoreRequested); // Request stance restore (grenade unequip)
 		}
 
 		//--------------------------------------------------------------
@@ -277,6 +279,8 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurstActive);    // Burst fire in progress
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AutoFireActive); // Auto fire active
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ThrowingGrenade); // Grenade throw in progress
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WeaponDrawn);     // Weapon currently drawn
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeEquipped); // Grenade equipped and ready to throw
 	}
 
 	//==================================================================
@@ -422,6 +426,15 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burst2);    // 2-round burst
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burst3);    // 3-round burst
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Safe);      // Safety on
+		}
+
+		// Grenade type tags for stance/animation selection
+		namespace Grenade
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Frag);       // Fragmentation grenade
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Smoke);      // Smoke grenade
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flash);      // Flashbang grenade
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Incendiary); // Incendiary grenade
 		}
 	}
 

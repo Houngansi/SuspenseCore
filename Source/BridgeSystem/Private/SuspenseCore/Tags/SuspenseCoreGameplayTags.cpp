@@ -69,6 +69,8 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(ReloadCompleted, "SuspenseCore.Event.Weapon.ReloadCompleted");
 			UE_DEFINE_GAMEPLAY_TAG(SpreadChanged, "SuspenseCore.Event.Weapon.SpreadChanged");
 			UE_DEFINE_GAMEPLAY_TAG(RecoilImpulse, "SuspenseCore.Event.Weapon.RecoilImpulse");
+			UE_DEFINE_GAMEPLAY_TAG(StanceChangeRequested, "Event.Weapon.StanceChangeRequested");
+			UE_DEFINE_GAMEPLAY_TAG(StanceRestoreRequested, "Event.Weapon.StanceRestoreRequested");
 		}
 
 		//--------------------------------------------------------------
@@ -255,6 +257,8 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(BurstActive, "State.BurstActive");
 		UE_DEFINE_GAMEPLAY_TAG(AutoFireActive, "State.AutoFireActive");
 		UE_DEFINE_GAMEPLAY_TAG(ThrowingGrenade, "State.ThrowingGrenade");
+		UE_DEFINE_GAMEPLAY_TAG(WeaponDrawn, "State.WeaponDrawn");
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeEquipped, "State.GrenadeEquipped");
 	}
 
 	//==================================================================
@@ -386,7 +390,6 @@ namespace SuspenseCoreTags
 	}
 
 	//==================================================================
-	//==================================================================
 	// WEAPON FIRE MODE TAGS
 	//==================================================================
 	namespace Weapon
@@ -400,6 +403,15 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Burst2, "Weapon.FireMode.Burst2");
 			UE_DEFINE_GAMEPLAY_TAG(Burst3, "Weapon.FireMode.Burst3");
 			UE_DEFINE_GAMEPLAY_TAG(Safe, "Weapon.FireMode.Safe");
+		}
+
+		// Grenade type tags for stance/animation selection
+		namespace Grenade
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Frag, "Weapon.Grenade.Frag");
+			UE_DEFINE_GAMEPLAY_TAG(Smoke, "Weapon.Grenade.Smoke");
+			UE_DEFINE_GAMEPLAY_TAG(Flash, "Weapon.Grenade.Flash");
+			UE_DEFINE_GAMEPLAY_TAG(Incendiary, "Weapon.Grenade.Incendiary");
 		}
 	}
 

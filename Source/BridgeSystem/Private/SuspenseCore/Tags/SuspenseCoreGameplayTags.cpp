@@ -234,6 +234,7 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(SpawnRequested, "SuspenseCore.Event.Throwable.SpawnRequested");
 			UE_DEFINE_GAMEPLAY_TAG(Equipped, "SuspenseCore.Event.Throwable.Equipped");
 			UE_DEFINE_GAMEPLAY_TAG(Unequipped, "SuspenseCore.Event.Throwable.Unequipped");
+			UE_DEFINE_GAMEPLAY_TAG(Ready, "SuspenseCore.Event.Throwable.Ready");
 		}
 	}
 

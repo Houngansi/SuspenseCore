@@ -42,6 +42,8 @@ void USuspenseCoreGrenadeHandler::Initialize(
 	// Subscribe to EventBus events
 	if (InEventBus)
 	{
+		UE_LOG(LogGrenadeHandler, Warning, TEXT(">>> GrenadeHandler: Subscribing to EventBus events <<<"));
+
 		// Subscribe to SpawnRequested events from GrenadeThrowAbility
 		SpawnRequestedHandle = InEventBus->SubscribeNative(
 			SuspenseCoreTags::Event::Throwable::SpawnRequested,
@@ -50,6 +52,7 @@ void USuspenseCoreGrenadeHandler::Initialize(
 			ESuspenseCoreEventPriority::High);
 
 		// Subscribe to grenade equipped event (spawn visual)
+		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *SuspenseCoreTags::Event::Throwable::Equipped.ToString());
 		EquippedHandle = InEventBus->SubscribeNative(
 			SuspenseCoreTags::Event::Throwable::Equipped,
 			this,
@@ -57,13 +60,22 @@ void USuspenseCoreGrenadeHandler::Initialize(
 			ESuspenseCoreEventPriority::High);
 
 		// Subscribe to grenade unequipped event (destroy visual)
+		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *SuspenseCoreTags::Event::Throwable::Unequipped.ToString());
 		UnequippedHandle = InEventBus->SubscribeNative(
 			SuspenseCoreTags::Event::Throwable::Unequipped,
 			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeUnequipped),
 			ESuspenseCoreEventPriority::High);
 
+		UE_LOG(LogGrenadeHandler, Warning, TEXT(">>> GrenadeHandler: Subscriptions complete (Equipped=%s, Unequipped=%s) <<<"),
+			EquippedHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"),
+			UnequippedHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"));
+
 		HANDLER_LOG(Log, TEXT("Subscribed to EventBus events (SpawnRequested, Equipped, Unequipped)"));
+	}
+	else
+	{
+		UE_LOG(LogGrenadeHandler, Error, TEXT(">>> GrenadeHandler: NO EVENTBUS - Cannot subscribe! <<<"));
 	}
 
 	HANDLER_LOG(Log, TEXT("Initialized with DataManager=%s, EventBus=%s"),
@@ -948,6 +960,8 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 
 void USuspenseCoreGrenadeHandler::OnGrenadeEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	UE_LOG(LogGrenadeHandler, Warning, TEXT(">>> OnGrenadeEquipped EVENT RECEIVED <<<"));
+
 	AActor* Character = Cast<AActor>(EventData.Source.Get());
 	if (!Character)
 	{
@@ -960,15 +974,30 @@ void USuspenseCoreGrenadeHandler::OnGrenadeEquipped(FGameplayTag EventTag, const
 	if (const FString* GrenadeIDStr = EventData.StringPayload.Find(TEXT("GrenadeID")))
 	{
 		GrenadeID = FName(**GrenadeIDStr);
+		UE_LOG(LogGrenadeHandler, Warning, TEXT("OnGrenadeEquipped: GrenadeID from event = '%s'"), **GrenadeIDStr);
+	}
+	else
+	{
+		UE_LOG(LogGrenadeHandler, Warning, TEXT("OnGrenadeEquipped: No GrenadeID in event payload!"));
 	}
 
 	HANDLER_LOG(Log, TEXT("OnGrenadeEquipped: Character=%s, GrenadeID=%s"),
 		*Character->GetName(), *GrenadeID.ToString());
 
-	// Spawn visual grenade
-	if (!GrenadeID.IsNone())
+	// Spawn visual grenade - also spawn if GrenadeID is "None" string but we have grenade type
+	if (!GrenadeID.IsNone() && GrenadeID != FName("None"))
 	{
 		SpawnVisualGrenade(Character, GrenadeID);
+	}
+	else
+	{
+		// Try to get GrenadeType tag and use default ID
+		if (const FString* GrenadeTypeStr = EventData.StringPayload.Find(TEXT("GrenadeType")))
+		{
+			UE_LOG(LogGrenadeHandler, Warning, TEXT("OnGrenadeEquipped: GrenadeID is None, trying GrenadeType: %s"), **GrenadeTypeStr);
+			// TODO: Map GrenadeType tag to ItemID via DataManager
+		}
+		UE_LOG(LogGrenadeHandler, Warning, TEXT("OnGrenadeEquipped: Cannot spawn visual - no valid GrenadeID"));
 	}
 }
 

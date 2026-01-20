@@ -392,7 +392,18 @@ void USuspenseCoreGrenadeEquipAbility::OnDrawMontageInterrupted()
 {
 	EQUIP_LOG(Log, TEXT("Draw montage interrupted"));
 
-	// Cancel the ability
+	// If grenade is not yet ready (montage failed to play or was interrupted early),
+	// proceed to equipped state anyway instead of cancelling.
+	// This makes the ability resilient to missing/incompatible animations.
+	if (!bGrenadeReady)
+	{
+		EQUIP_LOG(Warning, TEXT("Montage failed/interrupted before ready - proceeding to equipped state anyway"));
+		OnDrawMontageCompleted();
+		return;
+	}
+
+	// Cancel only if montage was interrupted AFTER we were already in ready state
+	// (e.g., player switched weapons mid-equip)
 	CancelAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true);
 }
 

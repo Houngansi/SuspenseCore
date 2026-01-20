@@ -402,15 +402,29 @@ void ASuspenseCorePlayerController::HandleFirePressed(const FInputActionValue& V
 {
 	// Check if grenade is equipped - if so, route to grenade throw instead of weapon fire
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (ASC && ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::GrenadeEquipped))
+
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] HandleFirePressed called"));
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] ASC: %s"), ASC ? TEXT("VALID") : TEXT("NULL"));
+
+	if (ASC)
 	{
-		// Grenade is equipped - activate grenade throw ability
-		ActivateAbilityByTag(SuspenseCoreTags::Ability::Throwable::Grenade, true);
+		bool bHasGrenadeTag = ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::GrenadeEquipped);
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] HasMatchingGameplayTag(State.GrenadeEquipped): %s"), bHasGrenadeTag ? TEXT("YES") : TEXT("NO"));
+
+		if (bHasGrenadeTag)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] >>> Activating GRENADE THROW ability <<<"));
+			ActivateAbilityByTag(SuspenseCoreTags::Ability::Throwable::Grenade, true);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] Activating normal weapon fire"));
+			ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Fire, true);
+		}
 	}
 	else
 	{
-		// Normal weapon fire
-		ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Fire, true);
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] No ASC - cannot activate ability"));
 	}
 }
 

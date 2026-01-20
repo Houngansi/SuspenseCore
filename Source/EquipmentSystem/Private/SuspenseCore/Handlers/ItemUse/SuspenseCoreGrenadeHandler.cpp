@@ -52,17 +52,19 @@ void USuspenseCoreGrenadeHandler::Initialize(
 			ESuspenseCoreEventPriority::High);
 
 		// Subscribe to grenade equipped event (spawn visual)
-		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *SuspenseCoreTags::Event::Throwable::Equipped.Get().ToString());
+		FGameplayTag EquippedTag = SuspenseCoreTags::Event::Throwable::Equipped;
+		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *EquippedTag.ToString());
 		EquippedHandle = InEventBus->SubscribeNative(
-			SuspenseCoreTags::Event::Throwable::Equipped,
+			EquippedTag,
 			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeEquipped),
 			ESuspenseCoreEventPriority::High);
 
 		// Subscribe to grenade unequipped event (destroy visual)
-		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *SuspenseCoreTags::Event::Throwable::Unequipped.Get().ToString());
+		FGameplayTag UnequippedTag = SuspenseCoreTags::Event::Throwable::Unequipped;
+		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *UnequippedTag.ToString());
 		UnequippedHandle = InEventBus->SubscribeNative(
-			SuspenseCoreTags::Event::Throwable::Unequipped,
+			UnequippedTag,
 			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeUnequipped),
 			ESuspenseCoreEventPriority::High);

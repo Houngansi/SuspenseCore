@@ -74,7 +74,8 @@ USuspenseCoreGrenadeThrowAbility::USuspenseCoreGrenadeThrowAbility()
 
     // Tarkov-style flow: require grenade to be equipped first
     // State.GrenadeEquipped is granted by GA_GrenadeEquip
-    ActivationRequiredTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.GrenadeEquipped")));
+    // Use native tag to ensure exact match with what GA_GrenadeEquip grants
+    ActivationRequiredTags.AddTag(SuspenseCoreTags::State::GrenadeEquipped);
 
     // Tags applied while throwing
     ActivationOwnedTags.AddTag(SuspenseCoreTags::State::ThrowingGrenade);

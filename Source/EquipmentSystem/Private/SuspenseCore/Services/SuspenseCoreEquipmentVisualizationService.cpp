@@ -15,6 +15,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
@@ -1614,6 +1615,24 @@ bool USuspenseCoreEquipmentVisualizationService::AttachActorToCharacter(AActor* 
 
 		Root->AttachToComponent(EquipmentMesh, FAttachmentTransformRules::SnapToTargetIncludingScale, FinalSocket);
 		Root->SetRelativeTransform(Offset);
+
+		// CRITICAL: Disable physics and movement on attached visual equipment
+		// This prevents grenades/projectiles from falling when attached as visuals
+		if (UPrimitiveComponent* PrimRoot = Cast<UPrimitiveComponent>(Root))
+		{
+			PrimRoot->SetSimulatePhysics(false);
+			PrimRoot->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		// Disable ProjectileMovementComponent if present (grenades, etc.)
+		if (UProjectileMovementComponent* ProjMove = Visual->FindComponentByClass<UProjectileMovementComponent>())
+		{
+			ProjMove->StopMovementImmediately();
+			ProjMove->SetComponentTickEnabled(false);
+			ProjMove->Deactivate();
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+				TEXT("AttachActorToCharacter: Disabled ProjectileMovement on %s"), *Visual->GetName());
+		}
 
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
 			TEXT("AttachActorToCharacter: SUCCESS - Attached %s to %s at socket %s"),

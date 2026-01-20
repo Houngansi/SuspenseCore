@@ -339,6 +339,10 @@ void USuspenseCoreGrenadeThrowAbility::OnReleaseNotify()
 {
     GRENADE_LOG(Log, TEXT("OnReleaseNotify: Throwing grenade"));
 
+    // IMPORTANT: Hide visual grenade BEFORE spawning projectile
+    // This prevents the visual from falling when destroyed
+    BroadcastGrenadeEvent(SuspenseCoreTags::Event::Throwable::Releasing);
+
     // Execute the throw
     if (ExecuteThrow())
     {

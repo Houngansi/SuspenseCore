@@ -229,6 +229,7 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(PrepareStarted, "SuspenseCore.Event.Throwable.PrepareStarted");
 			UE_DEFINE_GAMEPLAY_TAG(PinPulled, "SuspenseCore.Event.Throwable.PinPulled");
 			UE_DEFINE_GAMEPLAY_TAG(CookingStarted, "SuspenseCore.Event.Throwable.CookingStarted");
+			UE_DEFINE_GAMEPLAY_TAG(Releasing, "SuspenseCore.Event.Throwable.Releasing");
 			UE_DEFINE_GAMEPLAY_TAG(Thrown, "SuspenseCore.Event.Throwable.Thrown");
 			UE_DEFINE_GAMEPLAY_TAG(Cancelled, "SuspenseCore.Event.Throwable.Cancelled");
 			UE_DEFINE_GAMEPLAY_TAG(SpawnRequested, "SuspenseCore.Event.Throwable.SpawnRequested");

@@ -251,9 +251,20 @@ private:
 	void OnGrenadeUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/**
+	 * Called when grenade release begins (GA_GrenadeThrow broadcasts Event.Throwable.Releasing)
+	 * Hides the visual grenade before projectile spawns (prevents visual from falling)
+	 */
+	void OnGrenadeReleasing(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/**
 	 * Spawn and attach visual grenade to character hand
 	 */
 	bool SpawnVisualGrenade(AActor* Character, FName GrenadeID);
+
+	/**
+	 * Hide visual grenade (before throw, so it doesn't fall)
+	 */
+	void HideVisualGrenade(AActor* Character);
 
 	/**
 	 * Destroy visual grenade for character
@@ -294,6 +305,9 @@ private:
 
 	/** Handle for grenade unequipped event subscription */
 	FSuspenseCoreSubscriptionHandle UnequippedHandle;
+
+	/** Handle for grenade releasing event subscription (hide visual before spawn) */
+	FSuspenseCoreSubscriptionHandle ReleasingHandle;
 
 	//==================================================================
 	// Visual Grenade Tracking

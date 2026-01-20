@@ -69,11 +69,21 @@ void USuspenseCoreGrenadeHandler::Initialize(
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeUnequipped),
 			ESuspenseCoreEventPriority::High);
 
-		UE_LOG(LogGrenadeHandler, Warning, TEXT(">>> GrenadeHandler: Subscriptions complete (Equipped=%s, Unequipped=%s) <<<"),
-			EquippedHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"),
-			UnequippedHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"));
+		// Subscribe to grenade releasing event (hide visual before throw)
+		FGameplayTag ReleasingTag = SuspenseCoreTags::Event::Throwable::Releasing;
+		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *ReleasingTag.ToString());
+		ReleasingHandle = InEventBus->SubscribeNative(
+			ReleasingTag,
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeReleasing),
+			ESuspenseCoreEventPriority::High);
 
-		HANDLER_LOG(Log, TEXT("Subscribed to EventBus events (SpawnRequested, Equipped, Unequipped)"));
+		UE_LOG(LogGrenadeHandler, Warning, TEXT(">>> GrenadeHandler: Subscriptions complete (Equipped=%s, Unequipped=%s, Releasing=%s) <<<"),
+			EquippedHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"),
+			UnequippedHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"),
+			ReleasingHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"));
+
+		HANDLER_LOG(Log, TEXT("Subscribed to EventBus events (SpawnRequested, Equipped, Unequipped, Releasing)"));
 	}
 	else
 	{
@@ -106,6 +116,12 @@ void USuspenseCoreGrenadeHandler::Shutdown()
 		{
 			EventBus->Unsubscribe(UnequippedHandle);
 			UnequippedHandle.Invalidate();
+		}
+
+		if (ReleasingHandle.IsValid())
+		{
+			EventBus->Unsubscribe(ReleasingHandle);
+			ReleasingHandle.Invalidate();
 		}
 
 		HANDLER_LOG(Log, TEXT("Unsubscribed from EventBus"));
@@ -1195,4 +1211,50 @@ void USuspenseCoreGrenadeHandler::DestroyVisualGrenade(AActor* Character)
 	}
 
 	VisualGrenades.Remove(Character);
+}
+
+void USuspenseCoreGrenadeHandler::HideVisualGrenade(AActor* Character)
+{
+	if (!Character)
+	{
+		return;
+	}
+
+	TWeakObjectPtr<AActor>* FoundVisual = VisualGrenades.Find(Character);
+	if (FoundVisual && FoundVisual->IsValid())
+	{
+		AActor* Visual = FoundVisual->Get();
+		HANDLER_LOG(Log, TEXT("HideVisualGrenade: Hiding %s for %s (before throw)"),
+			*Visual->GetName(), *Character->GetName());
+
+		// Hide instead of destroy - prevents the grenade from falling
+		// The actor will be destroyed later when OnGrenadeUnequipped is called
+		Visual->SetActorHiddenInGame(true);
+		Visual->SetActorEnableCollision(false);
+	}
+}
+
+void USuspenseCoreGrenadeHandler::OnGrenadeReleasing(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Get character from event source
+	AActor* Character = Cast<AActor>(EventData.Source.Get());
+	if (!Character)
+	{
+		// Try to get from actor context
+		if (EventData.Context.IsValid())
+		{
+			Character = Cast<AActor>(EventData.Context.GetInstigator());
+		}
+	}
+
+	if (!Character)
+	{
+		HANDLER_LOG(Warning, TEXT("OnGrenadeReleasing: No character in event"));
+		return;
+	}
+
+	HANDLER_LOG(Log, TEXT("OnGrenadeReleasing: Hiding visual for %s"), *Character->GetName());
+
+	// Hide the visual grenade immediately so it doesn't fall
+	HideVisualGrenade(Character);
 }

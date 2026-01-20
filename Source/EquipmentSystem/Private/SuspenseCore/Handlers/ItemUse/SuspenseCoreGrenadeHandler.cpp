@@ -3,6 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Handlers/ItemUse/SuspenseCoreGrenadeHandler.h"
+#include "SuspenseCore/Actors/SuspenseCoreGrenadeProjectile.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
@@ -14,6 +15,7 @@
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGrenadeHandler, Log, All);
@@ -952,17 +954,38 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 		return false;
 	}
 
-	// Apply throw force if has physics
-	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Grenade->GetRootComponent());
-	if (PrimComp && PrimComp->IsSimulatingPhysics())
-	{
-		FVector ThrowVelocity = ThrowDirection * ThrowForce;
-		PrimComp->AddImpulse(ThrowVelocity, NAME_None, true);
-	}
+	// Calculate throw velocity (direction * force)
+	FVector ThrowVelocity = ThrowDirection * ThrowForce;
 
-	// If grenade has interface, pass cook time (fuse reduction)
-	// The grenade actor should subtract CookTime from its FuseTime
-	// This is typically handled by the grenade's BeginPlay or a custom interface
+	// Initialize grenade if it's our projectile class (uses ProjectileMovementComponent)
+	if (ASuspenseCoreGrenadeProjectile* GrenadeProjectile = Cast<ASuspenseCoreGrenadeProjectile>(Grenade))
+	{
+		// InitializeGrenade sets velocity on ProjectileMovement, arms grenade, reduces fuse by cook time
+		GrenadeProjectile->InitializeGrenade(OwnerActor, ThrowVelocity, CookTime, GrenadeID);
+
+		HANDLER_LOG(Log, TEXT("Initialized grenade %s: Velocity=%s, CookTime=%.2f"),
+			*Grenade->GetName(),
+			*ThrowVelocity.ToString(),
+			CookTime);
+	}
+	else
+	{
+		// Fallback for non-projectile grenades: apply physics impulse
+		UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Grenade->GetRootComponent());
+		if (PrimComp)
+		{
+			// Force enable physics if not already
+			if (!PrimComp->IsSimulatingPhysics())
+			{
+				PrimComp->SetSimulatePhysics(true);
+			}
+			PrimComp->AddImpulse(ThrowVelocity, NAME_None, true);
+
+			HANDLER_LOG(Log, TEXT("Applied physics impulse to grenade %s: Velocity=%s"),
+				*Grenade->GetName(),
+				*ThrowVelocity.ToString());
+		}
+	}
 
 	HANDLER_LOG(Log, TEXT("Spawned grenade %s at %s (CookTime=%.2f reduced from fuse)"),
 		*Grenade->GetName(),
@@ -1083,12 +1106,25 @@ bool USuspenseCoreGrenadeHandler::SpawnVisualGrenade(AActor* Character, FName Gr
 		return false;
 	}
 
-	// CRITICAL: Disable physics on visual grenade - it's attached to hand
+	// CRITICAL: Disable physics and movement on visual grenade - it's attached to hand
 	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(VisualGrenade->GetRootComponent());
 	if (PrimComp)
 	{
 		PrimComp->SetSimulatePhysics(false);
 		PrimComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	// CRITICAL: Disable ProjectileMovementComponent if present (same BP used for thrown grenade)
+	// This prevents the visual grenade from moving/falling
+	if (ASuspenseCoreGrenadeProjectile* GrenadeProjectile = Cast<ASuspenseCoreGrenadeProjectile>(VisualGrenade))
+	{
+		// Deactivate projectile movement - visual grenade should stay attached to hand
+		if (UProjectileMovementComponent* ProjectileMovement = GrenadeProjectile->FindComponentByClass<UProjectileMovementComponent>())
+		{
+			ProjectileMovement->Deactivate();
+			ProjectileMovement->StopMovementImmediately();
+			HANDLER_LOG(Log, TEXT("SpawnVisualGrenade: Deactivated ProjectileMovement on %s"), *VisualGrenade->GetName());
+		}
 	}
 
 	// ============================================================================
@@ -1236,20 +1272,11 @@ void USuspenseCoreGrenadeHandler::HideVisualGrenade(AActor* Character)
 
 void USuspenseCoreGrenadeHandler::OnGrenadeReleasing(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Get character from event source
+	// Get character from event source (set by BroadcastGrenadeEvent using AvatarActor)
 	AActor* Character = Cast<AActor>(EventData.Source.Get());
 	if (!Character)
 	{
-		// Try to get from actor context
-		if (EventData.Context.IsValid())
-		{
-			Character = Cast<AActor>(EventData.Context.GetInstigator());
-		}
-	}
-
-	if (!Character)
-	{
-		HANDLER_LOG(Warning, TEXT("OnGrenadeReleasing: No character in event"));
+		HANDLER_LOG(Warning, TEXT("OnGrenadeReleasing: No character in event Source"));
 		return;
 	}
 

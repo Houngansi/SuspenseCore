@@ -512,9 +512,22 @@ void USuspenseCoreGrenadeEquipAbility::BroadcastEquipEvent(FGameplayTag EventTag
 			EventData.IntPayload.Add(TEXT("QuickSlotIndex"), SourceQuickSlotIndex);
 			EventData.BoolPayload.Add(TEXT("IsReady"), bGrenadeReady);
 
+			UE_LOG(LogGrenadeEquip, Warning, TEXT(">>> PUBLISHING EVENT: %s <<<"), *EventTag.ToString());
+			UE_LOG(LogGrenadeEquip, Warning, TEXT("    GrenadeID: %s"), *GrenadeID.ToString());
+			UE_LOG(LogGrenadeEquip, Warning, TEXT("    GrenadeType: %s"), *GrenadeTypeTag.ToString());
+			UE_LOG(LogGrenadeEquip, Warning, TEXT("    QuickSlotIndex: %d"), SourceQuickSlotIndex);
+
 			EventBus->Publish(EventTag, EventData);
 
-			EQUIP_LOG(Verbose, TEXT("Broadcast event: %s"), *EventTag.ToString());
+			EQUIP_LOG(Log, TEXT("Broadcast event: %s"), *EventTag.ToString());
 		}
+		else
+		{
+			UE_LOG(LogGrenadeEquip, Error, TEXT("BroadcastEquipEvent: No EventBus!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogGrenadeEquip, Error, TEXT("BroadcastEquipEvent: No EventManager!"));
 	}
 }

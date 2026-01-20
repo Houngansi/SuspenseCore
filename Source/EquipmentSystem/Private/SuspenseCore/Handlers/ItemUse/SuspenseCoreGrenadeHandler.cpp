@@ -289,7 +289,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::ExecuteEquip(
 	}
 
 	// Get grenade type tag from item data
-	FGameplayTag GrenadeTypeTag;
+	FGameplayTag GrenadeTypeTag = SuspenseCoreTags::Weapon::Grenade::Frag; // Default
 	if (DataManager.IsValid())
 	{
 		FSuspenseCoreUnifiedItemData ItemData;
@@ -302,63 +302,43 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::ExecuteEquip(
 		}
 	}
 
-	// Find the GrenadeEquipAbility and set grenade info BEFORE activation
-	// (CanActivateAbility requires GrenadeID to be set)
-	FGameplayTag EquipTag = SuspenseCoreTags::Ability::Throwable::Equip;
-	TArray<FGameplayAbilitySpec*> MatchingSpecs;
-	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(FGameplayTagContainer(EquipTag), MatchingSpecs, false);
+	// Use HandleGameplayEvent to pass grenade data to the ability
+	// This works with InstancedPerExecution - data is passed via FGameplayEventData
+	// GrenadeID will be looked up from QuickSlot component using the slot index
+	FGameplayEventData EventData;
+	EventData.EventTag = GrenadeTypeTag;
+	EventData.Instigator = OwnerActor;
+	EventData.Target = OwnerActor;
+	EventData.EventMagnitude = static_cast<float>(Request.QuickSlotIndex);
 
-	for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+	// Add the grenade type tag to InstigatorTags
+	EventData.InstigatorTags.AddTag(GrenadeTypeTag);
+
+	HANDLER_LOG(Log, TEXT("Sending GameplayEvent with GrenadeID=%s, Type=%s, Slot=%d"),
+		*Request.SourceItem.ItemID.ToString(),
+		*GrenadeTypeTag.ToString(),
+		Request.QuickSlotIndex);
+
+	// Send event to trigger the ability
+	// The ability has Ability.Throwable.Equip tag, so we use that as the event trigger
+	FGameplayTag EquipEventTag = SuspenseCoreTags::Ability::Throwable::Equip;
+	int32 TriggeredCount = ASC->HandleGameplayEvent(EquipEventTag, &EventData);
+
+	if (TriggeredCount > 0)
 	{
-		if (Spec && Spec->Ability)
-		{
-			if (Spec->IsActive())
-			{
-				HANDLER_LOG(Warning, TEXT("ExecuteEquip: Equip ability already active"));
-				continue;
-			}
+		HANDLER_LOG(Log, TEXT("GA_GrenadeEquip triggered via GameplayEvent (%d abilities)"), TriggeredCount);
 
-			// Get or create the ability instance to set grenade info
-			USuspenseCoreGrenadeEquipAbility* EquipAbility = nullptr;
+		FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
+		Response.HandlerTag = GetHandlerTag();
+		Response.Cooldown = 0.0f;
+		Response.Metadata.Add(TEXT("Phase"), TEXT("Equip"));
+		Response.Metadata.Add(TEXT("GrenadeID"), Request.SourceItem.ItemID.ToString());
 
-			// For InstancedPerExecution, we need to use the CDO to set defaults
-			// The real instance will be created on activation
-			EquipAbility = Cast<USuspenseCoreGrenadeEquipAbility>(Spec->Ability);
-
-			if (EquipAbility)
-			{
-				// Set grenade info on the CDO - this will be copied to instance
-				EquipAbility->SetGrenadeInfo(
-					Request.SourceItem.ItemID,
-					GrenadeTypeTag,
-					Request.QuickSlotIndex);
-
-				HANDLER_LOG(Log, TEXT("Set grenade info on EquipAbility: ID=%s, Type=%s, Slot=%d"),
-					*Request.SourceItem.ItemID.ToString(),
-					*GrenadeTypeTag.ToString(),
-					Request.QuickSlotIndex);
-
-				// Activate this specific ability spec
-				bool bActivated = ASC->TryActivateAbility(Spec->Handle);
-
-				if (bActivated)
-				{
-					HANDLER_LOG(Log, TEXT("GA_GrenadeEquip activated successfully"));
-
-					FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
-					Response.HandlerTag = GetHandlerTag();
-					Response.Cooldown = 0.0f; // No cooldown on equip
-					Response.Metadata.Add(TEXT("Phase"), TEXT("Equip"));
-					Response.Metadata.Add(TEXT("GrenadeID"), Request.SourceItem.ItemID.ToString());
-
-					return Response;
-				}
-			}
-		}
+		return Response;
 	}
 
-	// Fallback: Try tag-based activation (for backwards compatibility)
-	HANDLER_LOG(Warning, TEXT("ExecuteEquip: Spec search failed, trying tag-based activation"));
+	// Fallback: Try direct activation with TryActivateAbilitiesByTag
+	HANDLER_LOG(Log, TEXT("ExecuteEquip: Event trigger failed, trying direct activation"));
 
 	FGameplayTagContainer AbilityTags;
 	AbilityTags.AddTag(SuspenseCoreTags::Ability::Throwable::Equip);
@@ -367,7 +347,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::ExecuteEquip(
 
 	if (bActivated)
 	{
-		HANDLER_LOG(Log, TEXT("GA_GrenadeEquip activated via fallback"));
+		HANDLER_LOG(Log, TEXT("GA_GrenadeEquip activated via TryActivateAbilitiesByTag"));
 
 		FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
 		Response.HandlerTag = GetHandlerTag();

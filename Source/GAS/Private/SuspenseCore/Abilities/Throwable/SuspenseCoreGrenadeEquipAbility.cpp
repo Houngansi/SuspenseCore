@@ -6,6 +6,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Animation/AnimMontage.h"
@@ -34,7 +35,7 @@ USuspenseCoreGrenadeEquipAbility::USuspenseCoreGrenadeEquipAbility()
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.GrenadeEquipped")));
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::GrenadeEquipped);
 
 	// This ability grants the equipped state
 	// Will be removed when ability ends
@@ -114,12 +115,9 @@ bool USuspenseCoreGrenadeEquipAbility::CanActivateAbility(
 		return false;
 	}
 
-	// Must have valid grenade info set
-	if (GrenadeID.IsNone())
-	{
-		EQUIP_LOG(Verbose, TEXT("CanActivate: No GrenadeID set"));
-		return false;
-	}
+	// NOTE: GrenadeID check removed - data can be passed via FGameplayEventData
+	// when using SendGameplayEventToActor, so GrenadeID may not be set yet at this point.
+	// The actual grenade info will be extracted in ActivateAbility from TriggerEventData.
 
 	return true;
 }
@@ -135,6 +133,65 @@ void USuspenseCoreGrenadeEquipAbility::ActivateAbility(
 		EQUIP_LOG(Warning, TEXT("Failed to commit ability"));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
+	}
+
+	// Extract grenade info from TriggerEventData if available
+	// This is how the handler passes data to instanced abilities
+	if (TriggerEventData)
+	{
+		// GrenadeTypeTag from EventTag
+		if (TriggerEventData->EventTag.IsValid())
+		{
+			GrenadeTypeTag = TriggerEventData->EventTag;
+			EQUIP_LOG(Log, TEXT("Extracted GrenadeTypeTag from EventTag: %s"), *GrenadeTypeTag.ToString());
+		}
+
+		// Extract GrenadeType from InstigatorTags
+		for (const FGameplayTag& Tag : TriggerEventData->InstigatorTags)
+		{
+			FString TagStr = Tag.ToString();
+			if (TagStr.StartsWith(TEXT("Item.Throwable.")) || TagStr.StartsWith(TEXT("Weapon.Grenade.")))
+			{
+				GrenadeTypeTag = Tag;
+				EQUIP_LOG(Log, TEXT("Extracted GrenadeTypeTag from InstigatorTags: %s"), *GrenadeTypeTag.ToString());
+			}
+		}
+
+		// SlotIndex from EventMagnitude
+		if (TriggerEventData->EventMagnitude >= 0.0f)
+		{
+			SourceQuickSlotIndex = FMath::RoundToInt(TriggerEventData->EventMagnitude);
+			EQUIP_LOG(Log, TEXT("Extracted SlotIndex from EventMagnitude: %d"), SourceQuickSlotIndex);
+		}
+	}
+
+	// Look up GrenadeID from QuickSlot component using slot index
+	// This avoids the need to pass FName through gameplay events
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (AvatarActor && SourceQuickSlotIndex >= 0)
+	{
+		// Find QuickSlotProvider interface
+		TArray<UActorComponent*> Components;
+		AvatarActor->GetComponents(Components);
+
+		for (UActorComponent* Comp : Components)
+		{
+			if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
+			{
+				ISuspenseCoreQuickSlotProvider* Provider = Cast<ISuspenseCoreQuickSlotProvider>(Comp);
+				if (Provider)
+				{
+					FSuspenseCoreQuickSlotData SlotData = Provider->GetQuickSlotData(SourceQuickSlotIndex);
+					if (!SlotData.ItemID.IsNone())
+					{
+						GrenadeID = SlotData.ItemID;
+						EQUIP_LOG(Log, TEXT("Looked up GrenadeID from QuickSlot[%d]: %s"),
+							SourceQuickSlotIndex, *GrenadeID.ToString());
+					}
+					break;
+				}
+			}
+		}
 	}
 
 	EQUIP_LOG(Log, TEXT("ActivateAbility: Equipping grenade %s"), *GrenadeID.ToString());
@@ -155,8 +212,7 @@ void USuspenseCoreGrenadeEquipAbility::ActivateAbility(
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC)
 	{
-		FGameplayTag EquippedTag = FGameplayTag::RequestGameplayTag(FName("State.GrenadeEquipped"));
-		ASC->AddLooseGameplayTag(EquippedTag);
+		ASC->AddLooseGameplayTag(SuspenseCoreTags::State::GrenadeEquipped);
 
 		EQUIP_LOG(Verbose, TEXT("Granted State.GrenadeEquipped tag"));
 	}
@@ -181,8 +237,7 @@ void USuspenseCoreGrenadeEquipAbility::EndAbility(
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC)
 	{
-		FGameplayTag EquippedTag = FGameplayTag::RequestGameplayTag(FName("State.GrenadeEquipped"));
-		ASC->RemoveLooseGameplayTag(EquippedTag);
+		ASC->RemoveLooseGameplayTag(SuspenseCoreTags::State::GrenadeEquipped);
 
 		EQUIP_LOG(Verbose, TEXT("Removed State.GrenadeEquipped tag"));
 	}
@@ -239,18 +294,19 @@ void USuspenseCoreGrenadeEquipAbility::RequestStanceChange(bool bEquipping)
 			EventData.Timestamp = FPlatformTime::Seconds();
 
 			// Grenade type tag for animation selection
+			// Use native tag to avoid runtime tag lookup errors
 			FGameplayTag StanceTag = GrenadeTypeTag.IsValid() ?
 				GrenadeTypeTag :
-				FGameplayTag::RequestGameplayTag(FName("Weapon.Grenade.Frag"));
+				SuspenseCoreTags::Weapon::Grenade::Frag;
 
 			EventData.StringPayload.Add(TEXT("WeaponType"), StanceTag.ToString());
 			EventData.BoolPayload.Add(TEXT("IsDrawn"), bEquipping);
 			EventData.BoolPayload.Add(TEXT("IsGrenade"), true);
 
-			// Use a generic weapon stance change event
+			// Use native event tags
 			FGameplayTag EventTag = bEquipping ?
-				FGameplayTag::RequestGameplayTag(FName("Event.Weapon.StanceChangeRequested")) :
-				FGameplayTag::RequestGameplayTag(FName("Event.Weapon.StanceRestoreRequested"));
+				SuspenseCoreTags::Event::Weapon::StanceChangeRequested :
+				SuspenseCoreTags::Event::Weapon::StanceRestoreRequested;
 
 			EventBus->Publish(EventTag, EventData);
 
@@ -410,18 +466,21 @@ void USuspenseCoreGrenadeEquipAbility::StorePreviousWeaponState()
 		ASC->GetOwnedGameplayTags(OwnedTags);
 
 		// Find current weapon type tag
-		FGameplayTag WeaponTypeParent = FGameplayTag::RequestGameplayTag(FName("Weapon.Type"));
-		for (const FGameplayTag& Tag : OwnedTags)
+		FGameplayTag WeaponTypeParent = FGameplayTag::RequestGameplayTag(FName("Weapon.Type"), false);
+		if (WeaponTypeParent.IsValid())
 		{
-			if (Tag.MatchesTag(WeaponTypeParent))
+			for (const FGameplayTag& Tag : OwnedTags)
 			{
-				PreviousWeaponType = Tag;
-				break;
+				if (Tag.MatchesTag(WeaponTypeParent))
+				{
+					PreviousWeaponType = Tag;
+					break;
+				}
 			}
 		}
 
-		// Check if weapon is drawn
-		bPreviousWeaponDrawn = OwnedTags.HasTag(FGameplayTag::RequestGameplayTag(FName("State.WeaponDrawn")));
+		// Check if weapon is drawn - use native tag
+		bPreviousWeaponDrawn = OwnedTags.HasTag(SuspenseCoreTags::State::WeaponDrawn);
 
 		EQUIP_LOG(Verbose, TEXT("Stored previous weapon: %s (drawn=%s)"),
 			*PreviousWeaponType.ToString(),

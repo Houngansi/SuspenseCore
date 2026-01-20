@@ -430,6 +430,16 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(FGameplayTag EventTa
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("OnEquipped: Slot = %d"), Slot);
 
+	// Step 3.5: Skip QuickSlot items (slots 13-16)
+	// QuickSlots use GrenadeHandler for visual management, not EquipmentVisualization
+	// This prevents duplicate visual spawning for grenades/consumables
+	if (Slot >= 13 && Slot <= 16)
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+			TEXT("OnEquipped: Skipping QuickSlot %d - handled by ItemUseHandler"), Slot);
+		return;
+	}
+
 	// Step 4: Parse ItemID metadata
 	const FName ItemID = ParseName(EventData, TEXT("ItemID"));
 
@@ -524,6 +534,14 @@ void USuspenseCoreEquipmentVisualizationService::OnUnequipped(FGameplayTag Event
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 			TEXT("  Metadata['Slot'] = '%s'"),
 			*EventData.GetString(FName("Slot")));
+		return;
+	}
+
+	// Skip QuickSlot items (slots 13-16) - handled by ItemUseHandler
+	if (Slot >= 13 && Slot <= 16)
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+			TEXT("OnUnequipped: Skipping QuickSlot %d - handled by ItemUseHandler"), Slot);
 		return;
 	}
 

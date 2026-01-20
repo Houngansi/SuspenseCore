@@ -6,6 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponCombatState.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreWeaponStanceComponent.generated.h"
 
 class USuspenseCoreEventBus;
@@ -159,6 +160,8 @@ public:
 	USuspenseCoreWeaponStanceComponent();
 
 	//~ Begin UActorComponent Interface
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	//~ End UActorComponent Interface
@@ -366,6 +369,18 @@ protected:
 	/** Broadcast combat state event to EventBus */
 	void BroadcastCombatStateEvent(FGameplayTag EventTag) const;
 
+	/** Subscribe to stance change events from EventBus */
+	void SubscribeToStanceEvents();
+
+	/** Unsubscribe from stance change events */
+	void UnsubscribeFromStanceEvents();
+
+	/** Handler for stance change requested (grenade equip, etc.) */
+	void OnStanceChangeRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handler for stance restore requested (grenade unequip, etc.) */
+	void OnStanceRestoreRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
 private:
 	// ========================================================================
 	// Replicated Weapon Identity
@@ -513,4 +528,12 @@ private:
 	/** Cached EventBus reference */
 	UPROPERTY(Transient)
 	mutable TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+
+	/** Subscription handles for EventBus events */
+	FSuspenseCoreSubscriptionHandle StanceChangeHandle;
+	FSuspenseCoreSubscriptionHandle StanceRestoreHandle;
+
+	/** Stored previous weapon type for restoration */
+	FGameplayTag StoredPreviousWeaponType;
+	bool bStoredPreviousDrawnState = false;
 };

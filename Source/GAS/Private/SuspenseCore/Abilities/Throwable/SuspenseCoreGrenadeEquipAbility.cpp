@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Animation/AnimMontage.h"
@@ -176,20 +177,19 @@ void USuspenseCoreGrenadeEquipAbility::ActivateAbility(
 
 		for (UActorComponent* Comp : Components)
 		{
-			if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
+			if (Comp && Comp->Implements<USuspenseCoreQuickSlotProvider>())
 			{
-				ISuspenseCoreQuickSlotProvider* Provider = Cast<ISuspenseCoreQuickSlotProvider>(Comp);
-				if (Provider)
+				// Use Execute_ pattern for BlueprintNativeEvent
+				FSuspenseCoreQuickSlot SlotData =
+					ISuspenseCoreQuickSlotProvider::Execute_GetQuickSlot(Comp, SourceQuickSlotIndex);
+
+				if (!SlotData.AssignedItemID.IsNone())
 				{
-					FSuspenseCoreQuickSlotData SlotData = Provider->GetQuickSlotData(SourceQuickSlotIndex);
-					if (!SlotData.ItemID.IsNone())
-					{
-						GrenadeID = SlotData.ItemID;
-						EQUIP_LOG(Log, TEXT("Looked up GrenadeID from QuickSlot[%d]: %s"),
-							SourceQuickSlotIndex, *GrenadeID.ToString());
-					}
-					break;
+					GrenadeID = SlotData.AssignedItemID;
+					EQUIP_LOG(Log, TEXT("Looked up GrenadeID from QuickSlot[%d]: %s"),
+						SourceQuickSlotIndex, *GrenadeID.ToString());
 				}
+				break;
 			}
 		}
 	}

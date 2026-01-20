@@ -251,6 +251,7 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PrepareStarted);  // Started prepare phase
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PinPulled);       // Pin pulled, grenade armed
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(CookingStarted);  // Started cooking (holding)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Releasing);       // Release notify - hide visual before spawn
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Thrown);          // Grenade thrown
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cancelled);       // Throw cancelled (pin not pulled)
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpawnRequested);  // Request to spawn grenade actor

@@ -444,22 +444,25 @@ ISuspenseCoreQuickSlotProvider* USuspenseCoreGrenadeThrowAbility::GetQuickSlotPr
         return Cast<ISuspenseCoreQuickSlotProvider>(CachedQuickSlotProvider.Get());
     }
 
-    AActor* OwnerActor = GetOwningActorFromActorInfo();
-    if (!OwnerActor)
+    // IMPORTANT: Use Avatar (Character), not Owner (PlayerState)!
+    // QuickSlotComponent is on the Character, not PlayerState.
+    AActor* AvatarActor = GetAvatarActorFromActorInfo();
+    if (!AvatarActor)
     {
+        GRENADE_LOG(Warning, TEXT("GetQuickSlotProvider: No AvatarActor"));
         return nullptr;
     }
 
-    // Check if owner implements interface
-    if (OwnerActor->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
+    // Check if avatar implements interface
+    if (AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
     {
-        CachedQuickSlotProvider = OwnerActor;
-        return Cast<ISuspenseCoreQuickSlotProvider>(OwnerActor);
+        CachedQuickSlotProvider = AvatarActor;
+        return Cast<ISuspenseCoreQuickSlotProvider>(AvatarActor);
     }
 
-    // Check components
+    // Check components on the avatar
     TArray<UActorComponent*> Components;
-    OwnerActor->GetComponents(Components);
+    AvatarActor->GetComponents(Components);
     for (UActorComponent* Comp : Components)
     {
         if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))

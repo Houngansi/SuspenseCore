@@ -136,43 +136,27 @@ bool USuspenseCoreGrenadeThrowAbility::CanActivateAbility(
     const FGameplayTagContainer* TargetTags,
     FGameplayTagContainer* OptionalRelevantTags) const
 {
-    GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Starting validation"));
+    GRENADE_LOG(Log, TEXT("CanActivateAbility: Starting validation"));
 
     // Super check includes ActivationRequiredTags (State.GrenadeEquipped)
     // This enforces Tarkov-style flow: grenade must be equipped first
     if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
     {
-        GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Super check failed (blocking/required tags - need State.GrenadeEquipped)"));
+        GRENADE_LOG(Warning, TEXT("CanActivateAbility: Super check FAILED"));
         return false;
     }
 
     // Check if already throwing
     if (bIsPreparing || bIsCooking)
     {
-        GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Already in throw sequence"));
+        GRENADE_LOG(Warning, TEXT("CanActivateAbility: Already in throw sequence"));
         return false;
     }
 
-    // Tarkov-style flow: grenade info is pre-set via SetGrenadeInfo()
-    // Called by GrenadeHandler before ability activation
-    if (bGrenadeInfoSet && !CurrentGrenadeID.IsNone())
-    {
-        GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Passed (Tarkov-style), GrenadeID=%s"),
-            *CurrentGrenadeID.ToString());
-        return true;
-    }
-
-    // Fallback: Find grenade in QuickSlots (legacy flow)
-    int32 SlotIndex;
-    FName GrenadeID;
-    if (!FindGrenadeInQuickSlots(SlotIndex, GrenadeID))
-    {
-        GRENADE_LOG(Verbose, TEXT("CanActivateAbility: No grenade available in QuickSlots"));
-        return false;
-    }
-
-    GRENADE_LOG(Verbose, TEXT("CanActivateAbility: Passed (legacy), Grenade=%s in Slot=%d"),
-        *GrenadeID.ToString(), SlotIndex);
+    // Tarkov-style flow: If we passed Super check, State.GrenadeEquipped is present.
+    // Trust the tag - grenade info will be looked up in ActivateAbility.
+    // This avoids issues with FindGrenadeInQuickSlots failing due to timing/state changes.
+    GRENADE_LOG(Log, TEXT("CanActivateAbility: PASSED (State.GrenadeEquipped verified by Super)"));
     return true;
 }
 

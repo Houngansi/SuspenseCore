@@ -10,8 +10,11 @@
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeEquipAbility.h"
 #include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeThrowAbility.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -37,10 +40,42 @@ USuspenseCoreGrenadeHandler::USuspenseCoreGrenadeHandler()
 
 void USuspenseCoreGrenadeHandler::Initialize(
 	USuspenseCoreDataManager* InDataManager,
-	USuspenseCoreEventBus* InEventBus)
+	USuspenseCoreEventBus* InEventBus,
+	USuspenseCoreServiceLocator* InServiceLocator)
 {
 	DataManager = InDataManager;
 	EventBus = InEventBus;
+	ServiceLocator = InServiceLocator;
+
+	// ═══════════════════════════════════════════════════════════════════
+	// ACTOR FACTORY SETUP - For object pooling to eliminate microfreeze
+	// ═══════════════════════════════════════════════════════════════════
+	Tag_ActorFactory = SuspenseCoreEquipmentTags::Service::TAG_Service_ActorFactory;
+
+	if (InServiceLocator)
+	{
+		if (UObject* FactoryObj = InServiceLocator->TryGetService(Tag_ActorFactory))
+		{
+			if (FactoryObj->GetClass()->ImplementsInterface(USuspenseCoreActorFactory::StaticClass()))
+			{
+				CachedActorFactory = static_cast<ISuspenseCoreActorFactory*>(
+					FactoryObj->GetInterfaceAddress(USuspenseCoreActorFactory::StaticClass()));
+
+				if (CachedActorFactory)
+				{
+					HANDLER_LOG(Log, TEXT("ActorFactory acquired for grenade pooling"));
+
+					// Preload grenade classes to avoid microfreeze on first use
+					PreloadGrenadeClasses();
+				}
+			}
+		}
+
+		if (!CachedActorFactory)
+		{
+			HANDLER_LOG(Warning, TEXT("ActorFactory not available - grenades will spawn without pooling (may cause microfreeze)"));
+		}
+	}
 
 	// Subscribe to EventBus events
 	if (InEventBus)
@@ -130,15 +165,138 @@ void USuspenseCoreGrenadeHandler::Shutdown()
 		HANDLER_LOG(Log, TEXT("Unsubscribed from EventBus"));
 	}
 
-	// Destroy any remaining visual grenades
+	// Recycle any remaining visual grenades to pool
 	for (auto& Pair : VisualGrenades)
 	{
 		if (AActor* Visual = Pair.Value.Get())
 		{
-			Visual->Destroy();
+			RecycleGrenadeToPool(Visual);
 		}
 	}
 	VisualGrenades.Empty();
+
+	// Clear ActorFactory reference
+	CachedActorFactory = nullptr;
+}
+
+//==================================================================
+// Pooling Support
+//==================================================================
+
+void USuspenseCoreGrenadeHandler::PreloadGrenadeClasses()
+{
+	if (!CachedActorFactory || !DataManager.IsValid())
+	{
+		return;
+	}
+
+	HANDLER_LOG(Log, TEXT("Preloading grenade classes for pool..."));
+
+	// Get all throwable item IDs from DataManager
+	TArray<FName> ThrowableItemIds;
+
+	// Common grenade IDs to preload (can be expanded from SSOT/Settings)
+	static const TArray<FName> CommonGrenadeIds = {
+		FName("Throwable_F1"),
+		FName("Throwable_RGD5"),
+		FName("Throwable_M67"),
+		FName("Grenade_Frag"),
+		FName("Grenade_Smoke"),
+		FName("Grenade_Flash")
+	};
+
+	for (const FName& GrenadeId : CommonGrenadeIds)
+	{
+		// Verify item exists in DataManager
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(GrenadeId, ItemData))
+		{
+			if (!ItemData.EquipmentActorClass.IsNull())
+			{
+				ThrowableItemIds.Add(GrenadeId);
+			}
+		}
+	}
+
+	// Preload via ActorFactory
+	for (const FName& ItemId : ThrowableItemIds)
+	{
+		if (CachedActorFactory->PreloadActorClass(ItemId))
+		{
+			HANDLER_LOG(Log, TEXT("  Preloaded: %s"), *ItemId.ToString());
+		}
+	}
+
+	HANDLER_LOG(Log, TEXT("Preloaded %d grenade classes"), ThrowableItemIds.Num());
+}
+
+AActor* USuspenseCoreGrenadeHandler::SpawnGrenadeFromPool(
+	TSubclassOf<AActor> GrenadeClass,
+	const FTransform& SpawnTransform,
+	AActor* Owner)
+{
+	if (!GrenadeClass)
+	{
+		return nullptr;
+	}
+
+	// Try pooled spawn via ActorFactory
+	if (CachedActorFactory)
+	{
+		// First try to get from pool
+		if (AActor* PooledActor = CachedActorFactory->GetPooledActor(GrenadeClass))
+		{
+			// Reset transform
+			PooledActor->SetActorTransform(SpawnTransform);
+			PooledActor->SetOwner(Owner);
+
+			HANDLER_LOG(Log, TEXT("Got grenade from pool: %s"), *PooledActor->GetName());
+			return PooledActor;
+		}
+	}
+
+	// Fallback: Direct spawn (causes microfreeze on first spawn)
+	UWorld* World = Owner ? Owner->GetWorld() : nullptr;
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = Owner;
+	SpawnParams.Instigator = Cast<APawn>(Owner);
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	AActor* SpawnedActor = World->SpawnActor<AActor>(GrenadeClass, SpawnTransform, SpawnParams);
+
+	if (SpawnedActor)
+	{
+		HANDLER_LOG(Log, TEXT("Spawned grenade directly (no pool): %s"), *SpawnedActor->GetName());
+	}
+
+	return SpawnedActor;
+}
+
+void USuspenseCoreGrenadeHandler::RecycleGrenadeToPool(AActor* GrenadeActor)
+{
+	if (!GrenadeActor)
+	{
+		return;
+	}
+
+	// Try to recycle via ActorFactory
+	if (CachedActorFactory)
+	{
+		if (CachedActorFactory->RecycleActor(GrenadeActor))
+		{
+			HANDLER_LOG(Log, TEXT("Recycled grenade to pool: %s"), *GrenadeActor->GetName());
+			return;
+		}
+	}
+
+	// Fallback: Direct destroy
+	HANDLER_LOG(Log, TEXT("Destroying grenade (no pool): %s"), *GrenadeActor->GetName());
+	GrenadeActor->Destroy();
 }
 
 //==================================================================
@@ -936,24 +1094,20 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 		return true;
 	}
 
-	// Spawn grenade actor
-	UWorld* World = OwnerActor->GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = OwnerActor;
-	SpawnParams.Instigator = Cast<APawn>(OwnerActor);
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-	AActor* Grenade = World->SpawnActor<AActor>(GrenadeClass, ThrowLocation, ThrowDirection.Rotation(), SpawnParams);
+	// ═══════════════════════════════════════════════════════════════════
+	// POOLED SPAWN - Eliminates microfreeze on throw
+	// ═══════════════════════════════════════════════════════════════════
+	FTransform SpawnTransform(ThrowDirection.Rotation(), ThrowLocation);
+	AActor* Grenade = SpawnGrenadeFromPool(GrenadeClass, SpawnTransform, OwnerActor);
 	if (!Grenade)
 	{
-		HANDLER_LOG(Warning, TEXT("ThrowGrenadeFromEvent: Failed to spawn grenade actor"));
+		HANDLER_LOG(Warning, TEXT("ThrowGrenadeFromEvent: Failed to spawn grenade from pool"));
 		return false;
 	}
+
+	// Reset actor state if it came from pool (enable physics/collision for thrown grenade)
+	Grenade->SetActorHiddenInGame(false);
+	Grenade->SetActorEnableCollision(true);
 
 	// Calculate throw velocity (direction * force)
 	FVector ThrowVelocity = ThrowDirection * ThrowForce;
@@ -963,6 +1117,18 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 	// Initialize grenade if it's our projectile class (uses ProjectileMovementComponent)
 	if (ASuspenseCoreGrenadeProjectile* GrenadeProjectile = Cast<ASuspenseCoreGrenadeProjectile>(Grenade))
 	{
+		// ═══════════════════════════════════════════════════════════════════
+		// REACTIVATE PROJECTILE MOVEMENT (may have been deactivated for visual)
+		// ═══════════════════════════════════════════════════════════════════
+		if (UProjectileMovementComponent* ProjectileMovement = GrenadeProjectile->FindComponentByClass<UProjectileMovementComponent>())
+		{
+			if (!ProjectileMovement->IsActive())
+			{
+				ProjectileMovement->Activate(true);
+				HANDLER_LOG(Log, TEXT("Reactivated ProjectileMovement for thrown grenade"));
+			}
+		}
+
 		// ═══════════════════════════════════════════════════════════════════
 		// SSOT INITIALIZATION - Load attributes from DataManager
 		// ═══════════════════════════════════════════════════════════════════
@@ -1109,24 +1275,20 @@ bool USuspenseCoreGrenadeHandler::SpawnVisualGrenade(AActor* Character, FName Gr
 		return false;
 	}
 
-	// Spawn grenade actor (non-physics, visual only)
-	UWorld* World = Character->GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = Character;
-	SpawnParams.Instigator = Cast<APawn>(Character);
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	AActor* VisualGrenade = World->SpawnActor<AActor>(GrenadeClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	// ═══════════════════════════════════════════════════════════════════
+	// POOLED SPAWN - Eliminates microfreeze on first equip
+	// ═══════════════════════════════════════════════════════════════════
+	FTransform SpawnTransform = FTransform::Identity;
+	AActor* VisualGrenade = SpawnGrenadeFromPool(GrenadeClass, SpawnTransform, Character);
 	if (!VisualGrenade)
 	{
-		HANDLER_LOG(Warning, TEXT("SpawnVisualGrenade: Failed to spawn actor"));
+		HANDLER_LOG(Warning, TEXT("SpawnVisualGrenade: Failed to spawn actor from pool"));
 		return false;
 	}
+
+	// Reset actor state if it came from pool
+	VisualGrenade->SetActorHiddenInGame(false);
+	VisualGrenade->SetActorEnableCollision(false);  // Visual only, no collision
 
 	// CRITICAL: Disable physics and movement on visual grenade - it's attached to hand
 	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(VisualGrenade->GetRootComponent());
@@ -1263,9 +1425,17 @@ void USuspenseCoreGrenadeHandler::DestroyVisualGrenade(AActor* Character)
 	if (FoundVisual && FoundVisual->IsValid())
 	{
 		AActor* Visual = FoundVisual->Get();
-		HANDLER_LOG(Log, TEXT("DestroyVisualGrenade: Destroying %s for %s"),
+		HANDLER_LOG(Log, TEXT("DestroyVisualGrenade: Recycling %s for %s"),
 			*Visual->GetName(), *Character->GetName());
-		Visual->Destroy();
+
+		// Detach before recycling
+		if (USceneComponent* RootComp = Visual->GetRootComponent())
+		{
+			RootComp->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		}
+
+		// Recycle to pool instead of destroying
+		RecycleGrenadeToPool(Visual);
 	}
 
 	VisualGrenades.Remove(Character);

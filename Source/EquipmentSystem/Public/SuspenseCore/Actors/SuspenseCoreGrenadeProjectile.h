@@ -41,7 +41,12 @@ class UGameplayEffect;
 class USoundBase;
 class UNiagaraSystem;
 class UNiagaraComponent;
+class UParticleSystem;
+class UCameraShakeBase;
 class USuspenseCoreEventBus;
+
+// SSOT forward declaration
+struct FSuspenseCoreThrowableAttributeRow;
 
 /**
  * Grenade type enum matching GrenadeHandler
@@ -282,6 +287,14 @@ public:
         const FVector& ThrowVelocity,
         float CookTime = 0.0f,
         FName InGrenadeID = NAME_None);
+
+    /**
+     * Initialize grenade from SSOT (Single Source of Truth)
+     * Loads all attributes from FSuspenseCoreThrowableAttributeRow
+     *
+     * @param Attributes Throwable attributes from DataManager
+     */
+    void InitializeFromSSOT(const FSuspenseCoreThrowableAttributeRow& Attributes);
 
     //==================================================================
     // Runtime Accessors

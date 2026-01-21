@@ -8,6 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeEquipAbility.h"
 #include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeThrowAbility.h"
@@ -962,7 +963,25 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 	// Initialize grenade if it's our projectile class (uses ProjectileMovementComponent)
 	if (ASuspenseCoreGrenadeProjectile* GrenadeProjectile = Cast<ASuspenseCoreGrenadeProjectile>(Grenade))
 	{
-		// InitializeGrenade sets velocity on ProjectileMovement, arms grenade, reduces fuse by cook time
+		// ═══════════════════════════════════════════════════════════════════
+		// SSOT INITIALIZATION - Load attributes from DataManager
+		// ═══════════════════════════════════════════════════════════════════
+		if (DataManager.IsValid())
+		{
+			FSuspenseCoreThrowableAttributeRow ThrowableAttributes;
+			if (DataManager->GetThrowableAttributes(GrenadeID, ThrowableAttributes))
+			{
+				// Initialize from SSOT first (sets damage, radius, VFX, audio, camera shake)
+				GrenadeProjectile->InitializeFromSSOT(ThrowableAttributes);
+				HANDLER_LOG(Log, TEXT("Loaded SSOT attributes for %s"), *GrenadeID.ToString());
+			}
+			else
+			{
+				HANDLER_LOG(Warning, TEXT("No SSOT attributes found for %s - using Blueprint defaults"), *GrenadeID.ToString());
+			}
+		}
+
+		// InitializeGrenade sets velocity, arms grenade, reduces fuse by cook time
 		GrenadeProjectile->InitializeGrenade(OwnerActor, ThrowVelocity, CookTime, GrenadeID);
 
 		HANDLER_LOG(Warning, TEXT(">>> InitializeGrenade called! Grenade=%s, Armed=%s"),

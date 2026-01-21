@@ -284,12 +284,33 @@ public:
 	bool GetArmorAttributes(FName AttributeKey, FSuspenseCoreArmorAttributeRow& OutAttributes) const;
 
 	/**
+	 * Get throwable attributes by ThrowableID or RowName
+	 * Uses ThrowableAttributesDataTable configured in Settings
+	 *
+	 * @param AttributeKey ThrowableID or explicit row name
+	 * @param OutAttributes Output throwable attributes structure
+	 * @return true if attributes found
+	 *
+	 * @see FSuspenseCoreThrowableAttributeRow
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|GAS")
+	bool GetThrowableAttributes(FName AttributeKey, FSuspenseCoreThrowableAttributeRow& OutAttributes) const;
+
+	/**
 	 * Check if weapon attributes exist for given key
 	 * @param AttributeKey ItemID or row name
 	 * @return true if attributes exist in cache
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
 	bool HasWeaponAttributes(FName AttributeKey) const;
+
+	/**
+	 * Check if throwable attributes exist for given key
+	 * @param AttributeKey ThrowableID or row name
+	 * @return true if attributes exist in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool HasThrowableAttributes(FName AttributeKey) const;
 
 	/**
 	 * Check if ammo attributes exist for given key
@@ -518,6 +539,20 @@ protected:
 	 */
 	bool BuildArmorAttributesCache(UDataTable* DataTable);
 
+	/**
+	 * Initialize throwable attributes system
+	 * Loads ThrowableAttributesDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeThrowableAttributesSystem();
+
+	/**
+	 * Build throwable attributes cache from DataTable
+	 * @param DataTable Throwable attributes DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildThrowableAttributesCache(UDataTable* DataTable);
+
 	//========================================================================
 	// Attachment Attributes Initialization (Tarkov-Style Modifiers)
 	//========================================================================
@@ -634,6 +669,14 @@ private:
 	 */
 	UPROPERTY()
 	TMap<FName, FSuspenseCoreArmorAttributeRow> ArmorAttributesCache;
+
+	/**
+	 * Throwable attributes cache from ThrowableAttributesDataTable
+	 * Key: ThrowableID or explicit row name
+	 * @see FSuspenseCoreThrowableAttributeRow
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreThrowableAttributeRow> ThrowableAttributesCache;
 
 	/** Loaded weapon attributes DataTable reference */
 	UPROPERTY()

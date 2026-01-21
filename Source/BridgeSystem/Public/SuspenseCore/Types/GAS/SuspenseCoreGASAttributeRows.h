@@ -768,6 +768,64 @@ struct BRIDGESYSTEM_API FSuspenseCoreThrowableAttributeRow : public FTableRowBas
 	float IncendiaryDuration = 0.0f;
 
 	//========================================================================
+	// Visual Effects (VFX)
+	//========================================================================
+
+	/** Explosion particle effect (Niagara) - Primary */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+	TSoftObjectPtr<class UNiagaraSystem> ExplosionEffect;
+
+	/** Explosion particle effect (Cascade) - Legacy fallback */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+	TSoftObjectPtr<class UParticleSystem> ExplosionEffectLegacy;
+
+	/** Smoke effect (Niagara) - For smoke grenades */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+	TSoftObjectPtr<class UNiagaraSystem> SmokeEffect;
+
+	/** Smoke effect (Cascade) - Legacy fallback */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+	TSoftObjectPtr<class UParticleSystem> SmokeEffectLegacy;
+
+	/** Trail effect during flight (Niagara) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+	TSoftObjectPtr<class UNiagaraSystem> TrailEffect;
+
+	//========================================================================
+	// Audio
+	//========================================================================
+
+	/** Explosion sound */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> ExplosionSound;
+
+	/** Pin pull sound */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> PinPullSound;
+
+	/** Bounce sound */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> BounceSound;
+
+	//========================================================================
+	// Camera Shake
+	//========================================================================
+
+	/** Camera shake class on explosion */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CameraShake")
+	TSoftClassPtr<class UCameraShakeBase> ExplosionCameraShake;
+
+	/** Camera shake radius (0 = use ExplosionRadius) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CameraShake",
+		meta = (ClampMin = "0", ClampMax = "5000", ToolTip = "Shake radius"))
+	float CameraShakeRadius = 0.0f;
+
+	/** Camera shake intensity multiplier */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CameraShake",
+		meta = (ClampMin = "0", ClampMax = "2", ToolTip = "Shake intensity"))
+	float CameraShakeIntensity = 1.0f;
+
+	//========================================================================
 	// Helper Methods
 	//========================================================================
 
@@ -805,6 +863,24 @@ struct BRIDGESYSTEM_API FSuspenseCoreThrowableAttributeRow : public FTableRowBas
 	bool IsLauncherRound() const
 	{
 		return FuseTime <= 0.0f && ThrowForce <= 0.0f;
+	}
+
+	/** Check if has explosion VFX (either Niagara or Cascade) */
+	bool HasExplosionEffect() const
+	{
+		return !ExplosionEffect.IsNull() || !ExplosionEffectLegacy.IsNull();
+	}
+
+	/** Check if has smoke VFX */
+	bool HasSmokeEffect() const
+	{
+		return !SmokeEffect.IsNull() || !SmokeEffectLegacy.IsNull();
+	}
+
+	/** Get effective camera shake radius (uses ExplosionRadius if not set) */
+	float GetEffectiveCameraShakeRadius() const
+	{
+		return CameraShakeRadius > 0.0f ? CameraShakeRadius : ExplosionRadius * 100.0f; // Convert meters to cm
 	}
 };
 

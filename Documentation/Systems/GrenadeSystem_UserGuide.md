@@ -941,6 +941,174 @@ USuspenseCoreEventBus* GetEventBus()
 
 ---
 
+## Appendix D: Critical Patterns & Fixes
+
+> **Added:** 2026-01-21
+> **Source:** Production bug fixes and analysis
+
+### D.1 GAS Damage System - IncomingDamage Meta-Attribute
+
+**CRITICAL:** All damage effects MUST use `IncomingDamage` attribute, NOT `Health` directly!
+
+#### Why This Matters
+
+```
+WRONG (damage logged but HP unchanged):
+Effect → modifies Health → PostGameplayEffectExecute ignores it
+
+CORRECT (damage applied with armor):
+Effect → modifies IncomingDamage → PostGameplayEffectExecute processes → armor → HP
+```
+
+#### Correct Implementation
+
+```cpp
+// In your GameplayEffect constructor:
+FGameplayModifierInfo DamageModifier;
+DamageModifier.Attribute = USuspenseCoreAttributeSet::GetIncomingDamageAttribute();  // NOT GetHealthAttribute()!
+DamageModifier.ModifierOp = EGameplayModOp::Additive;
+
+// When applying damage via SetByCaller:
+SpecHandle.Data->SetSetByCallerMagnitude(
+    SuspenseCoreTags::Data::Damage,
+    DamageAmount);  // POSITIVE value! Not negative!
+```
+
+#### Damage Flow
+
+```
+1. GameplayEffect applies +100 to IncomingDamage
+2. PostGameplayEffectExecute detects IncomingDamage change
+3. Armor reduction: DamageAfterArmor = Max(100 - Armor, 0)
+4. Health updated: NewHealth = Health - DamageAfterArmor
+5. Death/LowHealth events triggered if needed
+6. IncomingDamage reset to 0
+```
+
+### D.2 Armor System - Default Value
+
+**Default armor is 0!** This is intentional (Tarkov-style design):
+
+```cpp
+// SuspenseCoreAttributeDefaults.h
+inline constexpr float BaseArmor = 0.0f;  // Must be equipped!
+```
+
+Players take full damage until they equip armor. To add starting armor:
+- Equip armor vest item (grants +armor via GameplayEffect)
+- Modify `BaseArmor` in defaults (not recommended)
+
+### D.3 Asset Preloading - Eliminating Microfreeze
+
+**Problem:** First grenade use causes freeze due to `LoadSynchronous()`.
+
+**Solution:** Preload grenade assets asynchronously at game start:
+
+```cpp
+// In GameInstance::Init() or Level Blueprint
+void UMyGameInstance::PreloadGrenadeAssets()
+{
+    TArray<FSoftObjectPath> Assets;
+    Assets.Add(FSoftObjectPath("/Game/Grenades/BP_Grenade_F1.BP_Grenade_F1_C"));
+    Assets.Add(FSoftObjectPath("/Game/Grenades/BP_Grenade_RGD5.BP_Grenade_RGD5_C"));
+
+    StreamableManager.RequestAsyncLoad(Assets,
+        FStreamableDelegate::CreateLambda([]() {
+            UE_LOG(LogTemp, Log, TEXT("Grenade assets preloaded"));
+        }));
+}
+```
+
+### D.4 ServiceLocator Patterns
+
+#### Equipment ServiceLocator (for ActorFactory, etc.)
+
+```cpp
+// CORRECT: Tag-based lookup
+USuspenseCoreEquipmentServiceLocator* Locator =
+    USuspenseCoreEquipmentServiceLocator::Get(this);
+if (Locator)
+{
+    UObject* Service = Locator->TryGetService(
+        SuspenseCoreEquipmentTags::Service::TAG_Service_ActorFactory);
+}
+
+// WRONG: Name-based lookup (different class!)
+// USuspenseCoreServiceLocator::Get(this)->GetServiceByName(...);  // DON'T!
+```
+
+#### EventBus Access
+
+```cpp
+// CORRECT: Via EventManager singleton
+USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(this);
+if (EventMgr)
+{
+    EventBus = EventMgr->GetEventBus();
+}
+
+// WRONG: Direct Actor iteration
+// TActorIterator<ASuspenseCoreEventBus>  // DON'T!
+```
+
+### D.5 SSOT Data Loading
+
+All grenade attributes MUST come from DataManager (Single Source of Truth):
+
+```cpp
+// Load throwable attributes from SSOT
+if (DataManager.IsValid())
+{
+    FSuspenseCoreThrowableAttributeRow Attributes;
+    if (DataManager->GetThrowableAttributes(GrenadeID, Attributes))
+    {
+        GrenadeProjectile->InitializeFromSSOT(Attributes);
+        // Sets: Damage, Radius, FuseTime, VFX, Audio, CameraShake
+    }
+}
+```
+
+**ThrowableAttributes DataTable fields:**
+- `BaseDamage`, `InnerRadius`, `OuterRadius`, `DamageFalloff`
+- `FuseTime`, `MinFuseTime`
+- `ExplosionSound`, `ExplosionVFX`
+- `CameraShakeClass`, `CameraShakeInnerRadius`, `CameraShakeOuterRadius`
+
+### D.6 Lazy Initialization Pattern
+
+For services that may not be ready during initialization:
+
+```cpp
+AActor* USuspenseCoreGrenadeHandler::SpawnGrenadeFromPool(...)
+{
+    // LAZY INIT: Get factory if not cached yet
+    if (!CachedActorFactory && ServiceLocator.IsValid())
+    {
+        if (UObject* FactoryObj = ServiceLocator->TryGetService(Tag_ActorFactory))
+        {
+            CachedActorFactory = Cast<ISuspenseCoreActorFactory>(FactoryObj);
+        }
+    }
+
+    // Now use factory if available...
+}
+```
+
+---
+
+## Appendix E: Common Mistakes to Avoid
+
+| Mistake | Consequence | Correct Approach |
+|---------|-------------|------------------|
+| Modify `Health` directly | Damage ignored | Use `IncomingDamage` attribute |
+| Negative SetByCaller damage | Healing instead of damage | Use POSITIVE values |
+| `LoadSynchronous()` on first use | Microfreeze | Preload assets async |
+| Wrong ServiceLocator type | Service not found | Use `USuspenseCoreEquipmentServiceLocator` |
+| Assume armor > 0 | Confusion when full damage | Check `BaseArmor = 0.0f` default |
+| Skip SSOT initialization | Default values used | Always call `InitializeFromSSOT()` |
+
+---
+
 **Document End**
 
 *For questions or issues, refer to the SuspenseCore GitHub repository or contact the development team.*

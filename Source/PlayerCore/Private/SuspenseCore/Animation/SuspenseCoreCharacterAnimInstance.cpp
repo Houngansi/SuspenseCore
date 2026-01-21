@@ -394,9 +394,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// THROWABLE CHECK: Skip LH socket update for grenades
-	// Don't get LH target from hidden weapon - let animation play naturally
-	// IK is disabled via LeftHandIKAlpha = 0 in UpdateIKData
+	// THROWABLE CHECK: Fully disable LH IK for grenades
+	// Reset all LH state to prevent hand from reaching to hidden weapon socket
 	// ═══════════════════════════════════════════════════════════════════════════════
 	bool bIsThrowable = false;
 	if (CurrentWeaponType.IsValid())
@@ -405,15 +404,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 		bIsThrowable = TypeStr.Contains(TEXT("Throwable")) || TypeStr.Contains(TEXT("Grenade"));
 	}
 
-	if (bIsThrowable)
-	{
-		// For throwables: keep existing state, let LeftHandIKAlpha blend to 0
-		// This allows the grenade locomotion animation to drive the left hand
-		return;
-	}
-
-	// Reset if no weapon equipped
-	if (!bHasWeaponEquipped || !bIsWeaponDrawn)
+	// Reset if no weapon equipped OR if throwable (grenades don't use weapon IK)
+	if (!bHasWeaponEquipped || !bIsWeaponDrawn || bIsThrowable)
 	{
 		bHasLeftHandSocket = false;
 		bHasLeftHandTarget = false;

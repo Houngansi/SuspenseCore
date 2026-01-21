@@ -191,6 +191,13 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 #if WITH_EQUIPMENT_SYSTEM
 	if (!CachedStanceComponent.IsValid())
 	{
+		// CRITICAL DEBUG: Log when StanceComponent is missing
+		static int32 MissingCounter = 0;
+		if (MissingCounter++ % 300 == 0)  // Log every 5 seconds at 60 FPS
+		{
+			UE_LOG(LogTemp, Error, TEXT("[AnimInstance] CachedStanceComponent is INVALID! Cannot get weapon data."));
+		}
+
 		// Reset weapon data
 		CurrentWeaponType = FGameplayTag();
 		bHasWeaponEquipped = false;
@@ -277,15 +284,19 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 {
-	// Debug: Log every frame when weapon type changes
-	static FGameplayTag LastLoggedType;
-	if (CurrentWeaponType != LastLoggedType)
+	// CRITICAL DEBUG: Log every call to trace the issue
+	static int32 FrameCounter = 0;
+	FrameCounter++;
+
+	// Log once per second (assuming 60 FPS)
+	const bool bShouldLog = (FrameCounter % 60 == 0);
+
+	if (bShouldLog)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] UpdateAnimationAssets: WeaponType=%s, HasWeapon=%s, IsDrawn=%s"),
-			*CurrentWeaponType.ToString(),
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] UpdateAnimationAssets TICK: WeaponType=%s, HasWeapon=%s, IsDrawn=%s"),
+			CurrentWeaponType.IsValid() ? *CurrentWeaponType.ToString() : TEXT("INVALID"),
 			bHasWeaponEquipped ? TEXT("YES") : TEXT("NO"),
 			bIsWeaponDrawn ? TEXT("YES") : TEXT("NO"));
-		LastLoggedType = CurrentWeaponType;
 	}
 
 	if (!bHasWeaponEquipped || !CurrentWeaponType.IsValid())
@@ -301,13 +312,14 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 		return;
 	}
 
-	// Log when animation data is loaded
+	// Log when animation data changes or periodically
 	static FGameplayTag LastLoadedType;
-	if (CurrentWeaponType != LastLoadedType)
+	if (CurrentWeaponType != LastLoadedType || bShouldLog)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Animation data loaded: Stance=%s, Locomotion=%s"),
-			AnimData->Stance ? TEXT("VALID") : TEXT("NULL"),
-			AnimData->Locomotion ? TEXT("VALID") : TEXT("NULL"));
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Animation data: WeaponType=%s, Stance=%s, Locomotion=%s"),
+			*CurrentWeaponType.ToString(),
+			AnimData->Stance ? *AnimData->Stance->GetName() : TEXT("NULL"),
+			AnimData->Locomotion ? *AnimData->Locomotion->GetName() : TEXT("NULL"));
 		LastLoadedType = CurrentWeaponType;
 	}
 

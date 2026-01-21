@@ -39,6 +39,8 @@
 // Forward declarations
 class USuspenseCoreDataManager;
 class USuspenseCoreEventBus;
+class ISuspenseCoreActorFactory;
+class USuspenseCoreServiceLocator;
 
 /**
  * Grenade type for different behaviors
@@ -99,9 +101,19 @@ public:
 	 *
 	 * @param InDataManager Data manager for grenade data
 	 * @param InEventBus EventBus for publishing events
+	 * @param InServiceLocator ServiceLocator for getting ActorFactory (optional, for pooling)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ItemUse|Handler")
-	void Initialize(USuspenseCoreDataManager* InDataManager, USuspenseCoreEventBus* InEventBus);
+	void Initialize(
+		USuspenseCoreDataManager* InDataManager,
+		USuspenseCoreEventBus* InEventBus,
+		USuspenseCoreServiceLocator* InServiceLocator = nullptr);
+
+	/**
+	 * Preload grenade classes to avoid micro-freeze on first use
+	 * Called automatically during Initialize if ActorFactory is available
+	 */
+	void PreloadGrenadeClasses();
 
 	/**
 	 * Shutdown handler and unsubscribe from EventBus
@@ -283,6 +295,24 @@ private:
 		float ThrowForce,
 		float CookTime);
 
+	/**
+	 * Spawn grenade actor using ActorFactory pool (or fallback to World->SpawnActor)
+	 * @param GrenadeClass Class to spawn
+	 * @param SpawnTransform Spawn transform
+	 * @param Owner Owner actor
+	 * @return Spawned actor or nullptr
+	 */
+	AActor* SpawnGrenadeFromPool(
+		TSubclassOf<AActor> GrenadeClass,
+		const FTransform& SpawnTransform,
+		AActor* Owner);
+
+	/**
+	 * Recycle grenade actor to pool (or destroy if pool unavailable)
+	 * @param GrenadeActor Actor to recycle
+	 */
+	void RecycleGrenadeToPool(AActor* GrenadeActor);
+
 	//==================================================================
 	// Dependencies
 	//==================================================================
@@ -292,6 +322,15 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+
+	UPROPERTY()
+	TWeakObjectPtr<USuspenseCoreServiceLocator> ServiceLocator;
+
+	/** Cached ActorFactory interface for pooled spawning */
+	ISuspenseCoreActorFactory* CachedActorFactory = nullptr;
+
+	/** Tag for ActorFactory service lookup */
+	FGameplayTag Tag_ActorFactory;
 
 	//==================================================================
 	// EventBus Subscription

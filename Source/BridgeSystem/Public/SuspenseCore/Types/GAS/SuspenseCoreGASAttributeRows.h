@@ -826,6 +826,30 @@ struct BRIDGESYSTEM_API FSuspenseCoreThrowableAttributeRow : public FTableRowBas
 	float CameraShakeIntensity = 1.0f;
 
 	//========================================================================
+	// Damage System
+	//========================================================================
+
+	/** Whether grenade damages the thrower (self-damage) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage",
+		meta = (ToolTip = "Enable self-damage from own grenade"))
+	bool bDamageSelf = true;
+
+	/** GameplayEffect class for applying damage via GAS */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage",
+		meta = (ToolTip = "Damage effect class (uses default if not set)"))
+	TSoftClassPtr<class UGameplayEffect> DamageEffectClass;
+
+	/** GameplayEffect class for flashbang stun effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage",
+		meta = (ToolTip = "Flashbang stun effect class"))
+	TSoftClassPtr<class UGameplayEffect> FlashbangEffectClass;
+
+	/** GameplayEffect class for incendiary burn effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage",
+		meta = (ToolTip = "Incendiary burn effect class"))
+	TSoftClassPtr<class UGameplayEffect> IncendiaryEffectClass;
+
+	//========================================================================
 	// Helper Methods
 	//========================================================================
 

@@ -174,12 +174,12 @@ public:
 	/**
 	 * Get full preloaded asset cache for a throwable
 	 * Used by GrenadeProjectile::InitializeFromSSOT()
+	 * NOTE: C++ only - FSuspenseCoreThrowableAssetCache is not Blueprint-compatible
 	 *
 	 * @param ThrowableID Item ID of the throwable
 	 * @param OutCache Output cache structure
 	 * @return true if found and loaded
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Throwable")
 	bool GetPreloadedAssets(FName ThrowableID, FSuspenseCoreThrowableAssetCache& OutCache) const;
 
 	/**

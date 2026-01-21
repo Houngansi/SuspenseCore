@@ -3,6 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Actors/SuspenseCoreGrenadeProjectile.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreThrowableAssetPreloader.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
@@ -212,6 +213,25 @@ void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrow
     GRENADE_PROJECTILE_LOG(Log, TEXT("InitializeFromSSOT: Loading from %s"), *Attributes.ThrowableID.ToString());
 
     // ═══════════════════════════════════════════════════════════════════
+    // TRY TO USE PRELOADED ASSETS (AAA-quality: no microfreezes)
+    // ═══════════════════════════════════════════════════════════════════
+    FSuspenseCoreThrowableAssetCache PreloadedCache;
+    bool bUsePreloaded = false;
+
+    if (USuspenseCoreThrowableAssetPreloader* Preloader = USuspenseCoreThrowableAssetPreloader::Get(this))
+    {
+        bUsePreloaded = Preloader->GetPreloadedAssets(Attributes.ThrowableID, PreloadedCache);
+        if (bUsePreloaded)
+        {
+            GRENADE_PROJECTILE_LOG(Log, TEXT("  Using preloaded assets (zero-hitch)"));
+        }
+        else
+        {
+            GRENADE_PROJECTILE_LOG(Warning, TEXT("  Assets not preloaded - will use sync load (may cause hitch)"));
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // TIMING
     // ═══════════════════════════════════════════════════════════════════
     FuseTime = Attributes.FuseTime;
@@ -237,76 +257,123 @@ void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrow
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // VFX - Load Niagara or Cascade (Niagara takes priority)
+    // VFX - Use preloaded or fallback to sync load
     // ═══════════════════════════════════════════════════════════════════
 
     // Explosion Effect
-    if (!Attributes.ExplosionEffect.IsNull())
+    if (bUsePreloaded && PreloadedCache.ExplosionEffect)
+    {
+        ExplosionEffect = PreloadedCache.ExplosionEffect;
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Using preloaded Niagara explosion: %s"), *GetNameSafe(ExplosionEffect));
+    }
+    else if (!Attributes.ExplosionEffect.IsNull())
     {
         ExplosionEffect = Attributes.ExplosionEffect.LoadSynchronous();
-        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Loaded Niagara explosion: %s"), *GetNameSafe(ExplosionEffect));
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Sync loaded Niagara explosion: %s"), *GetNameSafe(ExplosionEffect));
     }
     else if (!Attributes.ExplosionEffectLegacy.IsNull())
     {
         // Store legacy particle system - will handle in Multicast_SpawnExplosionEffects
-        // Note: We can't directly assign UParticleSystem to UNiagaraSystem
         GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Will use Cascade explosion (legacy)"));
     }
 
     // Smoke Effect
-    if (!Attributes.SmokeEffect.IsNull())
+    if (bUsePreloaded && PreloadedCache.SmokeEffect)
+    {
+        SmokeEffect = PreloadedCache.SmokeEffect;
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Using preloaded Niagara smoke: %s"), *GetNameSafe(SmokeEffect));
+    }
+    else if (!Attributes.SmokeEffect.IsNull())
     {
         SmokeEffect = Attributes.SmokeEffect.LoadSynchronous();
-        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Loaded Niagara smoke: %s"), *GetNameSafe(SmokeEffect));
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Sync loaded Niagara smoke: %s"), *GetNameSafe(SmokeEffect));
     }
 
     // Trail Effect
-    if (!Attributes.TrailEffect.IsNull())
+    if (bUsePreloaded && PreloadedCache.TrailEffect)
+    {
+        TrailEffect = PreloadedCache.TrailEffect;
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Using preloaded Niagara trail: %s"), *GetNameSafe(TrailEffect));
+    }
+    else if (!Attributes.TrailEffect.IsNull())
     {
         TrailEffect = Attributes.TrailEffect.LoadSynchronous();
-        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Loaded Niagara trail: %s"), *GetNameSafe(TrailEffect));
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Sync loaded Niagara trail: %s"), *GetNameSafe(TrailEffect));
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // AUDIO
+    // AUDIO - Use preloaded or fallback to sync load
     // ═══════════════════════════════════════════════════════════════════
-    if (!Attributes.ExplosionSound.IsNull())
+    if (bUsePreloaded && PreloadedCache.ExplosionSound)
+    {
+        ExplosionSound = PreloadedCache.ExplosionSound;
+    }
+    else if (!Attributes.ExplosionSound.IsNull())
     {
         ExplosionSound = Attributes.ExplosionSound.LoadSynchronous();
     }
-    if (!Attributes.PinPullSound.IsNull())
+
+    if (bUsePreloaded && PreloadedCache.PinPullSound)
+    {
+        PinSound = PreloadedCache.PinPullSound;
+    }
+    else if (!Attributes.PinPullSound.IsNull())
     {
         PinSound = Attributes.PinPullSound.LoadSynchronous();
     }
-    if (!Attributes.BounceSound.IsNull())
+
+    if (bUsePreloaded && PreloadedCache.BounceSound)
+    {
+        BounceSound = PreloadedCache.BounceSound;
+    }
+    else if (!Attributes.BounceSound.IsNull())
     {
         BounceSound = Attributes.BounceSound.LoadSynchronous();
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // CAMERA SHAKE
+    // CAMERA SHAKE - Use preloaded or fallback to sync load
     // ═══════════════════════════════════════════════════════════════════
-    if (!Attributes.ExplosionCameraShake.IsNull())
+    if (bUsePreloaded && PreloadedCache.ExplosionCameraShake)
+    {
+        ExplosionCameraShake = PreloadedCache.ExplosionCameraShake;
+    }
+    else if (!Attributes.ExplosionCameraShake.IsNull())
     {
         ExplosionCameraShake = Attributes.ExplosionCameraShake.LoadSynchronous();
     }
     CameraShakeRadius = Attributes.GetEffectiveCameraShakeRadius();
 
     // ═══════════════════════════════════════════════════════════════════
-    // DAMAGE SYSTEM
+    // DAMAGE SYSTEM - Use preloaded or fallback to sync load
     // ═══════════════════════════════════════════════════════════════════
     bDamageInstigator = Attributes.bDamageSelf;
 
-    if (!Attributes.DamageEffectClass.IsNull())
+    if (bUsePreloaded && PreloadedCache.DamageEffectClass)
+    {
+        DamageEffectClass = PreloadedCache.DamageEffectClass;
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Using preloaded DamageEffect: %s"), *GetNameSafe(DamageEffectClass));
+    }
+    else if (!Attributes.DamageEffectClass.IsNull())
     {
         DamageEffectClass = Attributes.DamageEffectClass.LoadSynchronous();
-        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Loaded DamageEffect: %s"), *GetNameSafe(DamageEffectClass));
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Sync loaded DamageEffect: %s"), *GetNameSafe(DamageEffectClass));
     }
-    if (!Attributes.FlashbangEffectClass.IsNull())
+
+    if (bUsePreloaded && PreloadedCache.FlashbangEffectClass)
+    {
+        FlashbangEffectClass = PreloadedCache.FlashbangEffectClass;
+    }
+    else if (!Attributes.FlashbangEffectClass.IsNull())
     {
         FlashbangEffectClass = Attributes.FlashbangEffectClass.LoadSynchronous();
     }
-    if (!Attributes.IncendiaryEffectClass.IsNull())
+
+    if (bUsePreloaded && PreloadedCache.IncendiaryEffectClass)
+    {
+        IncendiaryEffectClass = PreloadedCache.IncendiaryEffectClass;
+    }
+    else if (!Attributes.IncendiaryEffectClass.IsNull())
     {
         IncendiaryEffectClass = Attributes.IncendiaryEffectClass.LoadSynchronous();
     }
@@ -335,8 +402,9 @@ void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrow
         GrenadeType = ESuspenseCoreGrenadeProjectileType::Impact;
     }
 
-    GRENADE_PROJECTILE_LOG(Log, TEXT("SSOT loaded: Type=%d, Damage=%.0f, Radius=%.0f-%.0f, Fuse=%.2f"),
-        static_cast<int32>(GrenadeType), BaseDamage, InnerRadius, OuterRadius, FuseTime);
+    GRENADE_PROJECTILE_LOG(Log, TEXT("SSOT loaded: Type=%d, Damage=%.0f, Radius=%.0f-%.0f, Fuse=%.2f, Preloaded=%s"),
+        static_cast<int32>(GrenadeType), BaseDamage, InnerRadius, OuterRadius, FuseTime,
+        bUsePreloaded ? TEXT("YES") : TEXT("NO"));
 }
 
 //==================================================================

@@ -314,6 +314,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreAnimationHelpers
 	 * - Weapon.Grenade.Incendiary → Frag (can be customized)
 	 * - Weapon.Grenade.* → Frag
 	 * - Weapon.Throwable.* → Frag (legacy)
+	 * - Item.Throwable.* → Frag (item tags)
 	 * - Default → SMG
 	 *
 	 * @param WeaponArchetype The weapon archetype GameplayTag
@@ -391,8 +392,11 @@ struct BRIDGESYSTEM_API FSuspenseCoreAnimationHelpers
 			return FName("Frag");  // Can be changed to "Incendiary" if separate animations needed
 		}
 
-		// Fallback for any grenade type or legacy Weapon.Throwable
-		if (TagString.Contains(TEXT("Weapon.Grenade")) || TagString.Contains(TEXT("Weapon.Throwable")))
+		// Fallback for any grenade/throwable type
+		// Covers: Weapon.Grenade.*, Weapon.Throwable.*, Item.Throwable.*
+		if (TagString.Contains(TEXT("Weapon.Grenade")) ||
+			TagString.Contains(TEXT("Weapon.Throwable")) ||
+			TagString.Contains(TEXT("Item.Throwable")))
 		{
 			return FName("Frag");
 		}

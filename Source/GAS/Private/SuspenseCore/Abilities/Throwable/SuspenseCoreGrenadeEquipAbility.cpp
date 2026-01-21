@@ -509,12 +509,13 @@ void USuspenseCoreGrenadeEquipAbility::StorePreviousWeaponState()
 
 void USuspenseCoreGrenadeEquipAbility::RestorePreviousWeaponState()
 {
-	// Request stance restoration via EventBus
-	if (PreviousWeaponType.IsValid())
-	{
-		RequestStanceChange(false);
-		EQUIP_LOG(Log, TEXT("Requested restore to previous weapon: %s"), *PreviousWeaponType.ToString());
-	}
+	// ALWAYS request stance restoration via EventBus
+	// The StanceComponent will restore the previous state it stored when grenade was equipped
+	// This works even if PreviousWeaponType is invalid (no weapon before grenade)
+	RequestStanceChange(false);
+	EQUIP_LOG(Log, TEXT("Requested restore to previous weapon: %s (valid=%s)"),
+		*PreviousWeaponType.ToString(),
+		PreviousWeaponType.IsValid() ? TEXT("true") : TEXT("false"));
 }
 
 void USuspenseCoreGrenadeEquipAbility::BroadcastEquipEvent(FGameplayTag EventTag)

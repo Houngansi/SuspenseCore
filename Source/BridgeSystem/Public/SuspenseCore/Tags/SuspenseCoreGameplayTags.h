@@ -283,6 +283,14 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ThrowingGrenade); // Grenade throw in progress
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WeaponDrawn);     // Weapon currently drawn
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeEquipped); // Grenade equipped and ready to throw
+
+		// Grenade effect states
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Blinded);        // Flashbang blindness
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Deafened);       // Flashbang deafness
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Disoriented);    // Flashbang disorientation
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burning);        // On fire from incendiary
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InFireZone);     // Standing in fire zone
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damaged);        // Recently took damage
 	}
 
 	//==================================================================
@@ -456,6 +464,19 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(StaminaPerSecond);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpeedMultiplier);
 		}
+
+		// Grenade effect data tags
+		namespace Grenade
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(FlashDuration);  // Flashbang effect duration
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurnDuration);   // Incendiary burn duration
+		}
+
+		// Damage type data tags
+		namespace Damage
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);  // Burn damage amount
+		}
 	}
 
 	//==================================================================
@@ -469,6 +490,39 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SprintBuff);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(JumpCost);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(CrouchDebuff);
+		}
+
+		// Damage effect tags
+		namespace Damage
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Root);         // Effect.Damage (base)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Grenade);      // Grenade damage
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Explosion);    // Explosion damage
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Shrapnel);     // Shrapnel damage
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);         // Burn damage
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WithHitInfo);  // Damage with hit info
+		}
+
+		// Grenade effect tags
+		namespace Grenade
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flashbang);         // Full flashbang effect
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(FlashbangPartial);  // Partial flashbang effect
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Incendiary);        // Incendiary effect
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(IncendiaryZone);    // Incendiary zone effect
+		}
+	}
+
+	//==================================================================
+	// GAMEPLAYCUE TAGS - Visual/Audio effects
+	//==================================================================
+	namespace GameplayCue
+	{
+		namespace Grenade
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flashbang);         // Flashbang cue
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(FlashbangPartial);  // Partial flashbang cue
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);              // Burn effect cue
 		}
 	}
 

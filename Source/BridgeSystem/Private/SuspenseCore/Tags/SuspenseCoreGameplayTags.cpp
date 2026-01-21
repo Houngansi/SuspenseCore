@@ -261,6 +261,14 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(ThrowingGrenade, "State.ThrowingGrenade");
 		UE_DEFINE_GAMEPLAY_TAG(WeaponDrawn, "State.WeaponDrawn");
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeEquipped, "State.GrenadeEquipped");
+
+		// Grenade effect states
+		UE_DEFINE_GAMEPLAY_TAG(Blinded, "State.Blinded");
+		UE_DEFINE_GAMEPLAY_TAG(Deafened, "State.Deafened");
+		UE_DEFINE_GAMEPLAY_TAG(Disoriented, "State.Disoriented");
+		UE_DEFINE_GAMEPLAY_TAG(Burning, "State.Burning");
+		UE_DEFINE_GAMEPLAY_TAG(InFireZone, "State.InFireZone");
+		UE_DEFINE_GAMEPLAY_TAG(Damaged, "State.Damaged");
 	}
 
 	//==================================================================
@@ -433,6 +441,19 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(StaminaPerSecond, "Data.Cost.StaminaPerSecond");
 			UE_DEFINE_GAMEPLAY_TAG(SpeedMultiplier, "Data.Cost.SpeedMultiplier");
 		}
+
+		// Grenade effect data tags
+		namespace Grenade
+		{
+			UE_DEFINE_GAMEPLAY_TAG(FlashDuration, "Data.Grenade.FlashDuration");
+			UE_DEFINE_GAMEPLAY_TAG(BurnDuration, "Data.Grenade.BurnDuration");
+		}
+
+		// Damage type data tags
+		namespace Damage
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Burn, "Data.Damage.Burn");
+		}
 	}
 
 	//==================================================================
@@ -446,6 +467,39 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(SprintBuff, "Effect.Movement.SprintBuff");
 			UE_DEFINE_GAMEPLAY_TAG(JumpCost, "Effect.Movement.JumpCost");
 			UE_DEFINE_GAMEPLAY_TAG(CrouchDebuff, "Effect.Movement.CrouchDebuff");
+		}
+
+		// Damage effect tags
+		namespace Damage
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Root, "Effect.Damage");
+			UE_DEFINE_GAMEPLAY_TAG(Grenade, "Effect.Damage.Grenade");
+			UE_DEFINE_GAMEPLAY_TAG(Explosion, "Effect.Damage.Explosion");
+			UE_DEFINE_GAMEPLAY_TAG(Shrapnel, "Effect.Damage.Shrapnel");
+			UE_DEFINE_GAMEPLAY_TAG(Burn, "Effect.Damage.Burn");
+			UE_DEFINE_GAMEPLAY_TAG(WithHitInfo, "Effect.Damage.WithHitInfo");
+		}
+
+		// Grenade effect tags
+		namespace Grenade
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Flashbang, "Effect.Grenade.Flashbang");
+			UE_DEFINE_GAMEPLAY_TAG(FlashbangPartial, "Effect.Grenade.Flashbang.Partial");
+			UE_DEFINE_GAMEPLAY_TAG(Incendiary, "Effect.Grenade.Incendiary");
+			UE_DEFINE_GAMEPLAY_TAG(IncendiaryZone, "Effect.Grenade.Incendiary.Zone");
+		}
+	}
+
+	//==================================================================
+	// GAMEPLAYCUE TAGS
+	//==================================================================
+	namespace GameplayCue
+	{
+		namespace Grenade
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Flashbang, "GameplayCue.Grenade.Flashbang");
+			UE_DEFINE_GAMEPLAY_TAG(FlashbangPartial, "GameplayCue.Grenade.Flashbang.Partial");
+			UE_DEFINE_GAMEPLAY_TAG(Burn, "GameplayCue.Grenade.Burn");
 		}
 	}
 

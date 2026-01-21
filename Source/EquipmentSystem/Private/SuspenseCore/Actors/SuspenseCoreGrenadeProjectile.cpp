@@ -565,9 +565,9 @@ void ASuspenseCoreGrenadeProjectile::ApplyExplosionDamage()
 
             if (SpecHandle.IsValid())
             {
-                // Set damage value via SetByCaller (NEGATIVE for health reduction)
+                // Set damage value via SetByCaller (POSITIVE - PostGameplayEffectExecute handles IncomingDamage)
                 SpecHandle.Data->SetSetByCallerMagnitude(
-                    SuspenseCoreTags::Data::Damage, -Damage);
+                    SuspenseCoreTags::Data::Damage, Damage);
 
                 // Apply effect
                 TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());

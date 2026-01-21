@@ -4,14 +4,14 @@
 //
 // ARCHITECTURE:
 // - Instant damage effect using SetByCaller magnitude
-// - Damage value set via Data.Damage tag (same as weapon damage)
+// - Modifies IncomingDamage meta-attribute (processed by PostGameplayEffectExecute)
+// - Damage value set via Data.Damage tag (POSITIVE value)
 // - Tagged with Effect.Damage.Grenade for GameplayCue support
-// - Applies knockback impulse via Data.Grenade.Impulse tag
 //
 // USAGE:
 // Apply via GrenadeProjectile::ApplyExplosionDamage()
 //   FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(UGE_GrenadeDamage::StaticClass(), 1, Context);
-//   Spec.Data->SetSetByCallerMagnitude(SuspenseCoreTags::Data::Damage, -DamageAmount);
+//   Spec.Data->SetSetByCallerMagnitude(SuspenseCoreTags::Data::Damage, DamageAmount);  // POSITIVE!
 //   ASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
 
 #pragma once
@@ -28,7 +28,8 @@
  *
  * CONFIGURATION:
  * - DurationPolicy: Instant
- * - Damage Tag: Data.Damage (SetByCaller, negative value)
+ * - Attribute: IncomingDamage (meta-attribute, processed by PostGameplayEffectExecute)
+ * - Damage Tag: Data.Damage (SetByCaller, POSITIVE value)
  * - Asset Tag: Effect.Damage.Grenade
  *
  * DAMAGE CALCULATION (done by GrenadeProjectile):

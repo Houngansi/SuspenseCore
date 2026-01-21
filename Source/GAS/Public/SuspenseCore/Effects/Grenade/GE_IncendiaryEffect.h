@@ -11,7 +11,7 @@
 // USAGE:
 // Apply via GrenadeProjectile for incendiary type or when entering fire zone
 //   FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(UGE_IncendiaryEffect::StaticClass(), 1, Context);
-//   Spec.Data->SetSetByCallerMagnitude(Data.Damage.Burn, -DamagePerTick);
+//   Spec.Data->SetSetByCallerMagnitude(Data.Damage.Burn, DamagePerTick);  // POSITIVE!
 //   Spec.Data->SetSetByCallerMagnitude(Data.Grenade.BurnDuration, Duration);
 //   ASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
 

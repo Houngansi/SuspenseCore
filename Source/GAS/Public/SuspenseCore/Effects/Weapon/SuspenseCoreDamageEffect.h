@@ -3,11 +3,12 @@
 // Copyright Suspense Team. All Rights Reserved.
 //
 // Instant damage effect using SetByCaller magnitude.
-// Damage value is set at runtime via Data.Damage tag.
+// Modifies IncomingDamage meta-attribute (processed by PostGameplayEffectExecute).
+// Damage value is set at runtime via Data.Damage tag (POSITIVE value).
 //
 // Usage:
 //   FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(USuspenseCoreDamageEffect::StaticClass(), 1, Context);
-//   SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreTags::Data::Damage, -50.0f); // Negative for damage
+//   SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreTags::Data::Damage, 50.0f);  // POSITIVE!
 //   ASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 
 #pragma once
@@ -21,17 +22,20 @@
  *
  * Instant GameplayEffect for applying weapon damage.
  * Uses SetByCaller magnitude with Data.Damage tag.
+ * Modifies IncomingDamage meta-attribute (processed by PostGameplayEffectExecute).
  *
  * Features:
  * - Instant duration (damage applied immediately)
  * - SetByCaller magnitude for dynamic damage values
+ * - IncomingDamage attribute (armor reduction handled in AttributeSet)
  * - Tagged with Effect.Damage for GameplayCue support
  * - Supports headshot multipliers via caller
  *
- * IMPORTANT: Damage values should be NEGATIVE to reduce health.
- * Example: SetSetByCallerMagnitude(Data.Damage, -50.0f) for 50 damage
+ * IMPORTANT: Damage values should be POSITIVE (PostGameplayEffectExecute handles reduction).
+ * Example: SetSetByCallerMagnitude(Data.Damage, 50.0f) for 50 damage
  *
  * @see SuspenseCoreTags::Data::Damage
+ * @see USuspenseCoreAttributeSet::PostGameplayEffectExecute
  */
 UCLASS()
 class GAS_API USuspenseCoreDamageEffect : public UGameplayEffect
@@ -107,7 +111,7 @@ public:
 	 * Create damage effect spec with proper context.
 	 *
 	 * @param Instigator Actor causing the damage
-	 * @param DamageAmount Amount of damage (positive value, will be negated internally)
+	 * @param DamageAmount Amount of damage (positive value)
 	 * @param HitResult Optional hit result for context
 	 * @return Effect spec handle ready for application
 	 */

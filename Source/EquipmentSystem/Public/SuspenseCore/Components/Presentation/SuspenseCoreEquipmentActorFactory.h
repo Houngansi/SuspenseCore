@@ -135,6 +135,27 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Equipment|Factory")
     void PreloadItemClasses(const TArray<FName>& ItemIds);
 
+    /**
+     * Prewarm actor pool by creating instances ahead of time
+     * Call during level load to eliminate spawn hitches during gameplay
+     *
+     * @param ItemId Item ID to prewarm
+     * @param Count Number of instances to create in pool
+     * @return Number of actors successfully created
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Factory")
+    int32 PrewarmPool(const FName& ItemId, int32 Count = 2);
+
+    /**
+     * Prewarm actor pool for multiple items
+     * AAA-quality: Creates pooled instances during loading screen
+     *
+     * @param ItemIds Items to prewarm
+     * @param CountPerItem Number of instances per item type
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Factory")
+    void PrewarmPoolBatch(const TArray<FName>& ItemIds, int32 CountPerItem = 2);
+
 protected:
     /** Configuration */
     UPROPERTY(EditAnywhere, Category = "Factory Config")

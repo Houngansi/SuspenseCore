@@ -1306,3 +1306,115 @@ FString USuspenseCoreEquipmentActorFactory::GetServiceStats() const
         SpawnedActorRegistry.Num()
     );
 }
+
+// ============================================================================
+// Pool Prewarming (AAA-quality: zero-hitch spawning)
+// ============================================================================
+
+int32 USuspenseCoreEquipmentActorFactory::PrewarmPool(const FName& ItemId, int32 Count)
+{
+    if (ItemId.IsNone() || Count <= 0)
+    {
+        return 0;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
+            TEXT("[ActorFactory] PrewarmPool: No World for %s"), *ItemId.ToString());
+        return 0;
+    }
+
+    // First ensure the class is loaded (either via preloader or sync)
+    TSubclassOf<AActor> ActorClass = GetActorClassForItem(ItemId);
+    if (!ActorClass)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
+            TEXT("[ActorFactory] PrewarmPool: No ActorClass found for %s"), *ItemId.ToString());
+        return 0;
+    }
+
+    // Check current pool size for this class
+    int32 CurrentCount = 0;
+    {
+        EQUIPMENT_SCOPE_LOCK(PoolLock);
+        for (const FSuspenseCoreActorPoolEntry& Entry : ActorPool)
+        {
+            if (Entry.ActorClass == ActorClass && !Entry.bInUse)
+            {
+                CurrentCount++;
+            }
+        }
+    }
+
+    // Calculate how many to create
+    int32 ToCreate = FMath::Min(Count - CurrentCount, FactoryConfig.MaxPoolSizePerClass - CurrentCount);
+    if (ToCreate <= 0)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
+            TEXT("[ActorFactory] PrewarmPool: %s already has %d instances in pool"),
+            *ItemId.ToString(), CurrentCount);
+        return 0;
+    }
+
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
+        TEXT("[ActorFactory] PrewarmPool: Creating %d instances of %s for pool"),
+        ToCreate, *ItemId.ToString());
+
+    // Create pooled instances
+    int32 Created = 0;
+    FTransform SpawnTransform = FTransform::Identity;
+    SpawnTransform.SetLocation(FVector(0.0f, 0.0f, -10000.0f)); // Spawn far below world
+
+    for (int32 i = 0; i < ToCreate; i++)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+        AActor* NewActor = World->SpawnActor<AActor>(ActorClass, SpawnTransform, SpawnParams);
+        if (NewActor)
+        {
+            // Add to pool immediately (hide, disable collision, etc.)
+            if (RecycleActor(NewActor))
+            {
+                // Set ItemId in pool entry for tracking
+                EQUIPMENT_SCOPE_LOCK(PoolLock);
+                if (FSuspenseCoreActorPoolEntry* Entry = FindPoolEntry(NewActor))
+                {
+                    Entry->ItemId = ItemId;
+                }
+                Created++;
+            }
+            else
+            {
+                // RecycleActor failed (pool full?), destroy
+                NewActor->Destroy();
+            }
+        }
+    }
+
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
+        TEXT("[ActorFactory] PrewarmPool: Successfully created %d/%d instances for %s"),
+        Created, ToCreate, *ItemId.ToString());
+
+    return Created;
+}
+
+void USuspenseCoreEquipmentActorFactory::PrewarmPoolBatch(const TArray<FName>& ItemIds, int32 CountPerItem)
+{
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
+        TEXT("[ActorFactory] PrewarmPoolBatch: Warming %d item types with %d instances each"),
+        ItemIds.Num(), CountPerItem);
+
+    int32 TotalCreated = 0;
+
+    for (const FName& ItemId : ItemIds)
+    {
+        TotalCreated += PrewarmPool(ItemId, CountPerItem);
+    }
+
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
+        TEXT("[ActorFactory] PrewarmPoolBatch: Complete - created %d total instances"),
+        TotalCreated);
+}

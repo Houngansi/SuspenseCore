@@ -308,7 +308,12 @@ struct BRIDGESYSTEM_API FSuspenseCoreAnimationHelpers
 	 * - Weapon.Melee.Knife → Knife
 	 * - Weapon.Melee.* → Special
 	 * - Weapon.Heavy.* → Special
-	 * - Weapon.Throwable.* → Frag
+	 * - Weapon.Grenade.Frag → Frag
+	 * - Weapon.Grenade.Smoke → Frag (can be customized)
+	 * - Weapon.Grenade.Flash → Frag (can be customized)
+	 * - Weapon.Grenade.Incendiary → Frag (can be customized)
+	 * - Weapon.Grenade.* → Frag
+	 * - Weapon.Throwable.* → Frag (legacy)
 	 * - Default → SMG
 	 *
 	 * @param WeaponArchetype The weapon archetype GameplayTag
@@ -364,7 +369,30 @@ struct BRIDGESYSTEM_API FSuspenseCoreAnimationHelpers
 			return FName("Special");
 		}
 
-		if (TagString.Contains(TEXT("Weapon.Throwable")))
+		// Grenade types - check specific types first for future extensibility
+		// Tags: Weapon.Grenade.Frag, Weapon.Grenade.Smoke, Weapon.Grenade.Flash, etc.
+		if (TagString.Contains(TEXT("Weapon.Grenade.Frag")))
+		{
+			return FName("Frag");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Grenade.Smoke")))
+		{
+			return FName("Frag");  // Can be changed to "Smoke" if separate animations needed
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Grenade.Flash")))
+		{
+			return FName("Frag");  // Can be changed to "Flash" if separate animations needed
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Grenade.Incendiary")))
+		{
+			return FName("Frag");  // Can be changed to "Incendiary" if separate animations needed
+		}
+
+		// Fallback for any grenade type or legacy Weapon.Throwable
+		if (TagString.Contains(TEXT("Weapon.Grenade")) || TagString.Contains(TEXT("Weapon.Throwable")))
 		{
 			return FName("Frag");
 		}

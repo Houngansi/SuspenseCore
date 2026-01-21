@@ -757,6 +757,19 @@ void USuspenseCoreWeaponStanceComponent::OnStanceChangeRequested(FGameplayTag Ev
 		*StoredPreviousWeaponType.ToString(),
 		bStoredPreviousDrawnState ? TEXT("true") : TEXT("false"));
 
+	// ═══════════════════════════════════════════════════════════════════════════
+	// HIDE CURRENT WEAPON when switching to grenade
+	// The weapon actor remains attached but hidden - will be shown on restore
+	// ═══════════════════════════════════════════════════════════════════════════
+	if (bIsGrenade && *bIsGrenade)
+	{
+		if (AActor* WeaponActor = TrackedEquipmentActor.Get())
+		{
+			WeaponActor->SetActorHiddenInGame(true);
+			UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Hidden weapon actor: %s"), *WeaponActor->GetName());
+		}
+	}
+
 	// Apply new weapon stance (grenade type)
 	if (WeaponTypeStr && !WeaponTypeStr->IsEmpty())
 	{
@@ -789,6 +802,19 @@ void USuspenseCoreWeaponStanceComponent::OnStanceRestoreRequested(FGameplayTag E
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[StanceComp] OnStanceRestoreRequested received"));
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// SHOW WEAPON that was hidden when grenade was equipped
+	// Must happen BEFORE restoring stance so weapon is visible during transition
+	// ═══════════════════════════════════════════════════════════════════════════
+	if (AActor* WeaponActor = TrackedEquipmentActor.Get())
+	{
+		if (WeaponActor->IsHidden())
+		{
+			WeaponActor->SetActorHiddenInGame(false);
+			UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Shown weapon actor: %s"), *WeaponActor->GetName());
+		}
+	}
 
 	// Restore previous weapon state
 	if (StoredPreviousWeaponType.IsValid())

@@ -13,7 +13,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
-#include "Camera/CameraShakeBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreGrenade, Log, All);
 
@@ -46,8 +45,8 @@ USuspenseCoreGrenadeThrowAbility::USuspenseCoreGrenadeThrowAbility()
     RollThrowForce = 500.0f;
     OverhandUpAngle = 15.0f;
 
-    // Camera shake for throw effect
-    ThrowCameraShakeScale = 0.5f;
+    // NOTE: Camera shake moved to SSOT (FSuspenseCoreThrowableAttributeRow)
+    // Configure in ThrowableAttributesDataTable per grenade type
 
     // Initialize runtime state
     CurrentThrowType = ESuspenseCoreGrenadeThrowType::Overhand;

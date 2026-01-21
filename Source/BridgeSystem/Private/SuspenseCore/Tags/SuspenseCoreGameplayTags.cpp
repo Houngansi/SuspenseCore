@@ -449,11 +449,8 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(BurnDuration, "Data.Grenade.BurnDuration");
 		}
 
-		// Damage type data tags
-		namespace Damage
-		{
-			UE_DEFINE_GAMEPLAY_TAG(Burn, "Data.Damage.Burn");
-		}
+		// Burn damage data tag
+		UE_DEFINE_GAMEPLAY_TAG(DamageBurn, "Data.Damage.Burn");
 	}
 
 	//==================================================================
@@ -470,24 +467,18 @@ namespace SuspenseCoreTags
 		}
 
 		// Damage effect tags
-		namespace Damage
-		{
-			UE_DEFINE_GAMEPLAY_TAG(Root, "Effect.Damage");
-			UE_DEFINE_GAMEPLAY_TAG(Grenade, "Effect.Damage.Grenade");
-			UE_DEFINE_GAMEPLAY_TAG(Explosion, "Effect.Damage.Explosion");
-			UE_DEFINE_GAMEPLAY_TAG(Shrapnel, "Effect.Damage.Shrapnel");
-			UE_DEFINE_GAMEPLAY_TAG(Burn, "Effect.Damage.Burn");
-			UE_DEFINE_GAMEPLAY_TAG(WithHitInfo, "Effect.Damage.WithHitInfo");
-		}
+		UE_DEFINE_GAMEPLAY_TAG(Damage, "Effect.Damage");
+		UE_DEFINE_GAMEPLAY_TAG(DamageGrenade, "Effect.Damage.Grenade");
+		UE_DEFINE_GAMEPLAY_TAG(DamageExplosion, "Effect.Damage.Explosion");
+		UE_DEFINE_GAMEPLAY_TAG(DamageShrapnel, "Effect.Damage.Shrapnel");
+		UE_DEFINE_GAMEPLAY_TAG(DamageBurn, "Effect.Damage.Burn");
+		UE_DEFINE_GAMEPLAY_TAG(DamageWithHitInfo, "Effect.Damage.WithHitInfo");
 
 		// Grenade effect tags
-		namespace Grenade
-		{
-			UE_DEFINE_GAMEPLAY_TAG(Flashbang, "Effect.Grenade.Flashbang");
-			UE_DEFINE_GAMEPLAY_TAG(FlashbangPartial, "Effect.Grenade.Flashbang.Partial");
-			UE_DEFINE_GAMEPLAY_TAG(Incendiary, "Effect.Grenade.Incendiary");
-			UE_DEFINE_GAMEPLAY_TAG(IncendiaryZone, "Effect.Grenade.Incendiary.Zone");
-		}
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbang, "Effect.Grenade.Flashbang");
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbangPartial, "Effect.Grenade.Flashbang.Partial");
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeIncendiary, "Effect.Grenade.Incendiary");
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeIncendiaryZone, "Effect.Grenade.Incendiary.Zone");
 	}
 
 	//==================================================================
@@ -495,12 +486,10 @@ namespace SuspenseCoreTags
 	//==================================================================
 	namespace GameplayCue
 	{
-		namespace Grenade
-		{
-			UE_DEFINE_GAMEPLAY_TAG(Flashbang, "GameplayCue.Grenade.Flashbang");
-			UE_DEFINE_GAMEPLAY_TAG(FlashbangPartial, "GameplayCue.Grenade.Flashbang.Partial");
-			UE_DEFINE_GAMEPLAY_TAG(Burn, "GameplayCue.Grenade.Burn");
-		}
+		// Grenade cues
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbang, "GameplayCue.Grenade.Flashbang");
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbangPartial, "GameplayCue.Grenade.Flashbang.Partial");
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeBurn, "GameplayCue.Grenade.Burn");
 	}
 
 	//==================================================================

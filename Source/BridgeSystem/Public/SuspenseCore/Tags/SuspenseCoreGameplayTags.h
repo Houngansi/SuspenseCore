@@ -472,11 +472,8 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurnDuration);   // Incendiary burn duration
 		}
 
-		// Damage type data tags
-		namespace Damage
-		{
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);  // Burn damage amount
-		}
+		// Burn damage data tag (Data.Damage.Burn)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBurn);
 	}
 
 	//==================================================================
@@ -492,25 +489,19 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(CrouchDebuff);
 		}
 
-		// Damage effect tags
-		namespace Damage
-		{
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Root);         // Effect.Damage (base)
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Grenade);      // Grenade damage
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Explosion);    // Explosion damage
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Shrapnel);     // Shrapnel damage
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);         // Burn damage
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WithHitInfo);  // Damage with hit info
-		}
+		// Damage effect tags (Effect.Damage.*)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage);              // Effect.Damage (base)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageGrenade);       // Effect.Damage.Grenade
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageExplosion);     // Effect.Damage.Explosion
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageShrapnel);      // Effect.Damage.Shrapnel
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBurn);          // Effect.Damage.Burn
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageWithHitInfo);   // Effect.Damage.WithHitInfo
 
-		// Grenade effect tags
-		namespace Grenade
-		{
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flashbang);         // Full flashbang effect
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(FlashbangPartial);  // Partial flashbang effect
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Incendiary);        // Incendiary effect
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(IncendiaryZone);    // Incendiary zone effect
-		}
+		// Grenade effect tags (Effect.Grenade.*)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbang);         // Effect.Grenade.Flashbang
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbangPartial);  // Effect.Grenade.Flashbang.Partial
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeIncendiary);        // Effect.Grenade.Incendiary
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeIncendiaryZone);    // Effect.Grenade.Incendiary.Zone
 	}
 
 	//==================================================================
@@ -518,12 +509,10 @@ namespace SuspenseCoreTags
 	//==================================================================
 	namespace GameplayCue
 	{
-		namespace Grenade
-		{
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flashbang);         // Flashbang cue
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(FlashbangPartial);  // Partial flashbang cue
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);              // Burn effect cue
-		}
+		// Grenade cues (GameplayCue.Grenade.*)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbang);         // GameplayCue.Grenade.Flashbang
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbangPartial);  // GameplayCue.Grenade.Flashbang.Partial
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeBurn);              // GameplayCue.Grenade.Burn
 	}
 
 	//==================================================================

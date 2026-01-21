@@ -40,7 +40,7 @@
 class USuspenseCoreDataManager;
 class USuspenseCoreEventBus;
 class ISuspenseCoreActorFactory;
-class USuspenseCoreServiceLocator;
+class USuspenseCoreEquipmentServiceLocator;
 
 /**
  * Grenade type for different behaviors
@@ -101,13 +101,13 @@ public:
 	 *
 	 * @param InDataManager Data manager for grenade data
 	 * @param InEventBus EventBus for publishing events
-	 * @param InServiceLocator ServiceLocator for getting ActorFactory (optional, for pooling)
+	 * @param InServiceLocator EquipmentServiceLocator for getting ActorFactory (optional, for pooling)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ItemUse|Handler")
 	void Initialize(
 		USuspenseCoreDataManager* InDataManager,
 		USuspenseCoreEventBus* InEventBus,
-		USuspenseCoreServiceLocator* InServiceLocator = nullptr);
+		USuspenseCoreEquipmentServiceLocator* InServiceLocator = nullptr);
 
 	/**
 	 * Preload grenade classes to avoid micro-freeze on first use
@@ -324,7 +324,7 @@ private:
 	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
 
 	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreServiceLocator> ServiceLocator;
+	TWeakObjectPtr<USuspenseCoreEquipmentServiceLocator> ServiceLocator;
 
 	/** Cached ActorFactory interface for pooled spawning */
 	ISuspenseCoreActorFactory* CachedActorFactory = nullptr;

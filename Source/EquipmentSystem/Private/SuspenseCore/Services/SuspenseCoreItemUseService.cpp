@@ -5,7 +5,6 @@
 #include "SuspenseCore/Services/SuspenseCoreItemUseService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
-#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
@@ -815,13 +814,9 @@ void USuspenseCoreItemUseServiceImpl::AutoRegisterHandlers()
 	USuspenseCoreGrenadeHandler* GrenadeHandler = NewObject<USuspenseCoreGrenadeHandler>(this);
 	if (GrenadeHandler)
 	{
-		// Pass ServiceLocator for grenade pooling (eliminates microfreeze)
-		USuspenseCoreServiceLocator* ServiceLocatorPtr = nullptr;
-		if (ServiceProvider.IsValid())
-		{
-			ServiceLocatorPtr = ServiceProvider->GetServiceLocator();
-		}
-		GrenadeHandler->Initialize(DataManager, EventBusPtr, ServiceLocatorPtr);
+		// Pass EquipmentServiceLocator for grenade pooling (eliminates microfreeze)
+		USuspenseCoreEquipmentServiceLocator* EquipmentServiceLocator = USuspenseCoreEquipmentServiceLocator::Get(this);
+		GrenadeHandler->Initialize(DataManager, EventBusPtr, EquipmentServiceLocator);
 		RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler>(GrenadeHandler));
 	}
 

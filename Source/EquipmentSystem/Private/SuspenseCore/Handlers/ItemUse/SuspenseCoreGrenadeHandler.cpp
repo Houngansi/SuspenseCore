@@ -14,7 +14,7 @@
 #include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeEquipAbility.h"
 #include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeThrowAbility.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
-#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -41,7 +41,7 @@ USuspenseCoreGrenadeHandler::USuspenseCoreGrenadeHandler()
 void USuspenseCoreGrenadeHandler::Initialize(
 	USuspenseCoreDataManager* InDataManager,
 	USuspenseCoreEventBus* InEventBus,
-	USuspenseCoreServiceLocator* InServiceLocator)
+	USuspenseCoreEquipmentServiceLocator* InServiceLocator)
 {
 	DataManager = InDataManager;
 	EventBus = InEventBus;

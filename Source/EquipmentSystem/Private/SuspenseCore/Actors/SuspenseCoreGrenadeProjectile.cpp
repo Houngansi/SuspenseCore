@@ -47,7 +47,15 @@ ASuspenseCoreGrenadeProjectile::ASuspenseCoreGrenadeProjectile()
     // Create collision component (root)
     CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
     CollisionComponent->InitSphereRadius(5.0f);
-    CollisionComponent->SetCollisionProfileName(TEXT("Projectile"));
+
+    // Configure collision for bouncing off walls/floors
+    // Using explicit settings instead of named profile for reliability
+    CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    CollisionComponent->SetCollisionObjectType(ECC_WorldDynamic);
+    CollisionComponent->SetCollisionResponseToAllChannels(ECR_Block);  // Block everything (bounce off walls)
+    CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);  // Overlap with pawns (for damage)
+    CollisionComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);  // Ignore camera
+
     CollisionComponent->SetNotifyRigidBodyCollision(true);
     CollisionComponent->SetGenerateOverlapEvents(true);
     RootComponent = CollisionComponent;

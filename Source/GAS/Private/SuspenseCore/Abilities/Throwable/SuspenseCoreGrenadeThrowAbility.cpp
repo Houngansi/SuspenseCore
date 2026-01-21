@@ -349,20 +349,8 @@ void USuspenseCoreGrenadeThrowAbility::OnReleaseNotify()
         // Play throw sound
         PlaySound(ThrowSound);
 
-        // Play camera shake (similar to FireAbility recoil shake)
-        if (ThrowCameraShake)
-        {
-            ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-            if (Character)
-            {
-                APlayerController* PC = Cast<APlayerController>(Character->GetController());
-                if (PC)
-                {
-                    PC->ClientStartCameraShake(ThrowCameraShake, ThrowCameraShakeScale);
-                    GRENADE_LOG(Verbose, TEXT("Camera shake played: Scale=%.2f"), ThrowCameraShakeScale);
-                }
-            }
-        }
+        // NOTE: Camera shake removed from throw - it should only happen at EXPLOSION
+        // Explosion camera shake is handled by SuspenseCoreGrenadeProjectile::Multicast_SpawnExplosionEffects
 
         // Notify blueprint
         OnGrenadeThrown();

@@ -6,7 +6,6 @@
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "Engine/GameInstance.h"
@@ -84,10 +83,14 @@ void USuspenseCoreThrowableAssetPreloader::Initialize(FSubsystemCollectionBase& 
 	else if (EventBus.IsValid())
 	{
 		// Subscribe to DataManager ready event
+		// NOTE: DataManager uses dynamic tag "SuspenseCore.Event.Data.Initialized" (not a native tag from SuspenseCoreTags)
 		PRELOADER_LOG(Log, TEXT("Subscribing to DataManager initialized event"));
 
+		static const FGameplayTag DataInitializedTag =
+			FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Data.Initialized"));
+
 		EventBus->SubscribeNative(
-			SuspenseCoreTags::Event::Data::Initialized,
+			DataInitializedTag,
 			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreThrowableAssetPreloader::OnDataManagerReady),
 			ESuspenseCoreEventPriority::Normal);

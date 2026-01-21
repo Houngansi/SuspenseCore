@@ -17,6 +17,7 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffect.h"
+#include "SuspenseCore/Effects/Weapon/SuspenseCoreDamageEffect.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -292,6 +293,25 @@ void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrow
     CameraShakeRadius = Attributes.GetEffectiveCameraShakeRadius();
 
     // ═══════════════════════════════════════════════════════════════════
+    // DAMAGE SYSTEM
+    // ═══════════════════════════════════════════════════════════════════
+    bDamageInstigator = Attributes.bDamageSelf;
+
+    if (!Attributes.DamageEffectClass.IsNull())
+    {
+        DamageEffectClass = Attributes.DamageEffectClass.LoadSynchronous();
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Loaded DamageEffect: %s"), *GetNameSafe(DamageEffectClass));
+    }
+    if (!Attributes.FlashbangEffectClass.IsNull())
+    {
+        FlashbangEffectClass = Attributes.FlashbangEffectClass.LoadSynchronous();
+    }
+    if (!Attributes.IncendiaryEffectClass.IsNull())
+    {
+        IncendiaryEffectClass = Attributes.IncendiaryEffectClass.LoadSynchronous();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // GRENADE TYPE
     // ═══════════════════════════════════════════════════════════════════
     if (Attributes.IsFragGrenade())
@@ -524,8 +544,15 @@ void ASuspenseCoreGrenadeProjectile::ApplyExplosionDamage()
 
         // Apply damage via GAS if available
         UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
-        if (TargetASC && DamageEffectClass)
+        if (TargetASC)
         {
+            // Use configured damage effect or default to USuspenseCoreDamageEffect
+            TSubclassOf<UGameplayEffect> EffectToApply = DamageEffectClass;
+            if (!EffectToApply)
+            {
+                EffectToApply = USuspenseCoreDamageEffect::StaticClass();
+            }
+
             // Create effect context
             FGameplayEffectContextHandle EffectContext = TargetASC->MakeEffectContext();
             EffectContext.AddSourceObject(this);
@@ -534,13 +561,13 @@ void ASuspenseCoreGrenadeProjectile::ApplyExplosionDamage()
 
             // Create effect spec
             FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(
-                DamageEffectClass, 1.0f, EffectContext);
+                EffectToApply, 1.0f, EffectContext);
 
             if (SpecHandle.IsValid())
             {
-                // Set damage value via SetByCaller
+                // Set damage value via SetByCaller (NEGATIVE for health reduction)
                 SpecHandle.Data->SetSetByCallerMagnitude(
-                    SuspenseCoreTags::Data::Damage, Damage);
+                    SuspenseCoreTags::Data::Damage, -Damage);
 
                 // Apply effect
                 TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());

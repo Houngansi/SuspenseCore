@@ -156,6 +156,13 @@ void USuspenseCoreDataManager::Initialize(FSubsystemCollectionBase& Collection)
 		{
 			UE_LOG(LogSuspenseCoreData, Log, TEXT("Attachment Attributes System: READY (%d rows cached)"), AttachmentAttributesCache.Num());
 		}
+
+		// Throwable Attributes (Grenades SSOT)
+		bool bThrowableAttributesReady = InitializeThrowableAttributesSystem();
+		if (bThrowableAttributesReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Throwable Attributes System: READY (%d rows cached)"), ThrowableAttributesCache.Num());
+		}
 	}
 	else
 	{
@@ -1251,6 +1258,82 @@ bool USuspenseCoreDataManager::BuildArmorAttributesCache(UDataTable* DataTable)
 }
 
 //========================================================================
+// Throwable Attributes Initialization (Grenades SSOT)
+//========================================================================
+
+bool USuspenseCoreDataManager::InitializeThrowableAttributesSystem()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	if (Settings->ThrowableAttributesDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("ThrowableAttributesDataTable not configured (optional)"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Loading ThrowableAttributesDataTable: %s"),
+		*Settings->ThrowableAttributesDataTable.ToString());
+
+	UDataTable* LoadedDataTable = Settings->ThrowableAttributesDataTable.LoadSynchronous();
+
+	if (!LoadedDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to load ThrowableAttributesDataTable"));
+		return false;
+	}
+
+	return BuildThrowableAttributesCache(LoadedDataTable);
+}
+
+bool USuspenseCoreDataManager::BuildThrowableAttributesCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	ThrowableAttributesCache.Empty();
+
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Building throwable attributes cache from %d rows..."), RowNames.Num());
+
+	int32 LoadedCount = 0;
+
+	for (const FName& RowName : RowNames)
+	{
+		FSuspenseCoreThrowableAttributeRow* RowData = DataTable->FindRow<FSuspenseCoreThrowableAttributeRow>(RowName, TEXT(""));
+		if (!RowData)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read throwable attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Validate row
+		if (!RowData->IsValid())
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Invalid throwable attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Use ThrowableID if set, otherwise use row name as key
+		FName CacheKey = RowData->ThrowableID.IsNone() ? RowName : RowData->ThrowableID;
+
+		ThrowableAttributesCache.Add(CacheKey, *RowData);
+		LoadedCount++;
+
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached throwable attrs: %s (Fuse=%.1f, Damage=%.0f, Radius=%.0f)"),
+			*CacheKey.ToString(), RowData->FuseTime, RowData->ExplosionDamage, RowData->ExplosionRadius);
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Throwable attributes cache built: %d entries"), LoadedCount);
+	return LoadedCount > 0;
+}
+
+//========================================================================
 // Attachment Attributes Initialization (Tarkov-Style Modifiers)
 //========================================================================
 
@@ -1379,6 +1462,29 @@ bool USuspenseCoreDataManager::GetArmorAttributes(FName AttributeKey, FSuspenseC
 
 	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetArmorAttributes: '%s' not found in cache"), *AttributeKey.ToString());
 	return false;
+}
+
+bool USuspenseCoreDataManager::GetThrowableAttributes(FName AttributeKey, FSuspenseCoreThrowableAttributeRow& OutAttributes) const
+{
+	if (AttributeKey.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreThrowableAttributeRow* Found = ThrowableAttributesCache.Find(AttributeKey);
+	if (Found)
+	{
+		OutAttributes = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetThrowableAttributes: '%s' not found in cache"), *AttributeKey.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::HasThrowableAttributes(FName AttributeKey) const
+{
+	return ThrowableAttributesCache.Contains(AttributeKey);
 }
 
 bool USuspenseCoreDataManager::GetAttachmentAttributes(FName AttributeKey, FSuspenseCoreAttachmentAttributeRow& OutAttributes) const

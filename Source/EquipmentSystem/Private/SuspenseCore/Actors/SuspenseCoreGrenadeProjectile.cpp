@@ -6,6 +6,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Camera/CameraShakeBase.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -202,6 +204,119 @@ void ASuspenseCoreGrenadeProjectile::InitializeGrenade(
         *ThrowVelocity.ToString(),
         CookTime,
         EffectiveFuseTime);
+}
+
+void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrowableAttributeRow& Attributes)
+{
+    GRENADE_PROJECTILE_LOG(Log, TEXT("InitializeFromSSOT: Loading from %s"), *Attributes.ThrowableID.ToString());
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TIMING
+    // ═══════════════════════════════════════════════════════════════════
+    FuseTime = Attributes.FuseTime;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // DAMAGE
+    // ═══════════════════════════════════════════════════════════════════
+    BaseDamage = Attributes.ExplosionDamage;
+    InnerRadius = Attributes.InnerRadius * 100.0f;  // Meters to cm
+    OuterRadius = Attributes.ExplosionRadius * 100.0f;  // Meters to cm
+    DamageFalloff = Attributes.DamageFalloff;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PHYSICS
+    // ═══════════════════════════════════════════════════════════════════
+    Bounciness = 1.0f - Attributes.BounceFriction;  // Convert friction to bounciness
+    Friction = Attributes.BounceFriction;
+
+    if (ProjectileMovement)
+    {
+        ProjectileMovement->Bounciness = Bounciness;
+        ProjectileMovement->Friction = Friction;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // VFX - Load Niagara or Cascade (Niagara takes priority)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // Explosion Effect
+    if (!Attributes.ExplosionEffect.IsNull())
+    {
+        ExplosionEffect = Attributes.ExplosionEffect.LoadSynchronous();
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Loaded Niagara explosion: %s"), *GetNameSafe(ExplosionEffect));
+    }
+    else if (!Attributes.ExplosionEffectLegacy.IsNull())
+    {
+        // Store legacy particle system - will handle in Multicast_SpawnExplosionEffects
+        // Note: We can't directly assign UParticleSystem to UNiagaraSystem
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Will use Cascade explosion (legacy)"));
+    }
+
+    // Smoke Effect
+    if (!Attributes.SmokeEffect.IsNull())
+    {
+        SmokeEffect = Attributes.SmokeEffect.LoadSynchronous();
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Loaded Niagara smoke: %s"), *GetNameSafe(SmokeEffect));
+    }
+
+    // Trail Effect
+    if (!Attributes.TrailEffect.IsNull())
+    {
+        TrailEffect = Attributes.TrailEffect.LoadSynchronous();
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Loaded Niagara trail: %s"), *GetNameSafe(TrailEffect));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // AUDIO
+    // ═══════════════════════════════════════════════════════════════════
+    if (!Attributes.ExplosionSound.IsNull())
+    {
+        ExplosionSound = Attributes.ExplosionSound.LoadSynchronous();
+    }
+    if (!Attributes.PinPullSound.IsNull())
+    {
+        PinSound = Attributes.PinPullSound.LoadSynchronous();
+    }
+    if (!Attributes.BounceSound.IsNull())
+    {
+        BounceSound = Attributes.BounceSound.LoadSynchronous();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CAMERA SHAKE
+    // ═══════════════════════════════════════════════════════════════════
+    if (!Attributes.ExplosionCameraShake.IsNull())
+    {
+        ExplosionCameraShake = Attributes.ExplosionCameraShake.LoadSynchronous();
+    }
+    CameraShakeRadius = Attributes.GetEffectiveCameraShakeRadius();
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GRENADE TYPE
+    // ═══════════════════════════════════════════════════════════════════
+    if (Attributes.IsFragGrenade())
+    {
+        GrenadeType = ESuspenseCoreGrenadeProjectileType::Fragmentation;
+    }
+    else if (Attributes.IsSmokeGrenade())
+    {
+        GrenadeType = ESuspenseCoreGrenadeProjectileType::Smoke;
+    }
+    else if (Attributes.IsFlashbang())
+    {
+        GrenadeType = ESuspenseCoreGrenadeProjectileType::Flashbang;
+    }
+    else if (Attributes.IsIncendiary())
+    {
+        GrenadeType = ESuspenseCoreGrenadeProjectileType::Incendiary;
+    }
+    else if (Attributes.IsLauncherRound())
+    {
+        GrenadeType = ESuspenseCoreGrenadeProjectileType::Impact;
+    }
+
+    GRENADE_PROJECTILE_LOG(Log, TEXT("SSOT loaded: Type=%d, Damage=%.0f, Radius=%.0f-%.0f, Fuse=%.2f"),
+        static_cast<int32>(GrenadeType), BaseDamage, InnerRadius, OuterRadius, FuseTime);
 }
 
 //==================================================================

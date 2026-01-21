@@ -333,8 +333,19 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	const double CurrentTime = FPlatformTime::Seconds();
 	const bool bShouldLogIK = (CurrentTime - LastIKLogTime) > 1.0;
 
-	// IK is active when weapon is drawn
-	const float TargetIKAlpha = (bIsWeaponDrawn && bHasWeaponEquipped) ? 1.0f : 0.0f;
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// IK DISABLE CHECK: Grenades/throwables don't use weapon IK
+	// The grenade animation has its own hand positions baked in
+	// ═══════════════════════════════════════════════════════════════════════════════
+	bool bIsThrowable = false;
+	if (CurrentWeaponType.IsValid())
+	{
+		const FString TypeStr = CurrentWeaponType.ToString();
+		bIsThrowable = TypeStr.Contains(TEXT("Throwable")) || TypeStr.Contains(TEXT("Grenade"));
+	}
+
+	// IK is active when weapon is drawn AND it's not a throwable
+	const float TargetIKAlpha = (bIsWeaponDrawn && bHasWeaponEquipped && !bIsThrowable) ? 1.0f : 0.0f;
 	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
 	RightHandIKAlpha = FMath::FInterpTo(RightHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
 

@@ -249,11 +249,14 @@ void USuspenseCoreGrenadeEquipAbility::EndAbility(
 		EQUIP_LOG(Verbose, TEXT("Removed State.GrenadeEquipped tag"));
 	}
 
-	// Restore previous weapon state if cancelled (not if throw was executed)
-	if (bWasCancelled && !bUnequipRequested)
-	{
-		RestorePreviousWeaponState();
-	}
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ALWAYS restore previous weapon state when grenade equip ends
+	// This covers both:
+	// - Cancel without throw (player switches weapon)
+	// - After successful throw (GrenadeThrowAbility cancels this ability)
+	// ═══════════════════════════════════════════════════════════════════════════
+	RestorePreviousWeaponState();
+	EQUIP_LOG(Log, TEXT("EndAbility: Restored previous weapon state"));
 
 	// Broadcast unequip event
 	BroadcastEquipEvent(SuspenseCoreTags::Event::Throwable::Unequipped);
@@ -466,10 +469,8 @@ void USuspenseCoreGrenadeEquipAbility::OnHolsterMontageCompleted()
 {
 	EQUIP_LOG(Log, TEXT("Holster montage completed"));
 
-	// Restore previous weapon
-	RestorePreviousWeaponState();
-
 	// End the ability normally
+	// NOTE: RestorePreviousWeaponState() is called in EndAbility() - no need to call here
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 

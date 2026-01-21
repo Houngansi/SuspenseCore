@@ -284,21 +284,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 {
-	// CRITICAL DEBUG: Log every call to trace the issue
-	static int32 FrameCounter = 0;
-	FrameCounter++;
-
-	// Log once per second (assuming 60 FPS)
-	const bool bShouldLog = (FrameCounter % 60 == 0);
-
-	if (bShouldLog)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] UpdateAnimationAssets TICK: WeaponType=%s, HasWeapon=%s, IsDrawn=%s"),
-			CurrentWeaponType.IsValid() ? *CurrentWeaponType.ToString() : TEXT("INVALID"),
-			bHasWeaponEquipped ? TEXT("YES") : TEXT("NO"),
-			bIsWeaponDrawn ? TEXT("YES") : TEXT("NO"));
-	}
-
 	if (!bHasWeaponEquipped || !CurrentWeaponType.IsValid())
 	{
 		CurrentAnimationData = FSuspenseCoreAnimationData();
@@ -308,19 +293,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 	const FSuspenseCoreAnimationData* AnimData = GetAnimationDataForWeaponType(CurrentWeaponType);
 	if (!AnimData)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] GetAnimationDataForWeaponType returned NULL for: %s"), *CurrentWeaponType.ToString());
 		return;
-	}
-
-	// Log when animation data changes or periodically
-	static FGameplayTag LastLoadedType;
-	if (CurrentWeaponType != LastLoadedType || bShouldLog)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Animation data: WeaponType=%s, Stance=%s, Locomotion=%s"),
-			*CurrentWeaponType.ToString(),
-			AnimData->Stance ? *AnimData->Stance->GetName() : TEXT("NULL"),
-			AnimData->Locomotion ? *AnimData->Locomotion->GetName() : TEXT("NULL"));
-		LastLoadedType = CurrentWeaponType;
 	}
 
 	CurrentAnimationData = *AnimData;
@@ -328,11 +301,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 
 void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 {
-	// Debug logging (throttled)
-	static double LastIKLogTime = 0.0;
-	const double CurrentTime = FPlatformTime::Seconds();
-	const bool bShouldLogIK = (CurrentTime - LastIKLogTime) > 1.0;
-
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// IK DISABLE CHECK: Grenades/throwables don't use weapon IK
 	// The grenade animation has its own hand positions baked in
@@ -425,8 +393,19 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 	// Вычисляет LeftHandTargetTransform в Component Space для FABRIK
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	// Reset if no weapon
-	if (!bHasWeaponEquipped || !bIsWeaponDrawn)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// THROWABLE CHECK: Skip LH socket when grenade is equipped
+	// Grenade animations have their own hand positions - no IK needed
+	// ═══════════════════════════════════════════════════════════════════════════════
+	bool bIsThrowable = false;
+	if (CurrentWeaponType.IsValid())
+	{
+		const FString TypeStr = CurrentWeaponType.ToString();
+		bIsThrowable = TypeStr.Contains(TEXT("Throwable")) || TypeStr.Contains(TEXT("Grenade"));
+	}
+
+	// Reset if no weapon OR if throwable (grenades don't use weapon IK)
+	if (!bHasWeaponEquipped || !bIsWeaponDrawn || bIsThrowable)
 	{
 		bHasLeftHandSocket = false;
 		bHasLeftHandTarget = false;

@@ -28,12 +28,13 @@ UGE_IncendiaryEffect::UGE_IncendiaryEffect()
 	bExecutePeriodicEffectOnApplication = true;  // Apply damage immediately on first application
 
 	// Create periodic damage modifier
+	// Use IncomingDamage meta-attribute (processed by PostGameplayEffectExecute)
 	FGameplayModifierInfo BurnDamageModifier;
-	BurnDamageModifier.Attribute = USuspenseCoreAttributeSet::GetHealthAttribute();
+	BurnDamageModifier.Attribute = USuspenseCoreAttributeSet::GetIncomingDamageAttribute();
 	BurnDamageModifier.ModifierOp = EGameplayModOp::Additive;
 
 	// Use SetByCaller for damage per tick
-	// Tag: Data.Damage.Burn (negative value for damage)
+	// Tag: Data.Damage.Burn (POSITIVE value)
 	FSetByCallerFloat SetByCallerDamage;
 	SetByCallerDamage.DataTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.Burn"));
 
@@ -85,11 +86,12 @@ UGE_IncendiaryEffect_Zone::UGE_IncendiaryEffect_Zone()
 	bExecutePeriodicEffectOnApplication = true;
 
 	// Create periodic damage modifier
+	// Use IncomingDamage meta-attribute (processed by PostGameplayEffectExecute)
 	FGameplayModifierInfo BurnDamageModifier;
-	BurnDamageModifier.Attribute = USuspenseCoreAttributeSet::GetHealthAttribute();
+	BurnDamageModifier.Attribute = USuspenseCoreAttributeSet::GetIncomingDamageAttribute();
 	BurnDamageModifier.ModifierOp = EGameplayModOp::Additive;
 
-	// Use SetByCaller for damage per tick
+	// Use SetByCaller for damage per tick (POSITIVE value)
 	FSetByCallerFloat SetByCallerDamage;
 	SetByCallerDamage.DataTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.Burn"));
 

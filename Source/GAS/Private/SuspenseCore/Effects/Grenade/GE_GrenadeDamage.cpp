@@ -16,9 +16,10 @@ UGE_GrenadeDamage::UGE_GrenadeDamage()
 	// Instant duration - damage applied immediately on explosion
 	DurationPolicy = EGameplayEffectDurationType::Instant;
 
-	// Create modifier for Health attribute
+	// Create modifier for IncomingDamage meta-attribute
+	// PostGameplayEffectExecute processes this to apply armor reduction and update Health
 	FGameplayModifierInfo DamageModifier;
-	DamageModifier.Attribute = USuspenseCoreAttributeSet::GetHealthAttribute();
+	DamageModifier.Attribute = USuspenseCoreAttributeSet::GetIncomingDamageAttribute();
 	DamageModifier.ModifierOp = EGameplayModOp::Additive;
 
 	// Use SetByCaller for dynamic damage values (based on distance from explosion)
@@ -50,9 +51,10 @@ UGE_GrenadeDamage_Shrapnel::UGE_GrenadeDamage_Shrapnel()
 	// Instant duration - shrapnel damage applied immediately
 	DurationPolicy = EGameplayEffectDurationType::Instant;
 
-	// Create modifier for Health attribute
+	// Create modifier for IncomingDamage meta-attribute
+	// PostGameplayEffectExecute processes this to apply armor reduction and update Health
 	FGameplayModifierInfo DamageModifier;
-	DamageModifier.Attribute = USuspenseCoreAttributeSet::GetHealthAttribute();
+	DamageModifier.Attribute = USuspenseCoreAttributeSet::GetIncomingDamageAttribute();
 	DamageModifier.ModifierOp = EGameplayModOp::Additive;
 
 	// Use SetByCaller for dynamic damage values

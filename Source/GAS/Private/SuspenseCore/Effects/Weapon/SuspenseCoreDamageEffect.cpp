@@ -20,9 +20,10 @@ USuspenseCoreDamageEffect::USuspenseCoreDamageEffect()
 	// Instant duration - damage applied immediately
 	DurationPolicy = EGameplayEffectDurationType::Instant;
 
-	// Create modifier for Health attribute
+	// Create modifier for IncomingDamage meta-attribute
+	// PostGameplayEffectExecute processes this to apply armor reduction and update Health
 	FGameplayModifierInfo DamageModifier;
-	DamageModifier.Attribute = USuspenseCoreAttributeSet::GetHealthAttribute();
+	DamageModifier.Attribute = USuspenseCoreAttributeSet::GetIncomingDamageAttribute();
 	DamageModifier.ModifierOp = EGameplayModOp::Additive;
 
 	// Use SetByCaller for dynamic damage values
@@ -51,8 +52,9 @@ USuspenseCoreDamageEffect_WithHitInfo::USuspenseCoreDamageEffect_WithHitInfo()
 	// Same as base damage effect
 	DurationPolicy = EGameplayEffectDurationType::Instant;
 
+	// Use IncomingDamage meta-attribute (processed in PostGameplayEffectExecute)
 	FGameplayModifierInfo DamageModifier;
-	DamageModifier.Attribute = USuspenseCoreAttributeSet::GetHealthAttribute();
+	DamageModifier.Attribute = USuspenseCoreAttributeSet::GetIncomingDamageAttribute();
 	DamageModifier.ModifierOp = EGameplayModOp::Additive;
 
 	FSetByCallerFloat SetByCaller;
@@ -122,8 +124,8 @@ bool USuspenseCoreDamageEffectLibrary::ApplyDamageToTarget(
 		return false;
 	}
 
-	// Set damage magnitude (negative for damage)
-	SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreTags::Data::Damage, -DamageAmount);
+	// Set damage magnitude (positive - PostGameplayEffectExecute processes IncomingDamage)
+	SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreTags::Data::Damage, DamageAmount);
 
 	// Apply to target
 	FActiveGameplayEffectHandle ActiveHandle = SourceASC->ApplyGameplayEffectSpecToTarget(
@@ -193,8 +195,8 @@ FGameplayEffectSpecHandle USuspenseCoreDamageEffectLibrary::CreateDamageSpec(
 
 	if (SpecHandle.IsValid())
 	{
-		// Set damage (negative for health reduction)
-		SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreTags::Data::Damage, -DamageAmount);
+		// Set damage (positive - PostGameplayEffectExecute processes IncomingDamage)
+		SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreTags::Data::Damage, DamageAmount);
 	}
 
 	return SpecHandle;

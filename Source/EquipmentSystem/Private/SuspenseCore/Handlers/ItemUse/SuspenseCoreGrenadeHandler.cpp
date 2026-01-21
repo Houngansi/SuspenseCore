@@ -240,6 +240,27 @@ AActor* USuspenseCoreGrenadeHandler::SpawnGrenadeFromPool(
 		return nullptr;
 	}
 
+	// ═══════════════════════════════════════════════════════════════════
+	// LAZY INIT: Try to get ActorFactory if not cached yet
+	// (ActorFactory may not be ready during GrenadeHandler::Initialize)
+	// ═══════════════════════════════════════════════════════════════════
+	if (!CachedActorFactory && ServiceLocator.IsValid())
+	{
+		if (UObject* FactoryObj = ServiceLocator->TryGetService(Tag_ActorFactory))
+		{
+			if (FactoryObj->GetClass()->ImplementsInterface(USuspenseCoreActorFactory::StaticClass()))
+			{
+				CachedActorFactory = static_cast<ISuspenseCoreActorFactory*>(
+					FactoryObj->GetInterfaceAddress(USuspenseCoreActorFactory::StaticClass()));
+
+				if (CachedActorFactory)
+				{
+					HANDLER_LOG(Log, TEXT("ActorFactory acquired via lazy init"));
+				}
+			}
+		}
+	}
+
 	// Try pooled spawn via ActorFactory
 	if (CachedActorFactory)
 	{
@@ -282,6 +303,26 @@ void USuspenseCoreGrenadeHandler::RecycleGrenadeToPool(AActor* GrenadeActor)
 	if (!GrenadeActor)
 	{
 		return;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════
+	// LAZY INIT: Try to get ActorFactory if not cached yet
+	// ═══════════════════════════════════════════════════════════════════
+	if (!CachedActorFactory && ServiceLocator.IsValid())
+	{
+		if (UObject* FactoryObj = ServiceLocator->TryGetService(Tag_ActorFactory))
+		{
+			if (FactoryObj->GetClass()->ImplementsInterface(USuspenseCoreActorFactory::StaticClass()))
+			{
+				CachedActorFactory = static_cast<ISuspenseCoreActorFactory*>(
+					FactoryObj->GetInterfaceAddress(USuspenseCoreActorFactory::StaticClass()));
+
+				if (CachedActorFactory)
+				{
+					HANDLER_LOG(Log, TEXT("ActorFactory acquired via lazy init (recycle)"));
+				}
+			}
+		}
 	}
 
 	// Try to recycle via ActorFactory

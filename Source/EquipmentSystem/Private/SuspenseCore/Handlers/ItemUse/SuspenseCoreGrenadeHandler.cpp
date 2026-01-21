@@ -957,19 +957,22 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 	// Calculate throw velocity (direction * force)
 	FVector ThrowVelocity = ThrowDirection * ThrowForce;
 
+	HANDLER_LOG(Log, TEXT("Grenade class: %s, Velocity: %s"), *Grenade->GetClass()->GetName(), *ThrowVelocity.ToString());
+
 	// Initialize grenade if it's our projectile class (uses ProjectileMovementComponent)
 	if (ASuspenseCoreGrenadeProjectile* GrenadeProjectile = Cast<ASuspenseCoreGrenadeProjectile>(Grenade))
 	{
 		// InitializeGrenade sets velocity on ProjectileMovement, arms grenade, reduces fuse by cook time
 		GrenadeProjectile->InitializeGrenade(OwnerActor, ThrowVelocity, CookTime, GrenadeID);
 
-		HANDLER_LOG(Log, TEXT("Initialized grenade %s: Velocity=%s, CookTime=%.2f"),
+		HANDLER_LOG(Warning, TEXT(">>> InitializeGrenade called! Grenade=%s, Armed=%s"),
 			*Grenade->GetName(),
-			*ThrowVelocity.ToString(),
-			CookTime);
+			GrenadeProjectile->IsArmed() ? TEXT("YES") : TEXT("NO"));
 	}
 	else
 	{
+		HANDLER_LOG(Warning, TEXT(">>> Cast to ASuspenseCoreGrenadeProjectile FAILED! Using physics fallback"));
+
 		// Fallback for non-projectile grenades: apply physics impulse
 		UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Grenade->GetRootComponent());
 		if (PrimComp)

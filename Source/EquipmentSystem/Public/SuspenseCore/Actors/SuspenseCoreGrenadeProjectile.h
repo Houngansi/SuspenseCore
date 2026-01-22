@@ -45,6 +45,7 @@ class UNiagaraComponent;
 class UParticleSystem;
 class UCameraShakeBase;
 class USuspenseCoreEventBus;
+class USuspenseCoreDoTService;
 
 // SSOT forward declaration
 struct FSuspenseCoreThrowableAttributeRow;
@@ -162,6 +163,50 @@ public:
     /** GameplayEffect for incendiary (burn DoT) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|Damage")
     TSubclassOf<UGameplayEffect> IncendiaryEffectClass;
+
+    //==================================================================
+    // Configuration - DoT Effects (Bleeding/Burning)
+    //==================================================================
+
+    /** GameplayEffect for light bleeding (low armor penetration shrapnel) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT")
+    TSubclassOf<UGameplayEffect> BleedingLightEffectClass;
+
+    /** GameplayEffect for heavy bleeding (high armor penetration shrapnel) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT")
+    TSubclassOf<UGameplayEffect> BleedingHeavyEffectClass;
+
+    /** Damage per tick for bleeding effect */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.0"))
+    float BleedDamagePerTick = 5.0f;
+
+    /** Tick interval for bleeding (seconds) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.1"))
+    float BleedTickInterval = 1.0f;
+
+    /** Armor damage per tick for burning (armor bypass mechanic) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.0"))
+    float BurnArmorDamagePerTick = 3.0f;
+
+    /** Health damage per tick for burning (direct health damage) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.0"))
+    float BurnHealthDamagePerTick = 8.0f;
+
+    /** Tick interval for burning (seconds) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.1"))
+    float BurnTickInterval = 0.5f;
+
+    /** Total duration for burning effect (seconds) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "1.0"))
+    float BurnDuration = 5.0f;
+
+    /** Minimum armor for fragment blocking (0 = only unarmored bleeds) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.0"))
+    float ArmorThresholdForBleeding = 0.0f;
+
+    /** Number of fragment hits required for heavy bleeding */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "1"))
+    int32 FragmentHitsForHeavyBleed = 5;
 
     //==================================================================
     // Configuration - Physics
@@ -342,6 +387,67 @@ protected:
     /** Check if target is visible from explosion (not blocked by wall) */
     UFUNCTION(BlueprintPure, Category = "Grenade")
     bool IsTargetVisible(AActor* Target) const;
+
+    //==================================================================
+    // DoT Application (Bleeding/Burning)
+    //==================================================================
+
+    /**
+     * Apply DoT effects based on grenade type
+     * Called after primary explosion damage
+     *
+     * @param TargetActor Target to apply DoT
+     * @param TargetASC Target's AbilitySystemComponent
+     * @param Distance Distance from explosion epicenter
+     */
+    void ApplyDoTEffects(AActor* TargetActor, UAbilitySystemComponent* TargetASC, float Distance);
+
+    /**
+     * Apply bleeding effect for Fragmentation grenades
+     * Only applies if target armor is below threshold
+     *
+     * @param TargetActor Target actor
+     * @param TargetASC Target's ASC
+     * @param Distance Distance from explosion
+     */
+    void ApplyBleedingEffect(AActor* TargetActor, UAbilitySystemComponent* TargetASC, float Distance);
+
+    /**
+     * Apply burning effect for Incendiary grenades
+     * Bypasses armor, deals both armor and health damage
+     *
+     * @param TargetActor Target actor
+     * @param TargetASC Target's ASC
+     */
+    void ApplyBurningEffect(AActor* TargetActor, UAbilitySystemComponent* TargetASC);
+
+    /**
+     * Calculate number of fragment hits based on distance
+     * Used to determine bleed severity
+     *
+     * @param Distance Distance from epicenter
+     * @return Simulated number of fragment hits
+     */
+    int32 CalculateFragmentHits(float Distance) const;
+
+    /**
+     * Get target's current armor value
+     *
+     * @param TargetASC Target's ASC
+     * @return Current armor value (0 if not found)
+     */
+    float GetTargetArmor(UAbilitySystemComponent* TargetASC) const;
+
+    /**
+     * Register DoT with DoTService for EventBus notification
+     */
+    void NotifyDoTServiceOfApplication(
+        AActor* TargetActor,
+        FGameplayTag DoTType,
+        float DamagePerTick,
+        float TickInterval,
+        float Duration
+    );
 
     //==================================================================
     // Blueprint Events

@@ -237,6 +237,18 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Unequipped, "SuspenseCore.Event.Throwable.Unequipped");
 			UE_DEFINE_GAMEPLAY_TAG(Ready, "SuspenseCore.Event.Throwable.Ready");
 		}
+
+		//--------------------------------------------------------------
+		// DoT (Damage-over-Time) Events
+		// Published by DoTService for UI/gameplay integration
+		//--------------------------------------------------------------
+		namespace DoT
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Applied, "SuspenseCore.Event.DoT.Applied");
+			UE_DEFINE_GAMEPLAY_TAG(Tick, "SuspenseCore.Event.DoT.Tick");
+			UE_DEFINE_GAMEPLAY_TAG(Expired, "SuspenseCore.Event.DoT.Expired");
+			UE_DEFINE_GAMEPLAY_TAG(Removed, "SuspenseCore.Event.DoT.Removed");
+		}
 	}
 
 	//==================================================================
@@ -269,6 +281,16 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(Burning, "State.Burning");
 		UE_DEFINE_GAMEPLAY_TAG(InFireZone, "State.InFireZone");
 		UE_DEFINE_GAMEPLAY_TAG(Damaged, "State.Damaged");
+
+		//--------------------------------------------------------------
+		// DoT (Damage-over-Time) States
+		//--------------------------------------------------------------
+		namespace Health
+		{
+			UE_DEFINE_GAMEPLAY_TAG(BleedingLight, "State.Health.Bleeding.Light");
+			UE_DEFINE_GAMEPLAY_TAG(BleedingHeavy, "State.Health.Bleeding.Heavy");
+			UE_DEFINE_GAMEPLAY_TAG(Regenerating, "State.Health.Regenerating");
+		}
 	}
 
 	//==================================================================
@@ -451,6 +473,16 @@ namespace SuspenseCoreTags
 
 		// Burn damage data tag
 		UE_DEFINE_GAMEPLAY_TAG(DamageBurn, "Data.Damage.Burn");
+
+		//--------------------------------------------------------------
+		// DoT Data Tags (SetByCaller magnitudes)
+		//--------------------------------------------------------------
+		namespace DoT
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Bleed, "Data.Damage.Bleed");
+			UE_DEFINE_GAMEPLAY_TAG(BurnArmor, "Data.Damage.Burn.Armor");
+			UE_DEFINE_GAMEPLAY_TAG(BurnHealth, "Data.Damage.Burn.Health");
+		}
 	}
 
 	//==================================================================
@@ -479,6 +511,18 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbangPartial, "Effect.Grenade.Flashbang.Partial");
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeIncendiary, "Effect.Grenade.Incendiary");
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeIncendiaryZone, "Effect.Grenade.Incendiary.Zone");
+
+		//--------------------------------------------------------------
+		// DoT Effect Tags (Effect.DoT.*)
+		//--------------------------------------------------------------
+		namespace DoT
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Root, "Effect.DoT");
+			UE_DEFINE_GAMEPLAY_TAG(BleedLight, "Effect.DoT.Bleed.Light");
+			UE_DEFINE_GAMEPLAY_TAG(BleedHeavy, "Effect.DoT.Bleed.Heavy");
+			UE_DEFINE_GAMEPLAY_TAG(Burn, "Effect.DoT.Burn");
+			UE_DEFINE_GAMEPLAY_TAG(BurnArmorBypass, "Effect.DoT.Burn.ArmorBypass");
+		}
 	}
 
 	//==================================================================
@@ -490,6 +534,16 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbang, "GameplayCue.Grenade.Flashbang");
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbangPartial, "GameplayCue.Grenade.Flashbang.Partial");
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeBurn, "GameplayCue.Grenade.Burn");
+
+		//--------------------------------------------------------------
+		// DoT GameplayCues (GameplayCue.DoT.*)
+		//--------------------------------------------------------------
+		namespace DoT
+		{
+			UE_DEFINE_GAMEPLAY_TAG(BleedLight, "GameplayCue.DoT.Bleed.Light");
+			UE_DEFINE_GAMEPLAY_TAG(BleedHeavy, "GameplayCue.DoT.Bleed.Heavy");
+			UE_DEFINE_GAMEPLAY_TAG(Burn, "GameplayCue.DoT.Burn");
+		}
 	}
 
 	//==================================================================
@@ -616,6 +670,15 @@ const TArray<FString>& FSuspenseCoreTagValidator::GetCriticalTagNames()
 		// Equipment slots
 		TEXT("Equipment.Slot.PrimaryWeapon"),
 		TEXT("Equipment.Slot.BodyArmor"),
+
+		// DoT tags (critical for damage system)
+		TEXT("State.Health.Bleeding.Light"),
+		TEXT("State.Health.Bleeding.Heavy"),
+		TEXT("SuspenseCore.Event.DoT.Applied"),
+		TEXT("SuspenseCore.Event.DoT.Removed"),
+		TEXT("Data.Damage.Bleed"),
+		TEXT("Data.Damage.Burn.Armor"),
+		TEXT("Data.Damage.Burn.Health"),
 	};
 
 	return CriticalTags;

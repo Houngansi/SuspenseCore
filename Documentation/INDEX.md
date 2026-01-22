@@ -4,7 +4,7 @@
 
 > **For Devlog:** See [Completed Features](#completed-features) for ready-to-publish content.
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-01-22
 
 ---
 
@@ -150,6 +150,31 @@ Source/GAS/Abilities/
 
 ---
 
+### DoT System (Bleeding/Burning) - NEW
+
+**File:** [Plans/DoT_System_ImplementationPlan.md](Plans/DoT_System_ImplementationPlan.md)
+**Status:** Phase 1-3 Complete, Phase 4-5 In Progress
+
+**Devlog Preview:**
+> Implemented Tarkov-style Damage-over-Time effects for grenades. Fragmentation grenades cause
+> bleeding wounds (only when armor = 0), while incendiary grenades cause burning that bypasses
+> armor entirely. DoTService with EventBus integration provides real-time effect tracking for UI.
+
+**Completed:**
+- [x] Phase 1: Native GameplayTags (State::Health::Bleeding, Event::DoT, etc.)
+- [x] Phase 2: DoTService (EventBus integration, query API)
+- [x] Phase 3: GrenadeProjectile DoT application
+
+**Remaining:**
+- [ ] Phase 4: Debuff Widget system (W_DebuffIcon, W_DebuffContainer)
+- [ ] Phase 5: Documentation finalization
+
+**Related:**
+- [GAS/GrenadeDoT_DesignDocument.md](GAS/GrenadeDoT_DesignDocument.md) - Technical design
+- [Plans/DebuffWidget_System_Plan.md](Plans/DebuffWidget_System_Plan.md) - UI widget plan
+
+---
+
 ## Developer Guides
 
 ### Core Guides
@@ -171,6 +196,8 @@ Source/GAS/Abilities/
 | [GAS/WeaponAbilityArchitecture_TechnicalAnalysis.md](GAS/WeaponAbilityArchitecture_TechnicalAnalysis.md) | Technical deep-dive |
 | [GAS/WeaponSwitch_FullAudit.md](GAS/WeaponSwitch_FullAudit.md) | Weapon switching analysis |
 | [GAS/FireAbilityChecklist.md](GAS/FireAbilityChecklist.md) | Fire ability checklist |
+| [GAS/GrenadeDoT_DesignDocument.md](GAS/GrenadeDoT_DesignDocument.md) | **NEW** DoT effects (Bleeding/Burning) |
+| [GAS/HealingSystem_DesignProposal.md](GAS/HealingSystem_DesignProposal.md) | **NEW** HoT effects (Medical items) |
 
 ### Setup Guides
 
@@ -261,6 +288,29 @@ All movement states properly replicated in multiplayer.
 Stamina managed through GAS GameplayEffects.
 ```
 
+#### Grenade DoT System (NEW)
+
+```
+Tarkov-style Damage-over-Time effects for grenades:
+
+BLEEDING (Fragmentation Grenades):
+- Only applies when target armor = 0 (shrapnel blocked by armor)
+- Light Bleed: 1-2 HP/sec (bandages can heal)
+- Heavy Bleed: 3-5 HP/sec (requires medkit/surgery)
+- Infinite duration - must be healed
+
+BURNING (Incendiary Grenades):
+- BYPASSES armor entirely (fire burns through everything)
+- Damages BOTH Armor AND Health simultaneously
+- Fixed duration (5-10 seconds, will expire)
+
+Technical highlights:
+- DoTService tracks active effects with EventBus integration
+- Native GameplayTags for all DoT states/events
+- UI widgets subscribe to DoT.Applied/Removed events
+- Full GAS integration with SetByCaller magnitudes
+```
+
 ---
 
 ## Directory Structure
@@ -277,7 +327,9 @@ Documentation/
 │   ├── WeaponSlotSwitching_Design.md
 │   ├── SSOT_AttributeSet_DataTable_Integration.md
 │   ├── InstanceZone_System_Design.md
-│   └── ItemUseSystem_Pipeline.md
+│   ├── ItemUseSystem_Pipeline.md
+│   ├── DoT_System_ImplementationPlan.md       ← NEW
+│   └── DebuffWidget_System_Plan.md            ← NEW
 ├── GAS/                                  ← GAS-specific docs
 │   ├── AttributeSystem_DeveloperGuide.md
 │   ├── MovementAbilities_SetupGuide.md

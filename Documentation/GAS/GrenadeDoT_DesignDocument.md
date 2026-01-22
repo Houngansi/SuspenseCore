@@ -490,14 +490,57 @@ void ExtinguishBurning(UAbilitySystemComponent* TargetASC)
 
 ## Appendix B: File Reference
 
+### Core Implementation
+
 | File | Purpose |
 |------|---------|
 | `GE_BleedingEffect.h/cpp` | Bleeding DoT effects (Light/Heavy) |
 | `GE_IncendiaryEffect.h/cpp` | Burning DoT effects (Standard/Zone/ArmorBypass) |
-| `SuspenseCoreGrenadeProjectile.cpp` | DoT application logic |
+| `SuspenseCoreGrenadeProjectile.h/cpp` | DoT application logic (ApplyDoTEffects, ApplyBleedingEffect, ApplyBurningEffect) |
 | `SuspenseCoreMedicalHandler.cpp` | Bleeding removal |
 | `SuspenseCoreThrowableAttributeRow` | SSOT for incendiary damage/duration |
 | `SuspenseCoreConsumableAttributeRow` | Medical item bleed healing capabilities |
+
+### Service Layer (NEW)
+
+| File | Purpose |
+|------|---------|
+| `SuspenseCoreDoTService.h/cpp` | Central DoT tracking service with EventBus integration |
+| `SuspenseCoreGameplayTags.h/cpp` | Native GameplayTags for DoT (State::Health, Event::DoT, Data::DoT) |
+
+### UI Widgets (Planned)
+
+| File | Purpose |
+|------|---------|
+| `W_DebuffIcon.h/cpp` | Individual debuff icon widget |
+| `W_DebuffContainer.h/cpp` | Container with EventBus subscription for procedural icon loading |
+
+---
+
+## Appendix C: DoTService Integration
+
+### EventBus Events Published
+
+| Event Tag | Payload | When Published |
+|-----------|---------|----------------|
+| `SuspenseCore.Event.DoT.Applied` | FSuspenseCoreDoTEventPayload | When DoT effect first applied |
+| `SuspenseCore.Event.DoT.Tick` | FSuspenseCoreDoTEventPayload + DamageDealt | Each damage tick |
+| `SuspenseCore.Event.DoT.Expired` | FSuspenseCoreDoTEventPayload | When timed DoT expires naturally |
+| `SuspenseCore.Event.DoT.Removed` | FSuspenseCoreDoTEventPayload | When DoT healed/removed early |
+
+### Service Query API
+
+```cpp
+// Get DoT Service instance
+USuspenseCoreDoTService* Service = USuspenseCoreDoTService::Get(WorldContextObject);
+
+// Query active DoTs
+TArray<FSuspenseCoreActiveDoT> DoTs = Service->GetActiveDoTs(TargetActor);
+bool bBleeding = Service->HasActiveBleeding(TargetActor);
+bool bBurning = Service->HasActiveBurning(TargetActor);
+float BleedDPS = Service->GetBleedDamagePerSecond(TargetActor);
+float BurnRemaining = Service->GetBurnTimeRemaining(TargetActor);
+```
 
 ---
 

@@ -34,6 +34,7 @@
 #include "SuspenseCore/Interfaces/ItemUse/ISuspenseCoreItemUseHandler.h"
 #include "SuspenseCore/Tags/SuspenseCoreItemUseNativeTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/Throwable/SuspenseCoreThrowableTypes.h"
 #include "SuspenseCoreGrenadeHandler.generated.h"
 
 // Forward declarations
@@ -41,19 +42,6 @@ class USuspenseCoreDataManager;
 class USuspenseCoreEventBus;
 class ISuspenseCoreActorFactory;
 class USuspenseCoreEquipmentServiceLocator;
-
-/**
- * Grenade type for different behaviors
- */
-UENUM(BlueprintType)
-enum class ESuspenseCoreGrenadeType : uint8
-{
-	Fragmentation   UMETA(DisplayName = "Fragmentation"),
-	Smoke           UMETA(DisplayName = "Smoke"),
-	Flashbang       UMETA(DisplayName = "Flashbang"),
-	Incendiary      UMETA(DisplayName = "Incendiary"),
-	Impact          UMETA(DisplayName = "Impact")
-};
 
 /**
  * USuspenseCoreGrenadeHandler

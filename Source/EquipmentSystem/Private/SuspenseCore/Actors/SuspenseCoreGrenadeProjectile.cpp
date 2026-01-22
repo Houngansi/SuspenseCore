@@ -93,7 +93,7 @@ ASuspenseCoreGrenadeProjectile::ASuspenseCoreGrenadeProjectile()
     Friction = 0.5f;
     GrenadeMass = 0.6f;
     CameraShakeRadius = 1000.0f;
-    GrenadeType = ESuspenseCoreGrenadeProjectileType::Fragmentation;
+    GrenadeType = ESuspenseCoreGrenadeType::Fragmentation;
 
     // Initialize runtime state
     bIsArmed = false;
@@ -383,23 +383,23 @@ void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrow
     // ═══════════════════════════════════════════════════════════════════
     if (Attributes.IsFragGrenade())
     {
-        GrenadeType = ESuspenseCoreGrenadeProjectileType::Fragmentation;
+        GrenadeType = ESuspenseCoreGrenadeType::Fragmentation;
     }
     else if (Attributes.IsSmokeGrenade())
     {
-        GrenadeType = ESuspenseCoreGrenadeProjectileType::Smoke;
+        GrenadeType = ESuspenseCoreGrenadeType::Smoke;
     }
     else if (Attributes.IsFlashbang())
     {
-        GrenadeType = ESuspenseCoreGrenadeProjectileType::Flashbang;
+        GrenadeType = ESuspenseCoreGrenadeType::Flashbang;
     }
     else if (Attributes.IsIncendiary())
     {
-        GrenadeType = ESuspenseCoreGrenadeProjectileType::Incendiary;
+        GrenadeType = ESuspenseCoreGrenadeType::Incendiary;
     }
     else if (Attributes.IsLauncherRound())
     {
-        GrenadeType = ESuspenseCoreGrenadeProjectileType::Impact;
+        GrenadeType = ESuspenseCoreGrenadeType::Impact;
     }
 
     GRENADE_PROJECTILE_LOG(Log, TEXT("SSOT loaded: Type=%d, Damage=%.0f, Radius=%.0f-%.0f, Fuse=%.2f, Preloaded=%s"),
@@ -468,7 +468,7 @@ void ASuspenseCoreGrenadeProjectile::OnProjectileHit(
     const FHitResult& Hit)
 {
     // Impact grenades explode on hit
-    if (GrenadeType == ESuspenseCoreGrenadeProjectileType::Impact && HasAuthority() && !bHasExploded)
+    if (GrenadeType == ESuspenseCoreGrenadeType::Impact && HasAuthority() && !bHasExploded)
     {
         // Small delay to prevent immediate explosion
         FTimerHandle TimerHandle;
@@ -659,7 +659,7 @@ void ASuspenseCoreGrenadeProjectile::ApplyExplosionDamage()
         {
             switch (GrenadeType)
             {
-                case ESuspenseCoreGrenadeProjectileType::Flashbang:
+                case ESuspenseCoreGrenadeType::Flashbang:
                     if (FlashbangEffectClass)
                     {
                         FGameplayEffectContextHandle FlashContext = TargetASC->MakeEffectContext();
@@ -673,7 +673,7 @@ void ASuspenseCoreGrenadeProjectile::ApplyExplosionDamage()
                     }
                     break;
 
-                case ESuspenseCoreGrenadeProjectileType::Incendiary:
+                case ESuspenseCoreGrenadeType::Incendiary:
                     if (IncendiaryEffectClass)
                     {
                         FGameplayEffectContextHandle FireContext = TargetASC->MakeEffectContext();
@@ -709,7 +709,7 @@ void ASuspenseCoreGrenadeProjectile::Multicast_SpawnExplosionEffects_Implementat
     }
 
     // Spawn smoke effect (for smoke grenades)
-    if (GrenadeType == ESuspenseCoreGrenadeProjectileType::Smoke && SmokeEffect)
+    if (GrenadeType == ESuspenseCoreGrenadeType::Smoke && SmokeEffect)
     {
         SpawnEffect(SmokeEffect, ExplosionLocation, ExplosionRotation);
     }

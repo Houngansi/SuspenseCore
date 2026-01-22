@@ -122,3 +122,87 @@ UGE_IncendiaryEffect_Zone::UGE_IncendiaryEffect_Zone()
 
 	UE_LOG(LogTemp, Log, TEXT("GE_IncendiaryEffect_Zone: Configured for fire zone (0.25s tick, 1s duration)"));
 }
+
+//========================================================================
+// UGE_IncendiaryEffect_ArmorBypass
+//========================================================================
+
+UGE_IncendiaryEffect_ArmorBypass::UGE_IncendiaryEffect_ArmorBypass()
+{
+	// ═══════════════════════════════════════════════════════════════════
+	// DURATION: SetByCaller from grenade data
+	// ═══════════════════════════════════════════════════════════════════
+	DurationPolicy = EGameplayEffectDurationType::HasDuration;
+
+	FSetByCallerFloat SetByCallerDuration;
+	SetByCallerDuration.DataTag = FGameplayTag::RequestGameplayTag(FName("Data.Grenade.BurnDuration"));
+	DurationMagnitude = FGameplayEffectModifierMagnitude(SetByCallerDuration);
+
+	// ═══════════════════════════════════════════════════════════════════
+	// PERIODIC DAMAGE: Every 0.5 seconds
+	// ═══════════════════════════════════════════════════════════════════
+	Period = 0.5f;
+	bExecutePeriodicEffectOnApplication = true;
+
+	// ═══════════════════════════════════════════════════════════════════
+	// MODIFIER 1: ARMOR/SHIELD DAMAGE
+	// Directly reduces Armor attribute (bypasses normal damage pipeline)
+	// NOTE: Caller passes NEGATIVE value (-5.0f) to reduce armor
+	// ═══════════════════════════════════════════════════════════════════
+	FGameplayModifierInfo ArmorDamageModifier;
+	ArmorDamageModifier.Attribute = USuspenseCoreAttributeSet::GetArmorAttribute();
+	ArmorDamageModifier.ModifierOp = EGameplayModOp::Additive;
+
+	FSetByCallerFloat SetByCallerArmorDamage;
+	SetByCallerArmorDamage.DataTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.Burn.Armor"));
+
+	ArmorDamageModifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCallerArmorDamage);
+	Modifiers.Add(ArmorDamageModifier);
+
+	// ═══════════════════════════════════════════════════════════════════
+	// MODIFIER 2: HEALTH DAMAGE (DIRECT - BYPASSES ARMOR!)
+	// Directly reduces Health attribute (NOT IncomingDamage)
+	// This is the key difference - fire burns through everything
+	// NOTE: Caller passes NEGATIVE value (-5.0f) to reduce health
+	// ═══════════════════════════════════════════════════════════════════
+	FGameplayModifierInfo HealthDamageModifier;
+	HealthDamageModifier.Attribute = USuspenseCoreAttributeSet::GetHealthAttribute();
+	HealthDamageModifier.ModifierOp = EGameplayModOp::Additive;
+
+	FSetByCallerFloat SetByCallerHealthDamage;
+	SetByCallerHealthDamage.DataTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.Burn.Health"));
+
+	HealthDamageModifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCallerHealthDamage);
+	Modifiers.Add(HealthDamageModifier);
+
+	// ═══════════════════════════════════════════════════════════════════
+	// STACKING: Only one burn effect per source
+	// ═══════════════════════════════════════════════════════════════════
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	StackingType = EGameplayEffectStackingType::AggregateBySource;
+	StackLimitCount = 3;
+	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
+	StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::RemoveSingleStackAndRefreshDuration;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	// ═══════════════════════════════════════════════════════════════════
+	// GRANTED TAGS: State.Burning
+	// ═══════════════════════════════════════════════════════════════════
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	InheritableOwnedTagsContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Burning")));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	// ═══════════════════════════════════════════════════════════════════
+	// ASSET TAGS: For GameplayCue and identification
+	// ═══════════════════════════════════════════════════════════════════
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
+	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Burn")));
+	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Grenade.Incendiary")));
+	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Grenade.Incendiary.ArmorBypass")));
+	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.DoT")));
+	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Grenade.Burn")));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_LOG(LogTemp, Log, TEXT("GE_IncendiaryEffect_ArmorBypass: Configured with DUAL damage (Armor + Health bypass)"));
+}

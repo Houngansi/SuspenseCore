@@ -1,52 +1,59 @@
 // SuspenseCoreDoTService.h
-// Service for tracking and managing Damage-over-Time effects
+// ASC-driven DoT tracking service with EventBus integration
 // Copyright Suspense Team. All Rights Reserved.
 //
 // ARCHITECTURE:
 // - GameInstanceSubsystem for global lifecycle
-// - Integrates with EventBus for decoupled communication
-// - Tracks active DoT effects per character
-// - Provides query API for UI widgets
+// - ASC-DRIVEN: Subscribes to ASC delegates (no manual caching!)
+// - EventBus integration for decoupled UI updates
+// - Implements IISuspenseCoreDoTService for DI/testing
 //
-// DESIGN PATTERN:
-// - Service Locator via GameInstanceSubsystem
-// - Observer pattern via EventBus subscription
-// - DI-friendly (injectable dependencies)
+// KEY CHANGE (v2.0):
+// Previous version manually cached DoT state (RegisterDoTApplied/Removed).
+// New version subscribes to ASC delegates for automatic sync:
+// - OnActiveGameplayEffectAddedDelegateToSelf
+// - OnAnyGameplayEffectRemovedDelegate
+// This eliminates state duplication and ensures consistency.
 //
 // USAGE:
-// 1. Get service: USuspenseCoreDoTService* Service = USuspenseCoreDoTService::Get(WorldContext);
-// 2. Query DoTs: TArray<FSuspenseCoreActiveDoT> DoTs = Service->GetActiveDoTs(TargetActor);
-// 3. Subscribe to events via EventBus (SuspenseCore.Event.DoT.Applied, etc.)
+// 1. Character calls BindToASC() when ASC is initialized
+// 2. Service auto-tracks all DoT effects via ASC delegates
+// 3. Query via interface: Service->HasActiveBleeding(Actor)
+// 4. UI subscribes to EventBus (Event.DoT.Applied, etc.)
 //
 // FLOW:
-// GrenadeProjectile → Apply GE → ASC → Tag Changed → DoTService → EventBus → UI Widget
+// ASC::ApplyGE → ASC Delegate → DoTService::OnEffectAdded → EventBus → UI
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "GameplayEffectTypes.h"
+#include "ActiveGameplayEffectHandle.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreDoTService.h"
 #include "SuspenseCoreDoTService.generated.h"
 
 // Forward declarations
 class USuspenseCoreEventBus;
 class UAbilitySystemComponent;
+struct FActiveGameplayEffect;
 
 /**
  * Active DoT effect information
- * Used for UI display and queries
+ * Derived from ASC ActiveGameplayEffect data
  */
 USTRUCT(BlueprintType)
 struct GAS_API FSuspenseCoreActiveDoT
 {
 	GENERATED_BODY()
 
-	/** Type of DoT effect (State.Health.Bleeding.Light, State.Burning, etc.) */
+	/** Type of DoT effect (State.Health.Bleeding.Light, etc.) */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	FGameplayTag DoTType;
 
-	/** Damage per tick (negative = healing) */
+	/** Damage per tick */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	float DamagePerTick = 0.0f;
 
@@ -54,97 +61,92 @@ struct GAS_API FSuspenseCoreActiveDoT
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	float TickInterval = 1.0f;
 
-	/** Remaining duration (-1 = infinite, e.g., bleeding) */
+	/** Remaining duration (-1 = infinite) */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	float RemainingDuration = -1.0f;
 
-	/** Number of stacks (for stackable effects) */
+	/** Stack count */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	int32 StackCount = 1;
 
-	/** Time when effect was applied */
+	/** Application time (world time) */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	float ApplicationTime = 0.0f;
 
-	/** Source actor (grenade owner, etc.) */
+	/** Source actor (grenade owner) */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	TWeakObjectPtr<AActor> SourceActor;
 
-	/** Check if this is an infinite duration effect */
+	/** ASC handle for this effect (internal use) */
+	FActiveGameplayEffectHandle EffectHandle;
+
 	bool IsInfinite() const { return RemainingDuration < 0.0f; }
-
-	/** Check if effect is a bleeding type */
 	bool IsBleeding() const;
-
-	/** Check if effect is a burning type */
 	bool IsBurning() const;
-
-	/** Get display name for UI */
 	FText GetDisplayName() const;
-
-	/** Get icon texture path for UI */
 	FString GetIconPath() const;
 };
 
 /**
- * Event data for DoT events published via EventBus
+ * DoT event payload for EventBus
  */
 USTRUCT(BlueprintType)
 struct GAS_API FSuspenseCoreDoTEventPayload
 {
 	GENERATED_BODY()
 
-	/** Actor affected by DoT */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	TWeakObjectPtr<AActor> AffectedActor;
 
-	/** DoT type tag */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	FGameplayTag DoTType;
 
-	/** Current DoT data */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	FSuspenseCoreActiveDoT DoTData;
 
-	/** Damage dealt this tick (for Tick events) */
 	UPROPERTY(BlueprintReadOnly, Category = "DoT")
 	float DamageDealt = 0.0f;
 
-	/** Create event data from this payload */
 	FSuspenseCoreEventData ToEventData() const;
-
-	/** Parse from event data */
 	static FSuspenseCoreDoTEventPayload FromEventData(const FSuspenseCoreEventData& EventData);
+};
+
+/**
+ * ASC binding info for tracking delegate handles
+ */
+USTRUCT()
+struct FSuspenseCoreASCBinding
+{
+	GENERATED_BODY()
+
+	TWeakObjectPtr<UAbilitySystemComponent> ASC;
+	FDelegateHandle OnEffectAddedHandle;
+	FDelegateHandle OnEffectRemovedHandle;
+	FDelegateHandle OnEffectStackChangedHandle;
 };
 
 /**
  * USuspenseCoreDoTService
  *
- * Central service for DoT (Damage-over-Time) effect management.
- * Tracks active effects, publishes events, provides query API for UI.
+ * ASC-driven Damage-over-Time tracking service.
+ * Implements IISuspenseCoreDoTService for dependency injection.
  *
  * KEY FEATURES:
- * - Automatic tracking of GAS DoT effects via tag monitoring
- * - EventBus integration for decoupled UI updates
- * - Query API for widget data binding
- * - Support for bleeding (infinite) and burning (timed) effects
+ * - ASC delegate subscription (no manual state sync!)
+ * - EventBus integration for UI updates
+ * - Query API for widgets
+ * - Interface-based for testability
  *
- * EVENTS PUBLISHED:
- * - SuspenseCore.Event.DoT.Applied  - When DoT first applied
- * - SuspenseCore.Event.DoT.Tick     - Each damage tick
- * - SuspenseCore.Event.DoT.Expired  - When timed DoT expires
- * - SuspenseCore.Event.DoT.Removed  - When DoT is healed/removed
+ * NETWORK:
+ * - Server-authoritative: DoT effects replicate via GAS
+ * - Service tracks local ASC state
+ * - EventBus events are local (UI only)
  *
- * THREAD SAFETY:
- * - All public methods are game-thread only
- * - Internal caches protected by critical sections
- *
+ * @see IISuspenseCoreDoTService
  * @see USuspenseCoreEventBus
- * @see UGE_BleedingEffect
- * @see UGE_IncendiaryEffect_ArmorBypass
  */
 UCLASS()
-class GAS_API USuspenseCoreDoTService : public UGameInstanceSubsystem
+class GAS_API USuspenseCoreDoTService : public UGameInstanceSubsystem, public IISuspenseCoreDoTService
 {
 	GENERATED_BODY()
 
@@ -162,162 +164,161 @@ public:
 	// ═══════════════════════════════════════════════════════════════════
 
 	/**
-	 * Get DoT Service instance from any world context
-	 * @param WorldContextObject Any UObject with world context
-	 * @return DoT Service or nullptr
+	 * Get DoT Service instance
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT", meta = (WorldContext = "WorldContextObject"))
 	static USuspenseCoreDoTService* Get(const UObject* WorldContextObject);
 
 	// ═══════════════════════════════════════════════════════════════════
-	// QUERY API - For UI Widgets
+	// IISuspenseCoreDoTService INTERFACE IMPLEMENTATION
 	// ═══════════════════════════════════════════════════════════════════
 
-	/**
-	 * Get all active DoT effects on a target
-	 * @param Target Actor to query
-	 * @return Array of active DoT effects (empty if none)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
-	TArray<FSuspenseCoreActiveDoT> GetActiveDoTs(AActor* Target) const;
+	virtual TArray<FSuspenseCoreActiveDoT> GetActiveDoTs(AActor* Target) const override;
+	virtual bool HasActiveBleeding(AActor* Target) const override;
+	virtual bool HasActiveBurning(AActor* Target) const override;
+	virtual float GetBleedDamagePerSecond(AActor* Target) const override;
+	virtual float GetBurnTimeRemaining(AActor* Target) const override;
+	virtual int32 GetActiveDoTCount(AActor* Target) const override;
+	virtual bool HasActiveDoTOfType(AActor* Target, FGameplayTag DoTType) const override;
 
-	/**
-	 * Check if target has any active bleeding effect
-	 * @param Target Actor to check
-	 * @return True if bleeding (light or heavy)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
-	bool HasActiveBleeding(AActor* Target) const;
-
-	/**
-	 * Check if target has any active burning effect
-	 * @param Target Actor to check
-	 * @return True if burning
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
-	bool HasActiveBurning(AActor* Target) const;
-
-	/**
-	 * Get total bleed damage per second on target
-	 * @param Target Actor to query
-	 * @return Total DPS from all bleed effects
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
-	float GetBleedDamagePerSecond(AActor* Target) const;
-
-	/**
-	 * Get remaining burn duration (shortest if multiple)
-	 * @param Target Actor to query
-	 * @return Remaining seconds (-1 if no burn or infinite)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
-	float GetBurnTimeRemaining(AActor* Target) const;
-
-	/**
-	 * Get number of active DoT effects on target
-	 * @param Target Actor to query
-	 * @return Count of active effects
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
-	int32 GetActiveDoTCount(AActor* Target) const;
-
-	// ═══════════════════════════════════════════════════════════════════
-	// REGISTRATION API - Called by GrenadeProjectile/Effects
-	// ═══════════════════════════════════════════════════════════════════
-
-	/**
-	 * Register a new DoT effect application
-	 * Called by GrenadeProjectile after applying GE
-	 *
-	 * @param Target Affected actor
-	 * @param DoTType Type tag (State.Health.Bleeding.Light, etc.)
-	 * @param DamagePerTick Damage per tick
-	 * @param TickInterval Seconds between ticks
-	 * @param Duration Total duration (-1 for infinite)
-	 * @param Source Actor that caused the DoT
-	 */
-	void RegisterDoTApplied(
+	virtual void NotifyDoTApplied(
 		AActor* Target,
 		FGameplayTag DoTType,
 		float DamagePerTick,
 		float TickInterval,
 		float Duration,
 		AActor* Source
-	);
+	) override;
 
-	/**
-	 * Register a DoT tick (damage dealt)
-	 * Called by GameplayEffect periodic execution
-	 */
-	void RegisterDoTTick(
+	virtual void NotifyDoTRemoved(
 		AActor* Target,
 		FGameplayTag DoTType,
-		float DamageDealt
-	);
+		bool bExpired
+	) override;
 
-	/**
-	 * Register DoT removal (healed or expired)
-	 * Called when effect ends
-	 */
-	void RegisterDoTRemoved(
-		AActor* Target,
-		FGameplayTag DoTType,
-		bool bExpired  // true = naturally expired, false = healed
-	);
+	virtual void BindToASC(UAbilitySystemComponent* ASC) override;
+	virtual void UnbindFromASC(UAbilitySystemComponent* ASC) override;
+
+	// ═══════════════════════════════════════════════════════════════════
+	// BLUEPRINT QUERY API (wrappers for interface)
+	// ═══════════════════════════════════════════════════════════════════
+
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
+	TArray<FSuspenseCoreActiveDoT> BP_GetActiveDoTs(AActor* Target) const { return GetActiveDoTs(Target); }
+
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
+	bool BP_HasActiveBleeding(AActor* Target) const { return HasActiveBleeding(Target); }
+
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
+	bool BP_HasActiveBurning(AActor* Target) const { return HasActiveBurning(Target); }
+
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
+	float BP_GetBleedDamagePerSecond(AActor* Target) const { return GetBleedDamagePerSecond(Target); }
+
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DoT")
+	float BP_GetBurnTimeRemaining(AActor* Target) const { return GetBurnTimeRemaining(Target); }
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════
-	// INTERNAL STATE
+	// ASC DELEGATE HANDLERS
 	// ═══════════════════════════════════════════════════════════════════
 
-	/** Map of Target Actor -> Active DoT effects */
-	TMap<TWeakObjectPtr<AActor>, TArray<FSuspenseCoreActiveDoT>> ActiveDoTs;
+	/**
+	 * Called when any GameplayEffect is added to bound ASC
+	 * Filters for DoT effects and publishes EventBus events
+	 */
+	void OnActiveGameplayEffectAdded(
+		UAbilitySystemComponent* ASC,
+		const FGameplayEffectSpec& Spec,
+		FActiveGameplayEffectHandle Handle
+	);
 
-	/** Cached EventBus reference */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+	/**
+	 * Called when any GameplayEffect is removed from bound ASC
+	 * Filters for DoT effects and publishes EventBus events
+	 */
+	void OnActiveGameplayEffectRemoved(
+		const FActiveGameplayEffect& Effect
+	);
 
-	/** Critical section for thread safety */
-	mutable FCriticalSection DoTLock;
+	/**
+	 * Called when effect stack count changes
+	 */
+	void OnGameplayEffectStackChanged(
+		FActiveGameplayEffectHandle Handle,
+		int32 NewStackCount,
+		int32 OldStackCount
+	);
 
 	// ═══════════════════════════════════════════════════════════════════
-	// INTERNAL METHODS
+	// INTERNAL HELPERS
 	// ═══════════════════════════════════════════════════════════════════
+
+	/**
+	 * Check if GameplayEffect is a DoT effect
+	 * Uses Effect's GrantedTags to identify DoT types
+	 */
+	bool IsDoTEffect(const FGameplayEffectSpec& Spec) const;
+	bool IsDoTEffect(const FActiveGameplayEffect& Effect) const;
+
+	/**
+	 * Extract DoT type tag from effect
+	 */
+	FGameplayTag GetDoTTypeFromEffect(const FGameplayEffectSpec& Spec) const;
+	FGameplayTag GetDoTTypeFromEffect(const FActiveGameplayEffect& Effect) const;
+
+	/**
+	 * Build FSuspenseCoreActiveDoT from ASC effect data
+	 */
+	FSuspenseCoreActiveDoT BuildDoTDataFromEffect(
+		const FActiveGameplayEffect& Effect,
+		AActor* TargetActor
+	) const;
+
+	/**
+	 * Publish DoT event to EventBus (async-safe)
+	 */
+	void PublishDoTEvent(FGameplayTag EventTag, const FSuspenseCoreDoTEventPayload& Payload);
+
+	/**
+	 * Get ASC from actor
+	 */
+	UAbilitySystemComponent* GetASCFromActor(AActor* Actor) const;
 
 	/**
 	 * Initialize EventBus connection
 	 */
 	void InitializeEventBus();
 
-	/**
-	 * Cleanup stale entries (destroyed actors)
-	 */
-	void CleanupStaleEntries();
-
-	/**
-	 * Publish DoT event to EventBus
-	 */
-	void PublishDoTEvent(FGameplayTag EventTag, const FSuspenseCoreDoTEventPayload& Payload);
-
-	/**
-	 * Find existing DoT entry for actor/type
-	 * @return Pointer to entry or nullptr
-	 */
-	FSuspenseCoreActiveDoT* FindDoTEntry(AActor* Target, FGameplayTag DoTType);
-
-	/**
-	 * Update remaining duration for timed effects
-	 * Called from Tick or timer
-	 */
-	void UpdateDurations(float DeltaTime);
-
+private:
 	// ═══════════════════════════════════════════════════════════════════
-	// TIMER HANDLE
+	// STATE
 	// ═══════════════════════════════════════════════════════════════════
 
-	/** Timer for duration updates */
+	/** Bound ASCs with delegate handles */
+	TArray<FSuspenseCoreASCBinding> BoundASCs;
+
+	/** EventBus reference */
+	UPROPERTY()
+	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+
+	/** Critical section for thread safety */
+	mutable FCriticalSection ServiceLock;
+
+	/** DoT effect tag for filtering */
+	FGameplayTag DoTRootTag;
+	FGameplayTag BleedingRootTag;
+	FGameplayTag BurningRootTag;
+
+	// ═══════════════════════════════════════════════════════════════════
+	// LEGACY SUPPORT (for manual notification during transition)
+	// ═══════════════════════════════════════════════════════════════════
+
+	/** Manual DoT cache (legacy, for non-ASC systems) */
+	TMap<TWeakObjectPtr<AActor>, TArray<FSuspenseCoreActiveDoT>> ManualDoTCache;
+
+	/** Timer for manual cache duration updates */
 	FTimerHandle DurationUpdateTimerHandle;
-
-	/** Timer callback */
 	void OnDurationUpdateTimer();
+	void CleanupStaleEntries();
 };

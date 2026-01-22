@@ -850,6 +850,56 @@ struct BRIDGESYSTEM_API FSuspenseCoreThrowableAttributeRow : public FTableRowBas
 	TSoftClassPtr<class UGameplayEffect> IncendiaryEffectClass;
 
 	//========================================================================
+	// DoT Effects (Bleeding/Burning) - Data-Driven
+	// @see Documentation/GAS/GrenadeDoT_DesignDocument.md
+	//========================================================================
+
+	/** GameplayEffect for light bleeding (shrapnel wounds) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ToolTip = "Light bleeding effect (bandage can heal)"))
+	TSoftClassPtr<class UGameplayEffect> BleedingLightEffectClass;
+
+	/** GameplayEffect for heavy bleeding (deep shrapnel wounds) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ToolTip = "Heavy bleeding effect (requires medkit/surgery)"))
+	TSoftClassPtr<class UGameplayEffect> BleedingHeavyEffectClass;
+
+	/** Damage per tick for bleeding effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0", ClampMax = "20", ToolTip = "Bleed damage per tick"))
+	float BleedDamagePerTick = 5.0f;
+
+	/** Tick interval for bleeding (seconds) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0.1", ClampMax = "5", ToolTip = "Bleed tick interval"))
+	float BleedTickInterval = 1.0f;
+
+	/** Armor damage per tick for burning (armor bypass) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0", ClampMax = "20", ToolTip = "Burn armor damage per tick"))
+	float BurnArmorDamagePerTick = 3.0f;
+
+	/** Health damage per tick for burning (direct) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0", ClampMax = "20", ToolTip = "Burn health damage per tick"))
+	float BurnHealthDamagePerTick = 8.0f;
+
+	/** Tick interval for burning (seconds) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0.1", ClampMax = "2", ToolTip = "Burn tick interval"))
+	float BurnTickInterval = 0.5f;
+
+	/** Minimum armor to block shrapnel (0 = unarmored bleeds only) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0", ClampMax = "100", ToolTip = "Armor threshold for bleeding"))
+	float ArmorThresholdForBleeding = 0.0f;
+
+	/** Fragment hits required for heavy bleeding */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "1", ClampMax = "20", ToolTip = "Hits for heavy bleed"))
+	int32 FragmentHitsForHeavyBleed = 5;
+
+	//========================================================================
 	// Helper Methods
 	//========================================================================
 

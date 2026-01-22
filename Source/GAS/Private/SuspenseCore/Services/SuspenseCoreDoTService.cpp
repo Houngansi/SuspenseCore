@@ -1,23 +1,24 @@
 // SuspenseCoreDoTService.cpp
-// Service for tracking and managing Damage-over-Time effects
+// ASC-driven DoT tracking implementation
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Services/SuspenseCoreDoTService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "GameplayEffect.h"
+#include "ActiveGameplayEffectHandle.h"
+#include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
-#include "Kismet/GameplayStatics.h"
 
-// Log category
 DEFINE_LOG_CATEGORY_STATIC(LogDoTService, Log, All);
 
-#define DOT_LOG(Verbosity, Format, ...) \
-	UE_LOG(LogDoTService, Verbosity, TEXT("[DoTService] ") Format, ##__VA_ARGS__)
-
-//========================================================================
-// FSuspenseCoreActiveDoT Implementation
-//========================================================================
+//==================================================================
+// FSuspenseCoreActiveDoT Helpers
+//==================================================================
 
 bool FSuspenseCoreActiveDoT::IsBleeding() const
 {
@@ -26,56 +27,60 @@ bool FSuspenseCoreActiveDoT::IsBleeding() const
 
 bool FSuspenseCoreActiveDoT::IsBurning() const
 {
-	return DoTType.MatchesTag(FGameplayTag::RequestGameplayTag(FName("State.Burning")));
+	return DoTType.MatchesTag(FGameplayTag::RequestGameplayTag(FName("State.Burning"))) ||
+		   DoTType.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Effect.DoT.Burn")));
 }
 
 FText FSuspenseCoreActiveDoT::GetDisplayName() const
 {
-	if (DoTType == SuspenseCoreTags::State::Health::BleedingLight)
+	if (IsBleeding())
 	{
-		return NSLOCTEXT("DoT", "BleedLight", "Bleeding");
+		if (DoTType.MatchesTagExact(SuspenseCoreTags::State::Health::BleedingHeavy))
+		{
+			return NSLOCTEXT("DoT", "HeavyBleed", "Heavy Bleeding");
+		}
+		return NSLOCTEXT("DoT", "LightBleed", "Bleeding");
 	}
-	else if (DoTType == SuspenseCoreTags::State::Health::BleedingHeavy)
-	{
-		return NSLOCTEXT("DoT", "BleedHeavy", "Heavy Bleeding");
-	}
-	else if (DoTType == SuspenseCoreTags::State::Burning)
+	if (IsBurning())
 	{
 		return NSLOCTEXT("DoT", "Burning", "Burning");
 	}
-
-	return FText::FromString(DoTType.ToString());
+	return NSLOCTEXT("DoT", "Unknown", "Unknown Effect");
 }
 
 FString FSuspenseCoreActiveDoT::GetIconPath() const
 {
 	if (IsBleeding())
 	{
-		return TEXT("/Game/UI/Icons/Debuffs/T_Icon_Bleeding");
+		if (DoTType.MatchesTagExact(SuspenseCoreTags::State::Health::BleedingHeavy))
+		{
+			return TEXT("/Game/UI/Icons/Debuffs/T_Debuff_BleedHeavy");
+		}
+		return TEXT("/Game/UI/Icons/Debuffs/T_Debuff_BleedLight");
 	}
-	else if (IsBurning())
+	if (IsBurning())
 	{
-		return TEXT("/Game/UI/Icons/Debuffs/T_Icon_Burning");
+		return TEXT("/Game/UI/Icons/Debuffs/T_Debuff_Burning");
 	}
-
-	return TEXT("/Game/UI/Icons/Debuffs/T_Icon_Generic");
+	return TEXT("/Game/UI/Icons/Debuffs/T_Debuff_Unknown");
 }
 
-//========================================================================
-// FSuspenseCoreDoTEventPayload Implementation
-//========================================================================
+//==================================================================
+// FSuspenseCoreDoTEventPayload
+//==================================================================
 
 FSuspenseCoreEventData FSuspenseCoreDoTEventPayload::ToEventData() const
 {
-	FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(AffectedActor.Get());
+	FSuspenseCoreEventData Data;
+	Data.Source = AffectedActor.Get();
+	Data.Timestamp = FPlatformTime::Seconds();
 
-	Data.SetObject(TEXT("AffectedActor"), AffectedActor.Get());
-	Data.SetTag(TEXT("DoTType"), DoTType);
-	Data.SetFloat(TEXT("DamagePerTick"), DoTData.DamagePerTick);
-	Data.SetFloat(TEXT("TickInterval"), DoTData.TickInterval);
-	Data.SetFloat(TEXT("RemainingDuration"), DoTData.RemainingDuration);
-	Data.SetInt(TEXT("StackCount"), DoTData.StackCount);
-	Data.SetFloat(TEXT("DamageDealt"), DamageDealt);
+	Data.StringPayload.Add(TEXT("DoTType"), DoTType.ToString());
+	Data.FloatPayload.Add(TEXT("DamagePerTick"), DoTData.DamagePerTick);
+	Data.FloatPayload.Add(TEXT("TickInterval"), DoTData.TickInterval);
+	Data.FloatPayload.Add(TEXT("RemainingDuration"), DoTData.RemainingDuration);
+	Data.FloatPayload.Add(TEXT("DamageDealt"), DamageDealt);
+	Data.IntPayload.Add(TEXT("StackCount"), DoTData.StackCount);
 
 	return Data;
 }
@@ -83,66 +88,96 @@ FSuspenseCoreEventData FSuspenseCoreDoTEventPayload::ToEventData() const
 FSuspenseCoreDoTEventPayload FSuspenseCoreDoTEventPayload::FromEventData(const FSuspenseCoreEventData& EventData)
 {
 	FSuspenseCoreDoTEventPayload Payload;
+	Payload.AffectedActor = EventData.Source;
 
-	Payload.AffectedActor = Cast<AActor>(EventData.GetObject(TEXT("AffectedActor")));
-	Payload.DoTType = EventData.GetTag(TEXT("DoTType"));
-	Payload.DoTData.DamagePerTick = EventData.GetFloat(TEXT("DamagePerTick"));
-	Payload.DoTData.TickInterval = EventData.GetFloat(TEXT("TickInterval"));
-	Payload.DoTData.RemainingDuration = EventData.GetFloat(TEXT("RemainingDuration"));
-	Payload.DoTData.StackCount = EventData.GetInt(TEXT("StackCount"));
-	Payload.DamageDealt = EventData.GetFloat(TEXT("DamageDealt"));
+	if (const FString* TypeStr = EventData.StringPayload.Find(TEXT("DoTType")))
+	{
+		Payload.DoTType = FGameplayTag::RequestGameplayTag(FName(**TypeStr));
+	}
+
+	if (const float* Val = EventData.FloatPayload.Find(TEXT("DamagePerTick")))
+	{
+		Payload.DoTData.DamagePerTick = *Val;
+	}
+	if (const float* Val = EventData.FloatPayload.Find(TEXT("TickInterval")))
+	{
+		Payload.DoTData.TickInterval = *Val;
+	}
+	if (const float* Val = EventData.FloatPayload.Find(TEXT("RemainingDuration")))
+	{
+		Payload.DoTData.RemainingDuration = *Val;
+	}
+	if (const float* Val = EventData.FloatPayload.Find(TEXT("DamageDealt")))
+	{
+		Payload.DamageDealt = *Val;
+	}
+	if (const int32* Val = EventData.IntPayload.Find(TEXT("StackCount")))
+	{
+		Payload.DoTData.StackCount = *Val;
+	}
 
 	return Payload;
 }
 
-//========================================================================
-// USuspenseCoreDoTService Implementation
-//========================================================================
+//==================================================================
+// Subsystem Lifecycle
+//==================================================================
 
 void USuspenseCoreDoTService::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	DOT_LOG(Log, TEXT("Initializing DoT Service..."));
+	// Cache root tags for filtering
+	DoTRootTag = FGameplayTag::RequestGameplayTag(FName("Effect.DoT"), false);
+	BleedingRootTag = FGameplayTag::RequestGameplayTag(FName("State.Health.Bleeding"), false);
+	BurningRootTag = FGameplayTag::RequestGameplayTag(FName("State.Burning"), false);
 
-	// Initialize EventBus connection (deferred to first use if not ready)
 	InitializeEventBus();
 
-	// Start duration update timer (every 0.5 seconds)
+	// Start duration update timer for legacy cache
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
 			DurationUpdateTimerHandle,
 			this,
 			&USuspenseCoreDoTService::OnDurationUpdateTimer,
-			0.5f,  // Update every 0.5 seconds
-			true   // Looping
+			0.1f,  // 10 Hz update
+			true
 		);
 	}
 
-	DOT_LOG(Log, TEXT("DoT Service initialized successfully"));
+	UE_LOG(LogDoTService, Log, TEXT("DoT Service initialized (ASC-driven mode)"));
 }
 
 void USuspenseCoreDoTService::Deinitialize()
 {
-	DOT_LOG(Log, TEXT("Shutting down DoT Service..."));
-
 	// Clear timer
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DurationUpdateTimerHandle);
 	}
 
-	// Clear all tracked DoTs
+	// Unbind from all ASCs
+	for (const FSuspenseCoreASCBinding& Binding : BoundASCs)
 	{
-		FScopeLock Lock(&DoTLock);
-		ActiveDoTs.Empty();
+		if (Binding.ASC.IsValid())
+		{
+			// Manually remove delegates (avoid recursive call)
+			Binding.ASC->OnActiveGameplayEffectAddedDelegateToSelf.Remove(Binding.OnEffectAddedHandle);
+			Binding.ASC->OnAnyGameplayEffectRemovedDelegate().Remove(Binding.OnEffectRemovedHandle);
+		}
 	}
+	BoundASCs.Empty();
 
-	EventBus.Reset();
+	// Clear legacy cache
+	ManualDoTCache.Empty();
 
 	Super::Deinitialize();
 }
+
+//==================================================================
+// Static Access
+//==================================================================
 
 USuspenseCoreDoTService* USuspenseCoreDoTService::Get(const UObject* WorldContextObject)
 {
@@ -151,116 +186,109 @@ USuspenseCoreDoTService* USuspenseCoreDoTService::Get(const UObject* WorldContex
 		return nullptr;
 	}
 
-	UWorld* World = WorldContextObject->GetWorld();
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
 	{
 		return nullptr;
 	}
 
-	UGameInstance* GameInstance = World->GetGameInstance();
-	if (!GameInstance)
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI)
 	{
 		return nullptr;
 	}
 
-	return GameInstance->GetSubsystem<USuspenseCoreDoTService>();
+	return GI->GetSubsystem<USuspenseCoreDoTService>();
 }
 
-//========================================================================
-// Query API
-//========================================================================
+//==================================================================
+// IISuspenseCoreDoTService Implementation - Query API
+//==================================================================
 
 TArray<FSuspenseCoreActiveDoT> USuspenseCoreDoTService::GetActiveDoTs(AActor* Target) const
 {
+	TArray<FSuspenseCoreActiveDoT> Result;
+
 	if (!Target)
 	{
-		return TArray<FSuspenseCoreActiveDoT>();
+		return Result;
 	}
 
-	FScopeLock Lock(&DoTLock);
-
-	const TArray<FSuspenseCoreActiveDoT>* DoTs = ActiveDoTs.Find(Target);
-	if (DoTs)
+	// PRIMARY: Query from ASC directly (source of truth)
+	UAbilitySystemComponent* ASC = GetASCFromActor(Target);
+	if (ASC)
 	{
-		return *DoTs;
+		// Get all active effects with DoT tags
+		FGameplayEffectQuery Query;
+		TArray<FActiveGameplayEffectHandle> ActiveHandles = ASC->GetActiveEffects(Query);
+
+		for (const FActiveGameplayEffectHandle& Handle : ActiveHandles)
+		{
+			const FActiveGameplayEffect* ActiveEffect = ASC->GetActiveGameplayEffect(Handle);
+			if (ActiveEffect && IsDoTEffect(*ActiveEffect))
+			{
+				Result.Add(BuildDoTDataFromEffect(*ActiveEffect, Target));
+			}
+		}
 	}
 
-	return TArray<FSuspenseCoreActiveDoT>();
+	// FALLBACK: Check legacy manual cache
+	FScopeLock Lock(&ServiceLock);
+	if (const TArray<FSuspenseCoreActiveDoT>* ManualDoTs = ManualDoTCache.Find(Target))
+	{
+		for (const FSuspenseCoreActiveDoT& DoT : *ManualDoTs)
+		{
+			// Avoid duplicates (if ASC already has this)
+			bool bAlreadyInResult = Result.ContainsByPredicate([&](const FSuspenseCoreActiveDoT& Existing) {
+				return Existing.DoTType == DoT.DoTType;
+			});
+
+			if (!bAlreadyInResult)
+			{
+				Result.Add(DoT);
+			}
+		}
+	}
+
+	return Result;
 }
 
 bool USuspenseCoreDoTService::HasActiveBleeding(AActor* Target) const
 {
-	if (!Target)
-	{
-		return false;
-	}
-
-	FScopeLock Lock(&DoTLock);
-
-	const TArray<FSuspenseCoreActiveDoT>* DoTs = ActiveDoTs.Find(Target);
-	if (!DoTs)
-	{
-		return false;
-	}
-
-	for (const FSuspenseCoreActiveDoT& DoT : *DoTs)
+	TArray<FSuspenseCoreActiveDoT> DoTs = GetActiveDoTs(Target);
+	for (const FSuspenseCoreActiveDoT& DoT : DoTs)
 	{
 		if (DoT.IsBleeding())
 		{
 			return true;
 		}
 	}
-
 	return false;
 }
 
 bool USuspenseCoreDoTService::HasActiveBurning(AActor* Target) const
 {
-	if (!Target)
-	{
-		return false;
-	}
-
-	FScopeLock Lock(&DoTLock);
-
-	const TArray<FSuspenseCoreActiveDoT>* DoTs = ActiveDoTs.Find(Target);
-	if (!DoTs)
-	{
-		return false;
-	}
-
-	for (const FSuspenseCoreActiveDoT& DoT : *DoTs)
+	TArray<FSuspenseCoreActiveDoT> DoTs = GetActiveDoTs(Target);
+	for (const FSuspenseCoreActiveDoT& DoT : DoTs)
 	{
 		if (DoT.IsBurning())
 		{
 			return true;
 		}
 	}
-
 	return false;
 }
 
 float USuspenseCoreDoTService::GetBleedDamagePerSecond(AActor* Target) const
 {
-	if (!Target)
-	{
-		return 0.0f;
-	}
-
-	FScopeLock Lock(&DoTLock);
-
-	const TArray<FSuspenseCoreActiveDoT>* DoTs = ActiveDoTs.Find(Target);
-	if (!DoTs)
-	{
-		return 0.0f;
-	}
-
 	float TotalDPS = 0.0f;
-	for (const FSuspenseCoreActiveDoT& DoT : *DoTs)
+	TArray<FSuspenseCoreActiveDoT> DoTs = GetActiveDoTs(Target);
+
+	for (const FSuspenseCoreActiveDoT& DoT : DoTs)
 	{
 		if (DoT.IsBleeding() && DoT.TickInterval > 0.0f)
 		{
-			TotalDPS += DoT.DamagePerTick / DoT.TickInterval;
+			TotalDPS += (DoT.DamagePerTick / DoT.TickInterval) * DoT.StackCount;
 		}
 	}
 
@@ -269,57 +297,46 @@ float USuspenseCoreDoTService::GetBleedDamagePerSecond(AActor* Target) const
 
 float USuspenseCoreDoTService::GetBurnTimeRemaining(AActor* Target) const
 {
-	if (!Target)
-	{
-		return -1.0f;
-	}
+	float MinRemaining = -1.0f;
+	TArray<FSuspenseCoreActiveDoT> DoTs = GetActiveDoTs(Target);
 
-	FScopeLock Lock(&DoTLock);
-
-	const TArray<FSuspenseCoreActiveDoT>* DoTs = ActiveDoTs.Find(Target);
-	if (!DoTs)
-	{
-		return -1.0f;
-	}
-
-	float ShortestRemaining = -1.0f;
-	for (const FSuspenseCoreActiveDoT& DoT : *DoTs)
+	for (const FSuspenseCoreActiveDoT& DoT : DoTs)
 	{
 		if (DoT.IsBurning() && !DoT.IsInfinite())
 		{
-			if (ShortestRemaining < 0.0f || DoT.RemainingDuration < ShortestRemaining)
+			if (MinRemaining < 0.0f || DoT.RemainingDuration < MinRemaining)
 			{
-				ShortestRemaining = DoT.RemainingDuration;
+				MinRemaining = DoT.RemainingDuration;
 			}
 		}
 	}
 
-	return ShortestRemaining;
+	return MinRemaining;
 }
 
 int32 USuspenseCoreDoTService::GetActiveDoTCount(AActor* Target) const
 {
-	if (!Target)
-	{
-		return 0;
-	}
-
-	FScopeLock Lock(&DoTLock);
-
-	const TArray<FSuspenseCoreActiveDoT>* DoTs = ActiveDoTs.Find(Target);
-	if (DoTs)
-	{
-		return DoTs->Num();
-	}
-
-	return 0;
+	return GetActiveDoTs(Target).Num();
 }
 
-//========================================================================
-// Registration API
-//========================================================================
+bool USuspenseCoreDoTService::HasActiveDoTOfType(AActor* Target, FGameplayTag DoTType) const
+{
+	TArray<FSuspenseCoreActiveDoT> DoTs = GetActiveDoTs(Target);
+	for (const FSuspenseCoreActiveDoT& DoT : DoTs)
+	{
+		if (DoT.DoTType.MatchesTag(DoTType))
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
-void USuspenseCoreDoTService::RegisterDoTApplied(
+//==================================================================
+// IISuspenseCoreDoTService Implementation - Registration API
+//==================================================================
+
+void USuspenseCoreDoTService::NotifyDoTApplied(
 	AActor* Target,
 	FGameplayTag DoTType,
 	float DamagePerTick,
@@ -327,295 +344,452 @@ void USuspenseCoreDoTService::RegisterDoTApplied(
 	float Duration,
 	AActor* Source)
 {
-	if (!Target || !DoTType.IsValid())
+	if (!Target)
 	{
-		DOT_LOG(Warning, TEXT("RegisterDoTApplied: Invalid parameters"));
 		return;
 	}
 
-	DOT_LOG(Log, TEXT("DoT Applied: %s on %s (%.1f dmg/%.1fs, duration: %.1fs)"),
-		*DoTType.ToString(), *Target->GetName(), DamagePerTick, TickInterval, Duration);
+	FScopeLock Lock(&ServiceLock);
 
-	FScopeLock Lock(&DoTLock);
+	// Add to legacy cache (for non-ASC systems)
+	TArray<FSuspenseCoreActiveDoT>& DoTs = ManualDoTCache.FindOrAdd(Target);
 
-	// Find or create entry
-	TArray<FSuspenseCoreActiveDoT>& TargetDoTs = ActiveDoTs.FindOrAdd(Target);
+	// Check if already exists
+	FSuspenseCoreActiveDoT* Existing = DoTs.FindByPredicate([&](const FSuspenseCoreActiveDoT& D) {
+		return D.DoTType == DoTType;
+	});
 
-	// Check if this type already exists (refresh instead of add)
-	FSuspenseCoreActiveDoT* ExistingDoT = nullptr;
-	for (FSuspenseCoreActiveDoT& DoT : TargetDoTs)
+	FSuspenseCoreActiveDoT DoTData;
+	DoTData.DoTType = DoTType;
+	DoTData.DamagePerTick = DamagePerTick;
+	DoTData.TickInterval = TickInterval;
+	DoTData.RemainingDuration = Duration;
+	DoTData.StackCount = Existing ? Existing->StackCount + 1 : 1;
+	DoTData.ApplicationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	DoTData.SourceActor = Source;
+
+	if (Existing)
 	{
-		if (DoT.DoTType == DoTType)
-		{
-			ExistingDoT = &DoT;
-			break;
-		}
-	}
-
-	FSuspenseCoreActiveDoT NewDoT;
-	NewDoT.DoTType = DoTType;
-	NewDoT.DamagePerTick = DamagePerTick;
-	NewDoT.TickInterval = TickInterval;
-	NewDoT.RemainingDuration = Duration;
-	NewDoT.StackCount = 1;
-	NewDoT.ApplicationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	NewDoT.SourceActor = Source;
-
-	if (ExistingDoT)
-	{
-		// Refresh existing (update values, increment stack if applicable)
-		ExistingDoT->RemainingDuration = Duration;
-		ExistingDoT->DamagePerTick = FMath::Max(ExistingDoT->DamagePerTick, DamagePerTick);
-		// Don't increment stack count for refresh
+		*Existing = DoTData;
 	}
 	else
 	{
-		// Add new DoT
-		TargetDoTs.Add(NewDoT);
+		DoTs.Add(DoTData);
 	}
 
-	// Publish event
+	// Publish event (async for performance)
 	FSuspenseCoreDoTEventPayload Payload;
 	Payload.AffectedActor = Target;
 	Payload.DoTType = DoTType;
-	Payload.DoTData = ExistingDoT ? *ExistingDoT : NewDoT;
+	Payload.DoTData = DoTData;
 
 	PublishDoTEvent(SuspenseCoreTags::Event::DoT::Applied, Payload);
+
+	UE_LOG(LogDoTService, Verbose, TEXT("DoT applied (manual): %s on %s (DPS=%.1f)"),
+		*DoTType.ToString(), *Target->GetName(),
+		TickInterval > 0.0f ? DamagePerTick / TickInterval : 0.0f);
 }
 
-void USuspenseCoreDoTService::RegisterDoTTick(
-	AActor* Target,
-	FGameplayTag DoTType,
-	float DamageDealt)
-{
-	if (!Target || !DoTType.IsValid())
-	{
-		return;
-	}
-
-	DOT_LOG(Verbose, TEXT("DoT Tick: %s on %s (%.1f dmg)"),
-		*DoTType.ToString(), *Target->GetName(), DamageDealt);
-
-	FScopeLock Lock(&DoTLock);
-
-	FSuspenseCoreActiveDoT* DoTEntry = FindDoTEntry(Target, DoTType);
-	if (!DoTEntry)
-	{
-		DOT_LOG(Warning, TEXT("DoT Tick for untracked effect: %s"), *DoTType.ToString());
-		return;
-	}
-
-	// Publish tick event
-	FSuspenseCoreDoTEventPayload Payload;
-	Payload.AffectedActor = Target;
-	Payload.DoTType = DoTType;
-	Payload.DoTData = *DoTEntry;
-	Payload.DamageDealt = DamageDealt;
-
-	PublishDoTEvent(SuspenseCoreTags::Event::DoT::Tick, Payload);
-}
-
-void USuspenseCoreDoTService::RegisterDoTRemoved(
+void USuspenseCoreDoTService::NotifyDoTRemoved(
 	AActor* Target,
 	FGameplayTag DoTType,
 	bool bExpired)
 {
-	if (!Target || !DoTType.IsValid())
+	if (!Target)
 	{
 		return;
 	}
 
-	DOT_LOG(Log, TEXT("DoT %s: %s on %s"),
-		bExpired ? TEXT("Expired") : TEXT("Removed"),
-		*DoTType.ToString(), *Target->GetName());
+	FScopeLock Lock(&ServiceLock);
 
-	FScopeLock Lock(&DoTLock);
-
-	TArray<FSuspenseCoreActiveDoT>* TargetDoTs = ActiveDoTs.Find(Target);
-	if (!TargetDoTs)
+	// Remove from legacy cache
+	if (TArray<FSuspenseCoreActiveDoT>* DoTs = ManualDoTCache.Find(Target))
 	{
-		return;
-	}
+		int32 RemovedIndex = DoTs->IndexOfByPredicate([&](const FSuspenseCoreActiveDoT& D) {
+			return D.DoTType == DoTType;
+		});
 
-	// Find and remove
-	FSuspenseCoreActiveDoT RemovedDoT;
-	bool bFound = false;
-	for (int32 i = TargetDoTs->Num() - 1; i >= 0; --i)
-	{
-		if ((*TargetDoTs)[i].DoTType == DoTType)
+		FSuspenseCoreDoTEventPayload Payload;
+		Payload.AffectedActor = Target;
+		Payload.DoTType = DoTType;
+
+		if (RemovedIndex != INDEX_NONE)
 		{
-			RemovedDoT = (*TargetDoTs)[i];
-			TargetDoTs->RemoveAt(i);
-			bFound = true;
+			Payload.DoTData = (*DoTs)[RemovedIndex];
+			DoTs->RemoveAt(RemovedIndex);
+		}
+
+		// Publish event
+		FGameplayTag EventTag = bExpired
+			? SuspenseCoreTags::Event::DoT::Expired
+			: SuspenseCoreTags::Event::DoT::Removed;
+
+		PublishDoTEvent(EventTag, Payload);
+
+		UE_LOG(LogDoTService, Verbose, TEXT("DoT removed (manual): %s from %s (expired=%d)"),
+			*DoTType.ToString(), *Target->GetName(), bExpired);
+	}
+}
+
+//==================================================================
+// ASC Binding
+//==================================================================
+
+void USuspenseCoreDoTService::BindToASC(UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
+	{
+		return;
+	}
+
+	FScopeLock Lock(&ServiceLock);
+
+	// Check if already bound
+	for (const FSuspenseCoreASCBinding& Binding : BoundASCs)
+	{
+		if (Binding.ASC == ASC)
+		{
+			return;  // Already bound
+		}
+	}
+
+	// Create new binding
+	FSuspenseCoreASCBinding NewBinding;
+	NewBinding.ASC = ASC;
+
+	// Subscribe to effect added delegate
+	NewBinding.OnEffectAddedHandle = ASC->OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(
+		this, &USuspenseCoreDoTService::OnActiveGameplayEffectAdded);
+
+	// Subscribe to effect removed delegate
+	NewBinding.OnEffectRemovedHandle = ASC->OnAnyGameplayEffectRemovedDelegate().AddUObject(
+		this, &USuspenseCoreDoTService::OnActiveGameplayEffectRemoved);
+
+	BoundASCs.Add(NewBinding);
+
+	UE_LOG(LogDoTService, Log, TEXT("Bound to ASC: %s"),
+		ASC->GetOwner() ? *ASC->GetOwner()->GetName() : TEXT("Unknown"));
+}
+
+void USuspenseCoreDoTService::UnbindFromASC(UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
+	{
+		return;
+	}
+
+	FScopeLock Lock(&ServiceLock);
+
+	for (int32 i = BoundASCs.Num() - 1; i >= 0; --i)
+	{
+		FSuspenseCoreASCBinding& Binding = BoundASCs[i];
+		if (Binding.ASC == ASC)
+		{
+			// Remove delegates
+			ASC->OnActiveGameplayEffectAddedDelegateToSelf.Remove(Binding.OnEffectAddedHandle);
+			ASC->OnAnyGameplayEffectRemovedDelegate().Remove(Binding.OnEffectRemovedHandle);
+
+			BoundASCs.RemoveAt(i);
+
+			UE_LOG(LogDoTService, Log, TEXT("Unbound from ASC: %s"),
+				ASC->GetOwner() ? *ASC->GetOwner()->GetName() : TEXT("Unknown"));
+			return;
+		}
+	}
+}
+
+//==================================================================
+// ASC Delegate Handlers
+//==================================================================
+
+void USuspenseCoreDoTService::OnActiveGameplayEffectAdded(
+	UAbilitySystemComponent* ASC,
+	const FGameplayEffectSpec& Spec,
+	FActiveGameplayEffectHandle Handle)
+{
+	if (!ASC || !IsDoTEffect(Spec))
+	{
+		return;
+	}
+
+	AActor* TargetActor = ASC->GetOwner();
+	FGameplayTag DoTType = GetDoTTypeFromEffect(Spec);
+
+	// Get effect data
+	const FActiveGameplayEffect* ActiveEffect = ASC->GetActiveGameplayEffect(Handle);
+	if (!ActiveEffect)
+	{
+		return;
+	}
+
+	FSuspenseCoreActiveDoT DoTData = BuildDoTDataFromEffect(*ActiveEffect, TargetActor);
+
+	// Publish event (async for performance)
+	FSuspenseCoreDoTEventPayload Payload;
+	Payload.AffectedActor = TargetActor;
+	Payload.DoTType = DoTType;
+	Payload.DoTData = DoTData;
+
+	PublishDoTEvent(SuspenseCoreTags::Event::DoT::Applied, Payload);
+
+	UE_LOG(LogDoTService, Log, TEXT("DoT added (ASC): %s on %s"),
+		*DoTType.ToString(), TargetActor ? *TargetActor->GetName() : TEXT("Unknown"));
+}
+
+void USuspenseCoreDoTService::OnActiveGameplayEffectRemoved(const FActiveGameplayEffect& Effect)
+{
+	if (!IsDoTEffect(Effect))
+	{
+		return;
+	}
+
+	// Find owning ASC and target actor
+	AActor* TargetActor = nullptr;
+	for (const FSuspenseCoreASCBinding& Binding : BoundASCs)
+	{
+		if (Binding.ASC.IsValid())
+		{
+			TargetActor = Binding.ASC->GetOwner();
 			break;
 		}
 	}
 
-	// Clean up empty arrays
-	if (TargetDoTs->Num() == 0)
-	{
-		ActiveDoTs.Remove(Target);
-	}
+	FGameplayTag DoTType = GetDoTTypeFromEffect(Effect);
 
-	if (bFound)
-	{
-		// Publish event
-		FSuspenseCoreDoTEventPayload Payload;
-		Payload.AffectedActor = Target;
-		Payload.DoTType = DoTType;
-		Payload.DoTData = RemovedDoT;
+	// Publish removal event
+	FSuspenseCoreDoTEventPayload Payload;
+	Payload.AffectedActor = TargetActor;
+	Payload.DoTType = DoTType;
 
-		FGameplayTag EventTag = bExpired ?
-			SuspenseCoreTags::Event::DoT::Expired :
-			SuspenseCoreTags::Event::DoT::Removed;
+	// Check if expired naturally
+	float WorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	bool bExpired = Effect.GetTimeRemaining(WorldTime) <= 0.0f;
 
-		PublishDoTEvent(EventTag, Payload);
-	}
+	FGameplayTag EventTag = bExpired
+		? SuspenseCoreTags::Event::DoT::Expired
+		: SuspenseCoreTags::Event::DoT::Removed;
+
+	PublishDoTEvent(EventTag, Payload);
+
+	UE_LOG(LogDoTService, Log, TEXT("DoT removed (ASC): %s (expired=%d)"),
+		*DoTType.ToString(), bExpired);
 }
 
-//========================================================================
-// Internal Methods
-//========================================================================
-
-void USuspenseCoreDoTService::InitializeEventBus()
+void USuspenseCoreDoTService::OnGameplayEffectStackChanged(
+	FActiveGameplayEffectHandle Handle,
+	int32 NewStackCount,
+	int32 OldStackCount)
 {
-	// Get EventBus from GameInstance
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		// Try to find EventBus subsystem or from ServiceLocator
-		// This depends on your EventBus initialization pattern
-		// For now, we'll use deferred lookup
-		EventBus = nullptr;  // Will be set on first publish
-	}
+	// Could publish stack change event if needed
+	UE_LOG(LogDoTService, Verbose, TEXT("DoT stack changed: %d -> %d"), OldStackCount, NewStackCount);
 }
 
-void USuspenseCoreDoTService::CleanupStaleEntries()
+//==================================================================
+// Internal Helpers
+//==================================================================
+
+bool USuspenseCoreDoTService::IsDoTEffect(const FGameplayEffectSpec& Spec) const
 {
-	FScopeLock Lock(&DoTLock);
-
-	// Remove entries for destroyed actors
-	TArray<TWeakObjectPtr<AActor>> ToRemove;
-	for (auto& Pair : ActiveDoTs)
+	if (!Spec.Def)
 	{
-		if (!Pair.Key.IsValid())
-		{
-			ToRemove.Add(Pair.Key);
-		}
+		return false;
 	}
 
-	for (const auto& Key : ToRemove)
+	// Check if effect grants DoT-related tags
+	const FGameplayTagContainer& GrantedTags = Spec.Def->GetAssetTags();
+
+	return GrantedTags.HasTag(DoTRootTag) ||
+		   GrantedTags.HasTag(BleedingRootTag) ||
+		   GrantedTags.HasTag(BurningRootTag) ||
+		   GrantedTags.HasTag(SuspenseCoreTags::State::Health::BleedingLight) ||
+		   GrantedTags.HasTag(SuspenseCoreTags::State::Health::BleedingHeavy) ||
+		   GrantedTags.HasTag(SuspenseCoreTags::Effect::DoT::Burn);
+}
+
+bool USuspenseCoreDoTService::IsDoTEffect(const FActiveGameplayEffect& Effect) const
+{
+	return IsDoTEffect(Effect.Spec);
+}
+
+FGameplayTag USuspenseCoreDoTService::GetDoTTypeFromEffect(const FGameplayEffectSpec& Spec) const
+{
+	if (!Spec.Def)
 	{
-		ActiveDoTs.Remove(Key);
+		return DoTRootTag;
 	}
+
+	const FGameplayTagContainer& GrantedTags = Spec.Def->GetAssetTags();
+
+	// Check specific tags first
+	if (GrantedTags.HasTag(SuspenseCoreTags::State::Health::BleedingHeavy))
+	{
+		return SuspenseCoreTags::State::Health::BleedingHeavy;
+	}
+	if (GrantedTags.HasTag(SuspenseCoreTags::State::Health::BleedingLight))
+	{
+		return SuspenseCoreTags::State::Health::BleedingLight;
+	}
+	if (GrantedTags.HasTag(SuspenseCoreTags::Effect::DoT::Burn))
+	{
+		return SuspenseCoreTags::Effect::DoT::Burn;
+	}
+	if (GrantedTags.HasTag(BleedingRootTag))
+	{
+		return BleedingRootTag;
+	}
+	if (GrantedTags.HasTag(BurningRootTag))
+	{
+		return BurningRootTag;
+	}
+
+	// Fallback to root DoT tag
+	return DoTRootTag;
+}
+
+FGameplayTag USuspenseCoreDoTService::GetDoTTypeFromEffect(const FActiveGameplayEffect& Effect) const
+{
+	return GetDoTTypeFromEffect(Effect.Spec);
+}
+
+FSuspenseCoreActiveDoT USuspenseCoreDoTService::BuildDoTDataFromEffect(
+	const FActiveGameplayEffect& Effect,
+	AActor* TargetActor) const
+{
+	FSuspenseCoreActiveDoT Data;
+
+	Data.DoTType = GetDoTTypeFromEffect(Effect);
+	Data.EffectHandle = Effect.Handle;
+	Data.StackCount = Effect.Spec.GetStackCount();
+
+	// Get duration
+	float WorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	float Duration = Effect.GetDuration();
+	float Remaining = Effect.GetTimeRemaining(WorldTime);
+
+	Data.RemainingDuration = (Duration == FGameplayEffectConstants::INFINITE_DURATION) ? -1.0f : Remaining;
+	Data.ApplicationTime = Effect.StartWorldTime;
+
+	// Get damage per tick from SetByCaller
+	const FGameplayEffectSpec& Spec = Effect.Spec;
+	if (Data.IsBleeding())
+	{
+		Data.DamagePerTick = Spec.GetSetByCallerMagnitude(SuspenseCoreTags::Data::DoT::Bleed, false, 0.0f);
+		Data.TickInterval = 1.0f;  // Default bleeding tick
+	}
+	else if (Data.IsBurning())
+	{
+		float ArmorDmg = Spec.GetSetByCallerMagnitude(SuspenseCoreTags::Data::DoT::BurnArmor, false, 0.0f);
+		float HealthDmg = Spec.GetSetByCallerMagnitude(SuspenseCoreTags::Data::DoT::BurnHealth, false, 0.0f);
+		Data.DamagePerTick = FMath::Abs(ArmorDmg) + FMath::Abs(HealthDmg);
+		Data.TickInterval = 0.5f;  // Default burn tick
+	}
+
+	// Get source actor
+	const FGameplayEffectContextHandle& Context = Spec.GetContext();
+	Data.SourceActor = Context.GetInstigator();
+
+	return Data;
 }
 
 void USuspenseCoreDoTService::PublishDoTEvent(FGameplayTag EventTag, const FSuspenseCoreDoTEventPayload& Payload)
 {
-	// Get EventBus if not cached
 	if (!EventBus.IsValid())
 	{
-		// Try to get from world
-		if (UWorld* World = GetWorld())
-		{
-			// This assumes EventBus is accessible via a subsystem or singleton
-			// Adjust based on your EventBus initialization pattern
-			if (UGameInstance* GI = World->GetGameInstance())
-			{
-				// Look for EventBus in the game instance's subsystems or components
-				// This is a placeholder - adjust to your actual EventBus location
-				for (TFieldIterator<FObjectProperty> PropIt(GI->GetClass()); PropIt; ++PropIt)
-				{
-					FObjectProperty* Prop = *PropIt;
-					if (Prop->PropertyClass->IsChildOf(USuspenseCoreEventBus::StaticClass()))
-					{
-						EventBus = Cast<USuspenseCoreEventBus>(Prop->GetObjectPropertyValue_InContainer(GI));
-						break;
-					}
-				}
-			}
-		}
+		InitializeEventBus();
 	}
 
 	if (EventBus.IsValid())
 	{
-		FSuspenseCoreEventData EventData = Payload.ToEventData();
-		EventBus->Publish(EventTag, EventData);
-	}
-	else
-	{
-		DOT_LOG(Warning, TEXT("EventBus not available for DoT event: %s"), *EventTag.ToString());
+		// Use async publish for performance (non-blocking)
+		EventBus->PublishAsync(EventTag, Payload.ToEventData());
 	}
 }
 
-FSuspenseCoreActiveDoT* USuspenseCoreDoTService::FindDoTEntry(AActor* Target, FGameplayTag DoTType)
+UAbilitySystemComponent* USuspenseCoreDoTService::GetASCFromActor(AActor* Actor) const
 {
-	// Note: Caller must hold DoTLock
-
-	TArray<FSuspenseCoreActiveDoT>* TargetDoTs = ActiveDoTs.Find(Target);
-	if (!TargetDoTs)
+	if (!Actor)
 	{
 		return nullptr;
 	}
 
-	for (FSuspenseCoreActiveDoT& DoT : *TargetDoTs)
-	{
-		if (DoT.DoTType == DoTType)
-		{
-			return &DoT;
-		}
-	}
-
-	return nullptr;
+	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
 }
 
-void USuspenseCoreDoTService::UpdateDurations(float DeltaTime)
+void USuspenseCoreDoTService::InitializeEventBus()
 {
-	FScopeLock Lock(&DoTLock);
-
-	TArray<TPair<TWeakObjectPtr<AActor>, FGameplayTag>> ToExpire;
-
-	for (auto& Pair : ActiveDoTs)
+	if (EventBus.IsValid())
 	{
-		if (!Pair.Key.IsValid())
-		{
-			continue;
-		}
+		return;
+	}
 
-		for (FSuspenseCoreActiveDoT& DoT : Pair.Value)
+	if (USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this))
+	{
+		EventBus = Manager->GetEventBus();
+	}
+}
+
+//==================================================================
+// Legacy Support
+//==================================================================
+
+void USuspenseCoreDoTService::OnDurationUpdateTimer()
+{
+	FScopeLock Lock(&ServiceLock);
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float DeltaTime = 0.1f;  // Timer interval
+
+	// Update durations in legacy cache
+	for (auto& Pair : ManualDoTCache)
+	{
+		TArray<FSuspenseCoreActiveDoT>& DoTs = Pair.Value;
+
+		for (int32 i = DoTs.Num() - 1; i >= 0; --i)
 		{
-			// Skip infinite duration effects (bleeding)
+			FSuspenseCoreActiveDoT& DoT = DoTs[i];
+
+			// Skip infinite duration effects
 			if (DoT.IsInfinite())
 			{
 				continue;
 			}
 
+			// Reduce remaining duration
 			DoT.RemainingDuration -= DeltaTime;
 
+			// Check if expired
 			if (DoT.RemainingDuration <= 0.0f)
 			{
-				ToExpire.Add(TPair<TWeakObjectPtr<AActor>, FGameplayTag>(Pair.Key, DoT.DoTType));
+				// Publish expiry event
+				FSuspenseCoreDoTEventPayload Payload;
+				Payload.AffectedActor = Pair.Key.Get();
+				Payload.DoTType = DoT.DoTType;
+				Payload.DoTData = DoT;
+
+				PublishDoTEvent(SuspenseCoreTags::Event::DoT::Expired, Payload);
+
+				DoTs.RemoveAt(i);
 			}
 		}
 	}
 
-	// Unlock before calling RegisterDoTRemoved (which will reacquire lock)
-	Lock.Unlock();
-
-	// Process expirations
-	for (const auto& Expired : ToExpire)
-	{
-		if (Expired.Key.IsValid())
-		{
-			RegisterDoTRemoved(Expired.Key.Get(), Expired.Value, true);  // bExpired = true
-		}
-	}
+	// Cleanup stale entries
+	CleanupStaleEntries();
 }
 
-void USuspenseCoreDoTService::OnDurationUpdateTimer()
+void USuspenseCoreDoTService::CleanupStaleEntries()
 {
-	// Cleanup stale entries periodically
-	CleanupStaleEntries();
-
-	// Update durations (0.5s delta since timer fires every 0.5s)
-	UpdateDurations(0.5f);
+	// Remove entries for destroyed actors
+	for (auto It = ManualDoTCache.CreateIterator(); It; ++It)
+	{
+		if (!It->Key.IsValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
 }

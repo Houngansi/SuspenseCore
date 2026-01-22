@@ -314,8 +314,11 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 
 	// IK is active when weapon is drawn AND it's not a throwable
 	const float TargetIKAlpha = (bIsWeaponDrawn && bHasWeaponEquipped && !bIsThrowable) ? 1.0f : 0.0f;
-	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
-	RightHandIKAlpha = FMath::FInterpTo(RightHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
+
+	// Smooth interpolation for IK blend (~0.25s transition)
+	constexpr float IKInterpSpeed = 4.0f;
+	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaSeconds, IKInterpSpeed);
+	RightHandIKAlpha = FMath::FInterpTo(RightHandIKAlpha, TargetIKAlpha, DeltaSeconds, IKInterpSpeed);
 
 	// Additive pitch interpolation
 	{

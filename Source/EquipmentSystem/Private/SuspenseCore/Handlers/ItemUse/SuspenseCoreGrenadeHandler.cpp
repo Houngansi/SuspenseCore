@@ -81,7 +81,7 @@ void USuspenseCoreGrenadeHandler::Initialize(
 	// Subscribe to EventBus events
 	if (InEventBus)
 	{
-		UE_LOG(LogGrenadeHandler, Warning, TEXT(">>> GrenadeHandler: Subscribing to EventBus events <<<"));
+		HANDLER_LOG(Log, TEXT("Subscribing to EventBus events..."));
 
 		// Subscribe to SpawnRequested events from GrenadeThrowAbility
 		SpawnRequestedHandle = InEventBus->SubscribeNative(
@@ -91,38 +91,27 @@ void USuspenseCoreGrenadeHandler::Initialize(
 			ESuspenseCoreEventPriority::High);
 
 		// Subscribe to grenade equipped event (spawn visual)
-		FGameplayTag EquippedTag = SuspenseCoreTags::Event::Throwable::Equipped;
-		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *EquippedTag.ToString());
 		EquippedHandle = InEventBus->SubscribeNative(
-			EquippedTag,
+			SuspenseCoreTags::Event::Throwable::Equipped,
 			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeEquipped),
 			ESuspenseCoreEventPriority::High);
 
 		// Subscribe to grenade unequipped event (destroy visual)
-		FGameplayTag UnequippedTag = SuspenseCoreTags::Event::Throwable::Unequipped;
-		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *UnequippedTag.ToString());
 		UnequippedHandle = InEventBus->SubscribeNative(
-			UnequippedTag,
+			SuspenseCoreTags::Event::Throwable::Unequipped,
 			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeUnequipped),
 			ESuspenseCoreEventPriority::High);
 
 		// Subscribe to grenade releasing event (hide visual before throw)
-		FGameplayTag ReleasingTag = SuspenseCoreTags::Event::Throwable::Releasing;
-		UE_LOG(LogGrenadeHandler, Warning, TEXT("    Subscribing to: %s"), *ReleasingTag.ToString());
 		ReleasingHandle = InEventBus->SubscribeNative(
-			ReleasingTag,
+			SuspenseCoreTags::Event::Throwable::Releasing,
 			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGrenadeHandler::OnGrenadeReleasing),
 			ESuspenseCoreEventPriority::High);
 
-		UE_LOG(LogGrenadeHandler, Warning, TEXT(">>> GrenadeHandler: Subscriptions complete (Equipped=%s, Unequipped=%s, Releasing=%s) <<<"),
-			EquippedHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"),
-			UnequippedHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"),
-			ReleasingHandle.IsValid() ? TEXT("Valid") : TEXT("INVALID"));
-
-		HANDLER_LOG(Log, TEXT("Subscribed to EventBus events (SpawnRequested, Equipped, Unequipped, Releasing)"));
+		HANDLER_LOG(Log, TEXT("EventBus subscriptions complete (SpawnRequested, Equipped, Unequipped, Releasing)"));
 	}
 	else
 	{
@@ -178,6 +167,48 @@ void USuspenseCoreGrenadeHandler::Shutdown()
 
 	// Clear ActorFactory reference
 	CachedActorFactory = nullptr;
+}
+
+//==================================================================
+// Grenade Class Loading
+//==================================================================
+
+TSubclassOf<AActor> USuspenseCoreGrenadeHandler::GetGrenadeClass(FName GrenadeID, const UObject* WorldContext) const
+{
+	TSubclassOf<AActor> GrenadeClass = nullptr;
+
+	// Try preloader first (zero-hitch path) - AAA quality
+	if (USuspenseCoreThrowableAssetPreloader* Preloader = USuspenseCoreThrowableAssetPreloader::Get(WorldContext))
+	{
+		GrenadeClass = Preloader->GetPreloadedActorClass(GrenadeID);
+		if (GrenadeClass)
+		{
+			HANDLER_LOG(Log, TEXT("GetGrenadeClass: Using preloaded class for %s"), *GrenadeID.ToString());
+			return GrenadeClass;
+		}
+	}
+
+	// Fallback to sync load if not preloaded (with warning)
+	if (DataManager.IsValid())
+	{
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(GrenadeID, ItemData))
+		{
+			if (!ItemData.EquipmentActorClass.IsNull())
+			{
+				HANDLER_LOG(Warning, TEXT("GetGrenadeClass: Class not preloaded, using sync load for %s (may cause hitch)"),
+					*GrenadeID.ToString());
+				GrenadeClass = ItemData.EquipmentActorClass.LoadSynchronous();
+			}
+		}
+	}
+
+	if (!GrenadeClass)
+	{
+		HANDLER_LOG(Warning, TEXT("GetGrenadeClass: No actor class found for %s"), *GrenadeID.ToString());
+	}
+
+	return GrenadeClass;
 }
 
 //==================================================================
@@ -367,9 +398,11 @@ FText USuspenseCoreGrenadeHandler::GetDisplayName() const
 FGameplayTagContainer USuspenseCoreGrenadeHandler::GetSupportedSourceTags() const
 {
 	FGameplayTagContainer Tags;
+	// Use native tags where available for performance
+	Tags.AddTag(SuspenseCoreTags::Item::Throwable);
+	// Fallback tags for legacy items (using RequestGameplayTag for non-native tags)
 	Tags.AddTag(FGameplayTag::RequestGameplayTag(FName("Item.Category.Grenade"), false));
 	Tags.AddTag(FGameplayTag::RequestGameplayTag(FName("Item.Grenade"), false));
-	Tags.AddTag(FGameplayTag::RequestGameplayTag(FName("Item.Throwable"), false));
 	return Tags;
 }
 
@@ -785,9 +818,8 @@ bool USuspenseCoreGrenadeHandler::IsGrenadeEquipped(AActor* Actor) const
 		return false;
 	}
 
-	// Check for State.GrenadeEquipped tag
-	FGameplayTag EquippedTag = FGameplayTag::RequestGameplayTag(FName("State.GrenadeEquipped"));
-	return ASC->HasMatchingGameplayTag(EquippedTag);
+	// Check for State.GrenadeEquipped tag using native tag for performance
+	return ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::GrenadeEquipped);
 }
 
 float USuspenseCoreGrenadeHandler::GetDuration(const FSuspenseCoreItemUseRequest& Request) const
@@ -931,42 +963,11 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenade(
 		ThrowLocation += FVector::UpVector * 50.0f;
 	}
 
-	// ═══════════════════════════════════════════════════════════════════
-	// GET GRENADE CLASS - Use preloader first, fallback to sync load
-	// AAA-quality: Preloader eliminates microfreeze on first throw
-	// ═══════════════════════════════════════════════════════════════════
-	TSubclassOf<AActor> GrenadeClass = nullptr;
-
-	// Try preloader first (zero-hitch path)
-	if (USuspenseCoreThrowableAssetPreloader* Preloader = USuspenseCoreThrowableAssetPreloader::Get(OwnerActor))
-	{
-		GrenadeClass = Preloader->GetPreloadedActorClass(Request.SourceItem.ItemID);
-		if (GrenadeClass)
-		{
-			HANDLER_LOG(Log, TEXT("ThrowGrenade: Using preloaded class for %s"), *Request.SourceItem.ItemID.ToString());
-		}
-	}
-
-	// Fallback to sync load if not preloaded (with warning)
-	if (!GrenadeClass && DataManager.IsValid())
-	{
-		FSuspenseCoreUnifiedItemData ItemData;
-		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
-		{
-			if (!ItemData.EquipmentActorClass.IsNull())
-			{
-				HANDLER_LOG(Warning, TEXT("ThrowGrenade: Class not preloaded, using sync load for %s (may cause hitch)"),
-					*Request.SourceItem.ItemID.ToString());
-				GrenadeClass = ItemData.EquipmentActorClass.LoadSynchronous();
-			}
-		}
-	}
+	// Get grenade class via unified helper (preloader first, sync load fallback)
+	TSubclassOf<AActor> GrenadeClass = GetGrenadeClass(Request.SourceItem.ItemID, OwnerActor);
 
 	if (!GrenadeClass)
 	{
-		HANDLER_LOG(Warning, TEXT("ThrowGrenade: No actor class found for %s"),
-			*Request.SourceItem.ItemID.ToString());
-
 		// Even without spawning, we consider the grenade "thrown" for gameplay
 		// This allows the system to work without actual grenade actors
 		return true;
@@ -1123,46 +1124,11 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 		return false;
 	}
 
-	// ═══════════════════════════════════════════════════════════════════
-	// GET GRENADE CLASS - Use preloader first, fallback to sync load
-	// AAA-quality: Preloader eliminates microfreeze on first throw
-	// ═══════════════════════════════════════════════════════════════════
-	TSubclassOf<AActor> GrenadeClass = nullptr;
-	float FuseTime = 3.5f; // Default fuse time
-
-	// Try preloader first (zero-hitch path)
-	if (USuspenseCoreThrowableAssetPreloader* Preloader = USuspenseCoreThrowableAssetPreloader::Get(OwnerActor))
-	{
-		GrenadeClass = Preloader->GetPreloadedActorClass(GrenadeID);
-		if (GrenadeClass)
-		{
-			HANDLER_LOG(Log, TEXT("ThrowGrenadeFromEvent: Using preloaded class for %s"), *GrenadeID.ToString());
-		}
-	}
-
-	// Fallback to sync load if not preloaded (with warning)
-	if (!GrenadeClass && DataManager.IsValid())
-	{
-		FSuspenseCoreUnifiedItemData ItemData;
-		if (DataManager->GetUnifiedItemData(GrenadeID, ItemData))
-		{
-			if (!ItemData.EquipmentActorClass.IsNull())
-			{
-				HANDLER_LOG(Warning, TEXT("ThrowGrenadeFromEvent: Class not preloaded, using sync load for %s (may cause hitch)"),
-					*GrenadeID.ToString());
-				GrenadeClass = ItemData.EquipmentActorClass.LoadSynchronous();
-			}
-		}
-
-		// Get fuse time from ThrowableAttributes if available
-		// The grenade actor should handle this, but we can pass it via event
-	}
+	// Get grenade class via unified helper (preloader first, sync load fallback)
+	TSubclassOf<AActor> GrenadeClass = GetGrenadeClass(GrenadeID, OwnerActor);
 
 	if (!GrenadeClass)
 	{
-		HANDLER_LOG(Warning, TEXT("ThrowGrenadeFromEvent: No actor class found for %s"),
-			*GrenadeID.ToString());
-
 		// Even without spawning, we consider the grenade "thrown" for gameplay
 		return true;
 	}
@@ -1223,13 +1189,13 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 		// InitializeGrenade sets velocity, arms grenade, reduces fuse by cook time
 		GrenadeProjectile->InitializeGrenade(OwnerActor, ThrowVelocity, CookTime, GrenadeID);
 
-		HANDLER_LOG(Warning, TEXT(">>> InitializeGrenade called! Grenade=%s, Armed=%s"),
+		HANDLER_LOG(Log, TEXT("InitializeGrenade called: Grenade=%s, Armed=%s"),
 			*Grenade->GetName(),
 			GrenadeProjectile->IsArmed() ? TEXT("YES") : TEXT("NO"));
 	}
 	else
 	{
-		HANDLER_LOG(Warning, TEXT(">>> Cast to ASuspenseCoreGrenadeProjectile FAILED! Using physics fallback"));
+		HANDLER_LOG(Log, TEXT("Non-projectile grenade class, using physics fallback"));
 
 		// Fallback for non-projectile grenades: apply physics impulse
 		UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Grenade->GetRootComponent());
@@ -1262,7 +1228,7 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenadeFromEvent(
 
 void USuspenseCoreGrenadeHandler::OnGrenadeEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	UE_LOG(LogGrenadeHandler, Warning, TEXT(">>> OnGrenadeEquipped EVENT RECEIVED <<<"));
+	HANDLER_LOG(Log, TEXT("OnGrenadeEquipped: Event received"));
 
 	AActor* Character = Cast<AActor>(EventData.Source.Get());
 	if (!Character)
@@ -1276,11 +1242,11 @@ void USuspenseCoreGrenadeHandler::OnGrenadeEquipped(FGameplayTag EventTag, const
 	if (const FString* GrenadeIDStr = EventData.StringPayload.Find(TEXT("GrenadeID")))
 	{
 		GrenadeID = FName(**GrenadeIDStr);
-		UE_LOG(LogGrenadeHandler, Warning, TEXT("OnGrenadeEquipped: GrenadeID from event = '%s'"), **GrenadeIDStr);
+		HANDLER_LOG(Verbose, TEXT("OnGrenadeEquipped: GrenadeID from event = '%s'"), **GrenadeIDStr);
 	}
 	else
 	{
-		UE_LOG(LogGrenadeHandler, Warning, TEXT("OnGrenadeEquipped: No GrenadeID in event payload!"));
+		HANDLER_LOG(Verbose, TEXT("OnGrenadeEquipped: No GrenadeID in event payload"));
 	}
 
 	HANDLER_LOG(Log, TEXT("OnGrenadeEquipped: Character=%s, GrenadeID=%s"),
@@ -1296,10 +1262,10 @@ void USuspenseCoreGrenadeHandler::OnGrenadeEquipped(FGameplayTag EventTag, const
 		// Try to get GrenadeType tag and use default ID
 		if (const FString* GrenadeTypeStr = EventData.StringPayload.Find(TEXT("GrenadeType")))
 		{
-			UE_LOG(LogGrenadeHandler, Warning, TEXT("OnGrenadeEquipped: GrenadeID is None, trying GrenadeType: %s"), **GrenadeTypeStr);
+			HANDLER_LOG(Verbose, TEXT("OnGrenadeEquipped: GrenadeID is None, GrenadeType: %s"), **GrenadeTypeStr);
 			// TODO: Map GrenadeType tag to ItemID via DataManager
 		}
-		UE_LOG(LogGrenadeHandler, Warning, TEXT("OnGrenadeEquipped: Cannot spawn visual - no valid GrenadeID"));
+		HANDLER_LOG(Log, TEXT("OnGrenadeEquipped: Cannot spawn visual - no valid GrenadeID"));
 	}
 }
 
@@ -1328,40 +1294,11 @@ bool USuspenseCoreGrenadeHandler::SpawnVisualGrenade(AActor* Character, FName Gr
 	// Destroy any existing visual grenade for this character
 	DestroyVisualGrenade(Character);
 
-	// ═══════════════════════════════════════════════════════════════════
-	// GET GRENADE CLASS - Use preloader first, fallback to sync load
-	// AAA-quality: Preloader eliminates microfreeze on first equip
-	// ═══════════════════════════════════════════════════════════════════
-	TSubclassOf<AActor> GrenadeClass = nullptr;
-
-	// Try preloader first (zero-hitch path)
-	if (USuspenseCoreThrowableAssetPreloader* Preloader = USuspenseCoreThrowableAssetPreloader::Get(Character))
-	{
-		GrenadeClass = Preloader->GetPreloadedActorClass(GrenadeID);
-		if (GrenadeClass)
-		{
-			HANDLER_LOG(Log, TEXT("SpawnVisualGrenade: Using preloaded class for %s"), *GrenadeID.ToString());
-		}
-	}
-
-	// Fallback to sync load if not preloaded (with warning)
-	if (!GrenadeClass && DataManager.IsValid())
-	{
-		FSuspenseCoreUnifiedItemData ItemData;
-		if (DataManager->GetUnifiedItemData(GrenadeID, ItemData))
-		{
-			if (!ItemData.EquipmentActorClass.IsNull())
-			{
-				HANDLER_LOG(Warning, TEXT("SpawnVisualGrenade: Class not preloaded, using sync load for %s (may cause hitch)"),
-					*GrenadeID.ToString());
-				GrenadeClass = ItemData.EquipmentActorClass.LoadSynchronous();
-			}
-		}
-	}
+	// Get grenade class via unified helper (preloader first, sync load fallback)
+	TSubclassOf<AActor> GrenadeClass = GetGrenadeClass(GrenadeID, Character);
 
 	if (!GrenadeClass)
 	{
-		HANDLER_LOG(Warning, TEXT("SpawnVisualGrenade: No actor class found for %s"), *GrenadeID.ToString());
 		return false;
 	}
 

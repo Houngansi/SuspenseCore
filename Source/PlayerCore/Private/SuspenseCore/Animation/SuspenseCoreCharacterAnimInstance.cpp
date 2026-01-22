@@ -54,7 +54,6 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	UpdateVelocityData(DeltaSeconds);
 	UpdateWeaponData(DeltaSeconds);
 	UpdateAnimationAssets();
-	UpdateWeaponTransition(DeltaSeconds);
 	UpdateIKData(DeltaSeconds);
 	UpdateLeftHandSocket(DeltaSeconds);
 	UpdateADSData(DeltaSeconds);
@@ -287,13 +286,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 {
 	if (!bHasWeaponEquipped || !CurrentWeaponType.IsValid())
 	{
-		// No weapon - reset to empty but preserve previous for blend out
-		if (CurrentAnimationData.Stance != nullptr)
-		{
-			PreviousAnimationData = CurrentAnimationData;
-			WeaponTransitionAlpha = 0.0f;
-			bIsWeaponTransitioning = true;
-		}
 		CurrentAnimationData = FSuspenseCoreAnimationData();
 		return;
 	}
@@ -304,33 +296,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 		return;
 	}
 
-	// Check if animation data actually changed (new weapon type)
-	if (AnimData->Stance != CurrentAnimationData.Stance ||
-	    AnimData->Locomotion != CurrentAnimationData.Locomotion)
-	{
-		// Store previous for smooth transition
-		PreviousAnimationData = CurrentAnimationData;
-		WeaponTransitionAlpha = 0.0f;
-		bIsWeaponTransitioning = true;
-	}
-
 	CurrentAnimationData = *AnimData;
-}
-
-void USuspenseCoreCharacterAnimInstance::UpdateWeaponTransition(float DeltaSeconds)
-{
-	// Interpolate weapon transition alpha
-	if (bIsWeaponTransitioning)
-	{
-		const float TransitionSpeed = (WeaponTransitionTime > 0.0f) ? (1.0f / WeaponTransitionTime) : 10.0f;
-		WeaponTransitionAlpha = FMath::FInterpConstantTo(WeaponTransitionAlpha, 1.0f, DeltaSeconds, TransitionSpeed);
-
-		if (WeaponTransitionAlpha >= 0.99f)
-		{
-			WeaponTransitionAlpha = 1.0f;
-			bIsWeaponTransitioning = false;
-		}
-	}
 }
 
 void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)

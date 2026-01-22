@@ -17,6 +17,7 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Types/Throwable/SuspenseCoreThrowableTypes.h"
 #include "Animation/AnimInstance.h"
 #include "SuspenseCoreGrenadeThrowAbility.generated.h"
 
@@ -25,16 +26,8 @@ class ISuspenseCoreQuickSlotProvider;
 class UAnimMontage;
 class USoundBase;
 
-/**
- * Grenade type enum for different throw behaviors
- */
-UENUM(BlueprintType)
-enum class ESuspenseCoreGrenadeThrowType : uint8
-{
-    Overhand    UMETA(DisplayName = "Overhand Throw"),    // Standard long throw
-    Underhand   UMETA(DisplayName = "Underhand Throw"),   // Short lob
-    Roll        UMETA(DisplayName = "Roll")               // Ground roll
-};
+// NOTE: ESuspenseCoreGrenadeThrowType is now defined in SuspenseCoreThrowableTypes.h
+// (BridgeSystem module) to provide unified types across the entire grenade system.
 
 /**
  * USuspenseCoreGrenadeThrowAbility

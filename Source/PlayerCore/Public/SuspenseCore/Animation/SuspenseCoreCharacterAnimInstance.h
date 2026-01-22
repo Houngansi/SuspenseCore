@@ -284,6 +284,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	bool bIsWeaponTransitioning = false;
 
+	/**
+	 * Время перехода между стойками (в секундах)
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Data")
+	float WeaponTransitionTime = 0.25f;
+
 	/** DataTable reference (для отладки) */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	TObjectPtr<UDataTable> WeaponAnimationsTable = nullptr;

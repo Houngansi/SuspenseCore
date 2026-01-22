@@ -255,6 +255,33 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	FSuspenseCoreAnimationData CurrentAnimationData;
 
+	/**
+	 * ПРЕДЫДУЩИЕ АНИМАЦИОННЫЕ ДАННЫЕ (для плавного перехода между стойками)
+	 * Используй вместе с WeaponTransitionAlpha для бленда в AnimBP
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
+	FSuspenseCoreAnimationData PreviousAnimationData;
+
+	/**
+	 * Альфа перехода между стойками (0 = предыдущая, 1 = текущая)
+	 * Интерполируется от 0 к 1 при смене оружия за WeaponTransitionTime
+	 * Используй в AnimBP: Blend Poses by float (Previous → Current)
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
+	float WeaponTransitionAlpha = 1.0f;
+
+	/**
+	 * True когда происходит переход между стойками
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
+	bool bIsWeaponTransitioning = false;
+
+	/**
+	 * Время перехода между стойками (в секундах)
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Data")
+	float WeaponTransitionTime = 0.25f;
+
 	/** DataTable reference (для отладки) */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	TObjectPtr<UDataTable> WeaponAnimationsTable = nullptr;
@@ -491,13 +518,25 @@ public:
 	// ANIMATION ASSET GETTERS (ThreadSafe для AnimGraph)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Stance BlendSpace */
+	/** Stance BlendSpace (текущая) */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
 	UBlendSpace* GetStance() const;
 
-	/** Locomotion BlendSpace1D */
+	/** Locomotion BlendSpace1D (текущая) */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
 	UBlendSpace1D* GetLocomotion() const;
+
+	/** Previous Stance BlendSpace (для перехода) */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
+	UBlendSpace* GetPreviousStance() const { return PreviousAnimationData.Stance; }
+
+	/** Previous Locomotion BlendSpace1D (для перехода) */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
+	UBlendSpace1D* GetPreviousLocomotion() const { return PreviousAnimationData.Locomotion; }
+
+	/** Previous Idle AnimSequence (для перехода) */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
+	UAnimSequence* GetPreviousIdle() const { return PreviousAnimationData.Idle; }
 
 	/** Idle AnimSequence */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
@@ -673,6 +712,7 @@ protected:
 	void UpdateVelocityData(float DeltaSeconds);
 	void UpdateWeaponData(float DeltaSeconds);
 	void UpdateAnimationAssets();
+	void UpdateWeaponTransition(float DeltaSeconds);
 	void UpdateIKData(float DeltaSeconds);
 	void UpdateLeftHandSocket(float DeltaSeconds);
 	void UpdateADSData(float DeltaSeconds);

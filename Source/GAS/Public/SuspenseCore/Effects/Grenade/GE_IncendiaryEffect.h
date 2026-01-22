@@ -71,3 +71,54 @@ class GAS_API UGE_IncendiaryEffect_Zone : public UGameplayEffect
 public:
 	UGE_IncendiaryEffect_Zone();
 };
+
+/**
+ * UGE_IncendiaryEffect_ArmorBypass
+ *
+ * SPECIAL: Incendiary effect that BYPASSES ARMOR and damages BOTH
+ * shield/armor AND health simultaneously.
+ *
+ * DESIGN RATIONALE (Tarkov-style):
+ * Fire doesn't care about armor - it burns through and damages everything.
+ * Each tick deals damage to BOTH Armor AND Health:
+ * - Example: 5 damage to Armor + 5 damage to Health per tick
+ *
+ * CONFIGURATION:
+ * - DurationPolicy: HasDuration (SetByCaller)
+ * - Duration Tag: Data.Grenade.BurnDuration
+ * - Period: 0.5s (damage tick interval)
+ * - Armor Damage Tag: Data.Damage.Burn.Armor (SetByCaller, per tick)
+ * - Health Damage Tag: Data.Damage.Burn.Health (SetByCaller, per tick)
+ * - Granted Tag: State.Burning
+ * - Asset Tag: Effect.Grenade.Incendiary.ArmorBypass
+ *
+ * DUAL DAMAGE MODIFIERS:
+ * 1. Modifier 1: Reduces Armor directly (no resistance)
+ * 2. Modifier 2: Reduces Health directly (bypasses IncomingDamage)
+ *
+ * TYPICAL VALUES:
+ * - Duration: 5-8 seconds
+ * - Armor damage per tick: 5 HP
+ * - Health damage per tick: 5 HP
+ * - Total: 10 HP equivalent per tick (5 armor + 5 health)
+ *
+ * USAGE:
+ * Apply via GrenadeProjectile for incendiary type:
+ *   FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(
+ *       UGE_IncendiaryEffect_ArmorBypass::StaticClass(), 1, Context);
+ *   Spec.Data->SetSetByCallerMagnitude(Data.Damage.Burn.Armor, 5.0f);
+ *   Spec.Data->SetSetByCallerMagnitude(Data.Damage.Burn.Health, 5.0f);
+ *   Spec.Data->SetSetByCallerMagnitude(Data.Grenade.BurnDuration, Duration);
+ *   ASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
+ *
+ * @see ASuspenseCoreGrenadeProjectile
+ * @see UGE_IncendiaryEffect (standard version with armor)
+ */
+UCLASS()
+class GAS_API UGE_IncendiaryEffect_ArmorBypass : public UGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UGE_IncendiaryEffect_ArmorBypass();
+};

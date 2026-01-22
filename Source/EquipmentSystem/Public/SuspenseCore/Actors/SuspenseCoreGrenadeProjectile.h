@@ -31,6 +31,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Types/Throwable/SuspenseCoreThrowableTypes.h"
 #include "SuspenseCoreGrenadeProjectile.generated.h"
 
 // Forward declarations
@@ -48,55 +49,9 @@ class USuspenseCoreEventBus;
 // SSOT forward declaration
 struct FSuspenseCoreThrowableAttributeRow;
 
-/**
- * Grenade type enum matching GrenadeHandler
- */
-UENUM(BlueprintType)
-enum class ESuspenseCoreGrenadeProjectileType : uint8
-{
-    Fragmentation   UMETA(DisplayName = "Fragmentation"),  // Explosive damage
-    Smoke           UMETA(DisplayName = "Smoke"),          // Smoke screen
-    Flashbang       UMETA(DisplayName = "Flashbang"),      // Blind/deafen
-    Incendiary      UMETA(DisplayName = "Incendiary"),     // Fire damage over time
-    Impact          UMETA(DisplayName = "Impact")          // Explodes on impact
-};
-
-/**
- * Grenade explosion data for GAS damage application
- */
-USTRUCT(BlueprintType)
-struct EQUIPMENTSYSTEM_API FSuspenseCoreGrenadeExplosionData
-{
-    GENERATED_BODY()
-
-    /** Explosion location */
-    UPROPERTY(BlueprintReadWrite)
-    FVector ExplosionLocation = FVector::ZeroVector;
-
-    /** Inner radius - full damage */
-    UPROPERTY(BlueprintReadWrite)
-    float InnerRadius = 200.0f;
-
-    /** Outer radius - falloff damage */
-    UPROPERTY(BlueprintReadWrite)
-    float OuterRadius = 500.0f;
-
-    /** Base damage at inner radius */
-    UPROPERTY(BlueprintReadWrite)
-    float BaseDamage = 250.0f;
-
-    /** Damage falloff exponent (1.0 = linear, 2.0 = quadratic) */
-    UPROPERTY(BlueprintReadWrite)
-    float DamageFalloff = 1.0f;
-
-    /** Grenade type for effect selection */
-    UPROPERTY(BlueprintReadWrite)
-    ESuspenseCoreGrenadeProjectileType GrenadeType = ESuspenseCoreGrenadeProjectileType::Fragmentation;
-
-    /** Instigator who threw the grenade */
-    UPROPERTY(BlueprintReadWrite)
-    TWeakObjectPtr<AActor> Instigator;
-};
+// NOTE: ESuspenseCoreGrenadeType and FSuspenseCoreGrenadeExplosionData
+// are now defined in SuspenseCoreThrowableTypes.h (BridgeSystem module)
+// to provide unified types across the entire grenade system.
 
 /**
  * Delegate broadcast when grenade explodes
@@ -170,7 +125,7 @@ public:
 
     /** Grenade type */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|Damage")
-    ESuspenseCoreGrenadeProjectileType GrenadeType = ESuspenseCoreGrenadeProjectileType::Fragmentation;
+    ESuspenseCoreGrenadeType GrenadeType = ESuspenseCoreGrenadeType::Fragmentation;
 
     /** Base damage at epicenter */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|Damage")
@@ -318,7 +273,7 @@ public:
 
     /** Get grenade type */
     UFUNCTION(BlueprintPure, Category = "Grenade")
-    ESuspenseCoreGrenadeProjectileType GetGrenadeType() const { return GrenadeType; }
+    ESuspenseCoreGrenadeType GetGrenadeType() const { return GrenadeType; }
 
     //==================================================================
     // Manual Control

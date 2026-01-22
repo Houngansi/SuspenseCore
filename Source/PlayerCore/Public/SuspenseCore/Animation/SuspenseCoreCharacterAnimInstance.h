@@ -255,17 +255,25 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	FSuspenseCoreAnimationData CurrentAnimationData;
 
-	/**
-	 * ПРЕДЫДУЩИЕ АНИМАЦИОННЫЕ ДАННЫЕ (для плавного перехода между стойками)
-	 * Используй вместе с WeaponTransitionAlpha для бленда в AnimBP
-	 */
+	/** Предыдущие анимационные данные (для перехода) */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	FSuspenseCoreAnimationData PreviousAnimationData;
 
 	/**
-	 * Альфа перехода между стойками (0 = предыдущая, 1 = текущая)
-	 * Интерполируется от 0 к 1 при смене оружия за WeaponTransitionTime
-	 * Используй в AnimBP: Blend Poses by float (Previous → Current)
+	 * Альфа перехода между стойками (0 = Previous, 1 = Current)
+	 *
+	 * ИСПОЛЬЗОВАНИЕ В ANIMBP:
+	 * ┌─────────────────────────────────────────────────────────────────┐
+	 * │  [BlendSpace Player A] ──────┐                                   │
+	 * │    Blend Space = GetPreviousStance()                            │
+	 * │    X = MoveRight, Y = MoveForward                               │
+	 * │                              ├──► [Blend] ──► Output            │
+	 * │  [BlendSpace Player B] ──────┘     Alpha = WeaponTransitionAlpha│
+	 * │    Blend Space = GetStance()                                    │
+	 * │    X = MoveRight, Y = MoveForward                               │
+	 * └─────────────────────────────────────────────────────────────────┘
+	 *
+	 * Нода "Blend" находится: ПКМ → Animation → Blends → Blend
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	float WeaponTransitionAlpha = 1.0f;
@@ -275,12 +283,6 @@ public:
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	bool bIsWeaponTransitioning = false;
-
-	/**
-	 * Время перехода между стойками (в секундах)
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Data")
-	float WeaponTransitionTime = 0.25f;
 
 	/** DataTable reference (для отладки) */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")

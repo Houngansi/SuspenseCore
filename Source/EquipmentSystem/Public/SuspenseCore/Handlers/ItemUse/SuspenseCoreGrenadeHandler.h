@@ -296,6 +296,16 @@ private:
 		float CookTime);
 
 	/**
+	 * Get grenade class from preloader or DataManager
+	 * Uses preloader for zero-hitch path, falls back to sync load with warning
+	 *
+	 * @param GrenadeID Item ID of the grenade
+	 * @param WorldContext Context for getting preloader subsystem
+	 * @return Grenade class or nullptr if not found
+	 */
+	TSubclassOf<AActor> GetGrenadeClass(FName GrenadeID, const UObject* WorldContext) const;
+
+	/**
 	 * Spawn grenade actor using ActorFactory pool (or fallback to World->SpawnActor)
 	 * @param GrenadeClass Class to spawn
 	 * @param SpawnTransform Spawn transform

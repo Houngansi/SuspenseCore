@@ -116,6 +116,18 @@ void USuspenseCoreGrenadeThrowAbility::SetThrowType(ESuspenseCoreGrenadeThrowTyp
 
 void USuspenseCoreGrenadeThrowAbility::SetGrenadeInfo(FName InGrenadeID, int32 InSlotIndex)
 {
+    // Validate GrenadeID
+    if (InGrenadeID.IsNone())
+    {
+        GRENADE_LOG(Warning, TEXT("SetGrenadeInfo: GrenadeID is None - throw may fail"));
+    }
+
+    // Validate SlotIndex (QuickSlots are 0-3, -1 means not from slot)
+    if (InSlotIndex < -1 || InSlotIndex > 3)
+    {
+        GRENADE_LOG(Warning, TEXT("SetGrenadeInfo: SlotIndex %d is out of valid range [-1 to 3]"), InSlotIndex);
+    }
+
     CurrentGrenadeID = InGrenadeID;
     CurrentGrenadeSlotIndex = InSlotIndex;
     bGrenadeInfoSet = true;
@@ -225,6 +237,15 @@ void USuspenseCoreGrenadeThrowAbility::EndAbility(
     bool bReplicateEndAbility,
     bool bWasCancelled)
 {
+    // CRITICAL: Unsubscribe from AnimNotify BEFORE any other cleanup
+    // This prevents delegate leak if StopThrowMontage fails or is skipped
+    if (CachedAnimInstance.IsValid())
+    {
+        CachedAnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(
+            this, &USuspenseCoreGrenadeThrowAbility::OnAnimNotifyBegin);
+        CachedAnimInstance.Reset();
+    }
+
     // Clean up
     RemovePrepareEffects();
     StopThrowMontage();
@@ -675,12 +696,8 @@ bool USuspenseCoreGrenadeThrowAbility::PlayThrowMontage()
 
 void USuspenseCoreGrenadeThrowAbility::StopThrowMontage()
 {
-    // Unbind AnimNotify callback
-    if (CachedAnimInstance.IsValid())
-    {
-        CachedAnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(this, &USuspenseCoreGrenadeThrowAbility::OnAnimNotifyBegin);
-    }
-    CachedAnimInstance.Reset();
+    // NOTE: AnimNotify unsubscription moved to EndAbility() to prevent delegate leak
+    // CachedAnimInstance cleanup is handled there as well
 
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character)

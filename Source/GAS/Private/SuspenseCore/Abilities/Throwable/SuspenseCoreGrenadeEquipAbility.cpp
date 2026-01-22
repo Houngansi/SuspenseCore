@@ -83,6 +83,24 @@ float USuspenseCoreGrenadeEquipAbility::GetEquipTime() const
 
 void USuspenseCoreGrenadeEquipAbility::SetGrenadeInfo(FName InGrenadeID, FGameplayTag InGrenadeTypeTag, int32 InSlotIndex)
 {
+	// Validate GrenadeID
+	if (InGrenadeID.IsNone())
+	{
+		EQUIP_LOG(Warning, TEXT("SetGrenadeInfo: GrenadeID is None - this may cause issues"));
+	}
+
+	// Validate SlotIndex (QuickSlots are 0-3)
+	if (InSlotIndex < 0 || InSlotIndex > 3)
+	{
+		EQUIP_LOG(Warning, TEXT("SetGrenadeInfo: SlotIndex %d is out of valid range [0-3]"), InSlotIndex);
+	}
+
+	// Validate GrenadeTypeTag
+	if (!InGrenadeTypeTag.IsValid())
+	{
+		EQUIP_LOG(Log, TEXT("SetGrenadeInfo: GrenadeTypeTag is invalid - will use default"));
+	}
+
 	GrenadeID = InGrenadeID;
 	GrenadeTypeTag = InGrenadeTypeTag;
 	SourceQuickSlotIndex = InSlotIndex;
@@ -136,6 +154,17 @@ void USuspenseCoreGrenadeEquipAbility::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	// Double-activation guard (defensive programming)
+	// For InstancedPerExecution this shouldn't happen, but guard against edge cases
+	if (bGrenadeReady || bUnequipRequested)
+	{
+		EQUIP_LOG(Warning, TEXT("ActivateAbility: Already in active state (Ready=%s, Unequip=%s) - aborting"),
+			bGrenadeReady ? TEXT("true") : TEXT("false"),
+			bUnequipRequested ? TEXT("true") : TEXT("false"));
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EQUIP_LOG(Warning, TEXT("Failed to commit ability"));
@@ -484,17 +513,18 @@ void USuspenseCoreGrenadeEquipAbility::StorePreviousWeaponState()
 		FGameplayTagContainer OwnedTags;
 		ASC->GetOwnedGameplayTags(OwnedTags);
 
-		// Find current weapon type tag
-		FGameplayTag WeaponTypeParent = FGameplayTag::RequestGameplayTag(FName("Weapon.Type"), false);
-		if (WeaponTypeParent.IsValid())
+		// Find current weapon type tag using native tag for parent lookup
+		// Pattern: Iterate owned tags and find one under Weapon.Grenade.* hierarchy
+		for (const FGameplayTag& Tag : OwnedTags)
 		{
-			for (const FGameplayTag& Tag : OwnedTags)
+			// Check for weapon type tags (Weapon.Grenade.Frag, Weapon.Grenade.Smoke, etc.)
+			if (Tag.MatchesTag(SuspenseCoreTags::Weapon::Grenade::Frag) ||
+			    Tag.MatchesTag(SuspenseCoreTags::Weapon::Grenade::Smoke) ||
+			    Tag.MatchesTag(SuspenseCoreTags::Weapon::Grenade::Flash) ||
+			    Tag.MatchesTag(SuspenseCoreTags::Weapon::Grenade::Incendiary))
 			{
-				if (Tag.MatchesTag(WeaponTypeParent))
-				{
-					PreviousWeaponType = Tag;
-					break;
-				}
+				PreviousWeaponType = Tag;
+				break;
 			}
 		}
 
@@ -520,22 +550,32 @@ void USuspenseCoreGrenadeEquipAbility::RestorePreviousWeaponState()
 
 void USuspenseCoreGrenadeEquipAbility::BroadcastEquipEvent(FGameplayTag EventTag)
 {
+	// Validate AvatarActor before broadcasting
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!AvatarActor)
+	{
+		EQUIP_LOG(Warning, TEXT("BroadcastEquipEvent: No AvatarActor - event %s will have null Source"),
+			*EventTag.ToString());
+	}
+
 	if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
 	{
 		if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
 		{
 			FSuspenseCoreEventData EventData;
-			EventData.Source = GetAvatarActorFromActorInfo();
+			EventData.Source = AvatarActor;  // May be null, but that's handled by listeners
 			EventData.Timestamp = FPlatformTime::Seconds();
 			EventData.StringPayload.Add(TEXT("GrenadeID"), GrenadeID.ToString());
 			EventData.StringPayload.Add(TEXT("GrenadeType"), GrenadeTypeTag.ToString());
 			EventData.IntPayload.Add(TEXT("QuickSlotIndex"), SourceQuickSlotIndex);
 			EventData.BoolPayload.Add(TEXT("IsReady"), bGrenadeReady);
 
-			UE_LOG(LogGrenadeEquip, Warning, TEXT(">>> PUBLISHING EVENT: %s <<<"), *EventTag.ToString());
-			UE_LOG(LogGrenadeEquip, Warning, TEXT("    GrenadeID: %s"), *GrenadeID.ToString());
-			UE_LOG(LogGrenadeEquip, Warning, TEXT("    GrenadeType: %s"), *GrenadeTypeTag.ToString());
-			UE_LOG(LogGrenadeEquip, Warning, TEXT("    QuickSlotIndex: %d"), SourceQuickSlotIndex);
+			// Debug logging - use Verbose for production, detailed info during development
+			EQUIP_LOG(Verbose, TEXT("Publishing event: %s (GrenadeID=%s, Type=%s, Slot=%d)"),
+				*EventTag.ToString(),
+				*GrenadeID.ToString(),
+				*GrenadeTypeTag.ToString(),
+				SourceQuickSlotIndex);
 
 			EventBus->Publish(EventTag, EventData);
 
@@ -543,11 +583,11 @@ void USuspenseCoreGrenadeEquipAbility::BroadcastEquipEvent(FGameplayTag EventTag
 		}
 		else
 		{
-			UE_LOG(LogGrenadeEquip, Error, TEXT("BroadcastEquipEvent: No EventBus!"));
+			EQUIP_LOG(Error, TEXT("BroadcastEquipEvent: No EventBus available"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogGrenadeEquip, Error, TEXT("BroadcastEquipEvent: No EventManager!"));
+		EQUIP_LOG(Error, TEXT("BroadcastEquipEvent: No EventManager available"));
 	}
 }

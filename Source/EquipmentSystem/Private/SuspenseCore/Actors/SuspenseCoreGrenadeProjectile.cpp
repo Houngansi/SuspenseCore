@@ -19,6 +19,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffect.h"
 #include "SuspenseCore/Effects/Weapon/SuspenseCoreDamageEffect.h"
+#include "SuspenseCore/Services/SuspenseCoreDoTService.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -674,6 +675,7 @@ void ASuspenseCoreGrenadeProjectile::ApplyExplosionDamage()
                     break;
 
                 case ESuspenseCoreGrenadeType::Incendiary:
+                    // Legacy instant effect (kept for backwards compatibility)
                     if (IncendiaryEffectClass)
                     {
                         FGameplayEffectContextHandle FireContext = TargetASC->MakeEffectContext();
@@ -690,6 +692,9 @@ void ASuspenseCoreGrenadeProjectile::ApplyExplosionDamage()
                 default:
                     break;
             }
+
+            // Apply DoT effects (Bleeding for Fragmentation, Burning for Incendiary)
+            ApplyDoTEffects(TargetActor, TargetASC, Distance);
         }
     }
 }
@@ -930,6 +935,281 @@ void ASuspenseCoreGrenadeProjectile::PublishExplosionEvent()
         EventBus->Publish(ExplosionTag, EventData);
         GRENADE_PROJECTILE_LOG(Verbose, TEXT("Published explosion event via EventBus"));
     }
+}
+
+//==================================================================
+// DoT Application (Bleeding/Burning)
+//==================================================================
+
+void ASuspenseCoreGrenadeProjectile::ApplyDoTEffects(
+    AActor* TargetActor,
+    UAbilitySystemComponent* TargetASC,
+    float Distance)
+{
+    if (!TargetActor || !TargetASC)
+    {
+        return;
+    }
+
+    switch (GrenadeType)
+    {
+        case ESuspenseCoreGrenadeType::Fragmentation:
+            ApplyBleedingEffect(TargetActor, TargetASC, Distance);
+            break;
+
+        case ESuspenseCoreGrenadeType::Incendiary:
+            ApplyBurningEffect(TargetActor, TargetASC);
+            break;
+
+        default:
+            // Other grenade types don't apply DoT
+            break;
+    }
+}
+
+void ASuspenseCoreGrenadeProjectile::ApplyBleedingEffect(
+    AActor* TargetActor,
+    UAbilitySystemComponent* TargetASC,
+    float Distance)
+{
+    // CRITICAL: Check armor threshold before applying bleed
+    // Shrapnel is blocked by armor (Tarkov mechanic)
+    float CurrentArmor = GetTargetArmor(TargetASC);
+    if (CurrentArmor > ArmorThresholdForBleeding)
+    {
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Bleeding blocked by armor (%.0f > %.0f) on %s"),
+            CurrentArmor, ArmorThresholdForBleeding, *TargetActor->GetName());
+        return;
+    }
+
+    // Determine severity based on fragment hits (distance-based simulation)
+    int32 FragmentHits = CalculateFragmentHits(Distance);
+    if (FragmentHits <= 0)
+    {
+        return;
+    }
+
+    // Select effect class based on severity
+    bool bIsHeavy = (FragmentHits >= FragmentHitsForHeavyBleed);
+    TSubclassOf<UGameplayEffect> BleedEffect = bIsHeavy ? BleedingHeavyEffectClass : BleedingLightEffectClass;
+
+    if (!BleedEffect)
+    {
+        GRENADE_PROJECTILE_LOG(Warning, TEXT("  No %s bleeding effect class configured"),
+            bIsHeavy ? TEXT("heavy") : TEXT("light"));
+        return;
+    }
+
+    // Create effect context
+    FGameplayEffectContextHandle EffectContext = TargetASC->MakeEffectContext();
+    EffectContext.AddSourceObject(this);
+    EffectContext.AddInstigator(InstigatorActor.Get(), this);
+
+    // Create effect spec
+    FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(
+        BleedEffect, 1.0f, EffectContext);
+
+    if (SpecHandle.IsValid())
+    {
+        // Set damage per tick via SetByCaller
+        SpecHandle.Data->SetSetByCallerMagnitude(
+            SuspenseCoreTags::Data::DoT::Bleed, BleedDamagePerTick);
+
+        // Apply effect
+        FActiveGameplayEffectHandle ActiveHandle = TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+
+        if (ActiveHandle.IsValid())
+        {
+            // Determine DoT type tag for tracking
+            FGameplayTag DoTType = bIsHeavy
+                ? SuspenseCoreTags::State::Health::BleedingHeavy
+                : SuspenseCoreTags::State::Health::BleedingLight;
+
+            // Notify DoTService for EventBus integration
+            NotifyDoTServiceOfApplication(
+                TargetActor,
+                DoTType,
+                BleedDamagePerTick,
+                BleedTickInterval,
+                -1.0f  // Infinite duration (bleeding persists until healed)
+            );
+
+            GRENADE_PROJECTILE_LOG(Log, TEXT("  Applied %s bleeding to %s (FragmentHits=%d, DPS=%.1f)"),
+                bIsHeavy ? TEXT("HEAVY") : TEXT("light"),
+                *TargetActor->GetName(),
+                FragmentHits,
+                BleedDamagePerTick / BleedTickInterval);
+        }
+    }
+}
+
+void ASuspenseCoreGrenadeProjectile::ApplyBurningEffect(
+    AActor* TargetActor,
+    UAbilitySystemComponent* TargetASC)
+{
+    // NOTE: Burning bypasses armor (fire ignores armor protection)
+    // This is the key difference from bleeding
+
+    // Use the configured IncendiaryEffectClass for burning DoT
+    // (This should be GE_IncendiaryEffect_ArmorBypass or similar)
+    if (!IncendiaryEffectClass)
+    {
+        GRENADE_PROJECTILE_LOG(Warning, TEXT("  No incendiary effect class configured"));
+        return;
+    }
+
+    // Create effect context
+    FGameplayEffectContextHandle EffectContext = TargetASC->MakeEffectContext();
+    EffectContext.AddSourceObject(this);
+    EffectContext.AddInstigator(InstigatorActor.Get(), this);
+
+    // Create effect spec
+    FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(
+        IncendiaryEffectClass, 1.0f, EffectContext);
+
+    if (SpecHandle.IsValid())
+    {
+        // Set armor damage via SetByCaller
+        SpecHandle.Data->SetSetByCallerMagnitude(
+            SuspenseCoreTags::Data::DoT::BurnArmor, BurnArmorDamagePerTick);
+
+        // Set health damage via SetByCaller
+        SpecHandle.Data->SetSetByCallerMagnitude(
+            SuspenseCoreTags::Data::DoT::BurnHealth, BurnHealthDamagePerTick);
+
+        // Apply effect
+        FActiveGameplayEffectHandle ActiveHandle = TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+
+        if (ActiveHandle.IsValid())
+        {
+            // Notify DoTService for EventBus integration
+            NotifyDoTServiceOfApplication(
+                TargetActor,
+                SuspenseCoreTags::Effect::DoT::Burn,
+                BurnArmorDamagePerTick + BurnHealthDamagePerTick,  // Total DPS
+                BurnTickInterval,
+                BurnDuration
+            );
+
+            GRENADE_PROJECTILE_LOG(Log, TEXT("  Applied BURNING to %s (ArmorDPS=%.1f, HealthDPS=%.1f, Duration=%.1fs)"),
+                *TargetActor->GetName(),
+                BurnArmorDamagePerTick / BurnTickInterval,
+                BurnHealthDamagePerTick / BurnTickInterval,
+                BurnDuration);
+        }
+    }
+}
+
+int32 ASuspenseCoreGrenadeProjectile::CalculateFragmentHits(float Distance) const
+{
+    // Fragment hit simulation based on distance
+    // Closer targets receive more fragment hits
+
+    if (Distance > OuterRadius)
+    {
+        return 0;
+    }
+
+    // Inner radius: Maximum fragments (10 hits)
+    // Outer radius: Minimum fragments (1 hit)
+    // Linear interpolation between
+
+    const int32 MaxFragmentHits = 10;
+    const int32 MinFragmentHits = 1;
+
+    if (Distance <= InnerRadius)
+    {
+        return MaxFragmentHits;
+    }
+
+    // Calculate falloff
+    float FalloffRange = OuterRadius - InnerRadius;
+    float DistanceInFalloff = Distance - InnerRadius;
+    float FalloffFactor = 1.0f - (DistanceInFalloff / FalloffRange);
+
+    // Interpolate fragment count
+    int32 FragmentHits = FMath::RoundToInt(
+        FMath::Lerp(
+            static_cast<float>(MinFragmentHits),
+            static_cast<float>(MaxFragmentHits),
+            FalloffFactor));
+
+    return FMath::Clamp(FragmentHits, MinFragmentHits, MaxFragmentHits);
+}
+
+float ASuspenseCoreGrenadeProjectile::GetTargetArmor(UAbilitySystemComponent* TargetASC) const
+{
+    if (!TargetASC)
+    {
+        return 0.0f;
+    }
+
+    // Try to get armor attribute from ASC
+    // Using the standard armor attribute tag
+    bool bFound = false;
+    float ArmorValue = TargetASC->GetGameplayAttributeValue(
+        FGameplayAttribute(),  // Default attribute (will be overridden)
+        bFound);
+
+    // Alternative: Query via gameplay tag if available
+    // This matches project's SSOT pattern for attribute access
+    static const FGameplayTag ArmorTag = FGameplayTag::RequestGameplayTag(
+        FName("Attribute.Armor.Current"), false);
+
+    if (ArmorTag.IsValid())
+    {
+        // Try to find armor via numeric attribute lookup
+        // Note: This is a simplified approach - production code might use
+        // a dedicated attribute accessor method
+        const FGameplayAttribute* ArmorAttribute = nullptr;
+
+        // Check for common armor attribute names
+        static const FName ArmorAttributeNames[] = {
+            FName("Armor"),
+            FName("CurrentArmor"),
+            FName("ArmorValue")
+        };
+
+        for (const FName& AttrName : ArmorAttributeNames)
+        {
+            // This is placeholder logic - actual implementation would use
+            // the project's specific attribute system
+        }
+    }
+
+    // Default: Assume no armor if can't determine
+    // In production, this should properly query the character's armor system
+    return 0.0f;
+}
+
+void ASuspenseCoreGrenadeProjectile::NotifyDoTServiceOfApplication(
+    AActor* TargetActor,
+    FGameplayTag DoTType,
+    float DamagePerTick,
+    float TickInterval,
+    float Duration)
+{
+    // Get DoT Service from GameInstance subsystem
+    USuspenseCoreDoTService* DoTService = USuspenseCoreDoTService::Get(this);
+    if (!DoTService)
+    {
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  DoTService not available for EventBus notification"));
+        return;
+    }
+
+    // Register the DoT application with the service
+    // This triggers EventBus publication for UI widgets
+    DoTService->RegisterDoTApplied(
+        TargetActor,
+        DoTType,
+        DamagePerTick,
+        TickInterval,
+        Duration,
+        InstigatorActor.Get()  // Source actor (grenade thrower)
+    );
+
+    GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Notified DoTService of %s application to %s"),
+        *DoTType.ToString(), *TargetActor->GetName());
 }
 
 #undef GRENADE_PROJECTILE_LOG

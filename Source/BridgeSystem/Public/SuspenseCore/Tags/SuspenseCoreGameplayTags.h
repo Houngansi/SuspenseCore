@@ -259,6 +259,18 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Unequipped);      // Grenade unequipped (holstered)
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ready);           // Grenade ready to throw (equip done)
 		}
+
+		//--------------------------------------------------------------
+		// DoT (Damage-over-Time) Events
+		// Used by DoTService for EventBus communication
+		//--------------------------------------------------------------
+		namespace DoT
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Applied);    // DoT effect applied to target
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tick);       // DoT damage tick occurred
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Expired);    // DoT effect expired naturally
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Removed);    // DoT effect removed (healed)
+		}
 	}
 
 	//==================================================================
@@ -291,6 +303,16 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burning);        // On fire from incendiary
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InFireZone);     // Standing in fire zone
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damaged);        // Recently took damage
+
+		//--------------------------------------------------------------
+		// DoT (Damage-over-Time) States - Bleeding, Burning, etc.
+		//--------------------------------------------------------------
+		namespace Health
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedingLight);   // State.Health.Bleeding.Light
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedingHeavy);   // State.Health.Bleeding.Heavy
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Regenerating);    // State.Health.Regenerating (HoT active)
+		}
 	}
 
 	//==================================================================
@@ -474,6 +496,16 @@ namespace SuspenseCoreTags
 
 		// Burn damage data tag (Data.Damage.Burn)
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBurn);
+
+		//--------------------------------------------------------------
+		// DoT Data Tags (SetByCaller magnitudes)
+		//--------------------------------------------------------------
+		namespace DoT
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Bleed);           // Data.Damage.Bleed (HP/tick for bleeding)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurnArmor);       // Data.Damage.Burn.Armor (armor bypass)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurnHealth);      // Data.Damage.Burn.Health (health bypass)
+		}
 	}
 
 	//==================================================================
@@ -502,6 +534,18 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbangPartial);  // Effect.Grenade.Flashbang.Partial
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeIncendiary);        // Effect.Grenade.Incendiary
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeIncendiaryZone);    // Effect.Grenade.Incendiary.Zone
+
+		//--------------------------------------------------------------
+		// DoT Effect Tags (Effect.DoT.*)
+		//--------------------------------------------------------------
+		namespace DoT
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Root);                  // Effect.DoT (parent tag)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedLight);            // Effect.DoT.Bleed.Light
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedHeavy);            // Effect.DoT.Bleed.Heavy
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);                  // Effect.DoT.Burn
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurnArmorBypass);       // Effect.DoT.Burn.ArmorBypass
+		}
 	}
 
 	//==================================================================
@@ -513,6 +557,17 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbang);         // GameplayCue.Grenade.Flashbang
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbangPartial);  // GameplayCue.Grenade.Flashbang.Partial
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeBurn);              // GameplayCue.Grenade.Burn
+
+		//--------------------------------------------------------------
+		// DoT GameplayCues (GameplayCue.DoT.*)
+		// Used for visual/audio feedback during DoT effects
+		//--------------------------------------------------------------
+		namespace DoT
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedLight);   // GameplayCue.DoT.Bleed.Light (blood splatter)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedHeavy);   // GameplayCue.DoT.Bleed.Heavy (blood trail)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);         // GameplayCue.DoT.Burn (character on fire)
+		}
 	}
 
 	//==================================================================

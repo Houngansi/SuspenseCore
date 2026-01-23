@@ -137,44 +137,34 @@ void UW_DebuffIcon::SetDebuffDataFromSSOT(FName EffectID, float InDuration, int3
 		return;
 	}
 
-	// Query SSOT data from DataManager
+	// Query SSOT visual data from DataManager (v2.0 API)
 	USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
-	if (!DataManager || !DataManager->IsStatusEffectSystemReady())
+	if (!DataManager || !DataManager->IsStatusEffectVisualsReady())
 	{
-		UE_LOG(LogDebuffIcon, Warning, TEXT("SetDebuffDataFromSSOT: DataManager not available or StatusEffect system not ready"));
+		UE_LOG(LogDebuffIcon, Warning, TEXT("SetDebuffDataFromSSOT: DataManager not available or StatusEffect visuals not ready"));
 		return;
 	}
 
-	FSuspenseCoreStatusEffectAttributeRow EffectData;
-	if (!DataManager->GetStatusEffectAttributes(EffectID, EffectData))
+	FSuspenseCoreStatusEffectVisualRow VisualData;
+	if (!DataManager->GetStatusEffectVisuals(EffectID, VisualData))
 	{
-		UE_LOG(LogDebuffIcon, Warning, TEXT("SetDebuffDataFromSSOT: Effect '%s' not found in SSOT"), *EffectID.ToString());
+		UE_LOG(LogDebuffIcon, Warning, TEXT("SetDebuffDataFromSSOT: Effect '%s' not found in SSOT visuals"), *EffectID.ToString());
 		return;
 	}
 
-	// Cache SSOT data
+	// Cache SSOT visual data
 	CachedEffectID = EffectID;
-	SSOTIconPath = EffectData.Icon;
-	SSOTNormalTint = EffectData.IconTint;
-	SSOTCriticalTint = EffectData.CriticalIconTint;
+	SSOTIconPath = VisualData.Icon;
+	SSOTNormalTint = VisualData.IconTint;
+	SSOTCriticalTint = VisualData.CriticalIconTint;
 
-	// Use SSOT tag and duration
-	DoTType = EffectData.EffectTypeTag;
+	// Use SSOT tag
+	DoTType = VisualData.EffectTypeTag;
 
-	// Determine duration: use override if provided, otherwise use SSOT default
-	if (InDuration != 0.0f)
-	{
-		TotalDuration = InDuration;
-	}
-	else if (EffectData.bIsInfinite)
-	{
-		TotalDuration = -1.0f;
-	}
-	else
-	{
-		TotalDuration = EffectData.DefaultDuration;
-	}
-
+	// v2.0: Duration is managed by GameplayEffect, not SSOT
+	// InDuration comes from GAS (via SetByCaller or GE config)
+	// -1 = infinite, 0 = instant, >0 = timed
+	TotalDuration = InDuration;
 	RemainingDuration = TotalDuration;
 	StackCount = InStackCount;
 	bIsActive = true;
@@ -478,31 +468,31 @@ bool UW_DebuffIcon::LoadIconFromSSOT()
 		return true;
 	}
 
-	// Query SSOT by tag if no cached data
+	// Query SSOT by tag if no cached data (v2.0 API)
 	USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
-	if (!DataManager || !DataManager->IsStatusEffectSystemReady())
+	if (!DataManager || !DataManager->IsStatusEffectVisualsReady())
 	{
 		return false;
 	}
 
-	FSuspenseCoreStatusEffectAttributeRow EffectData;
-	if (!DataManager->GetStatusEffectByTag(DoTType, EffectData))
+	FSuspenseCoreStatusEffectVisualRow VisualData;
+	if (!DataManager->GetStatusEffectVisualsByTag(DoTType, VisualData))
 	{
-		UE_LOG(LogDebuffIcon, Verbose, TEXT("LoadIconFromSSOT: No SSOT data for tag %s"), *DoTType.ToString());
+		UE_LOG(LogDebuffIcon, Verbose, TEXT("LoadIconFromSSOT: No SSOT visuals for tag %s"), *DoTType.ToString());
 		return false;
 	}
 
 	// Cache SSOT visual data
-	CachedEffectID = EffectData.EffectID;
-	SSOTIconPath = EffectData.Icon;
-	SSOTNormalTint = EffectData.IconTint;
-	SSOTCriticalTint = EffectData.CriticalIconTint;
+	CachedEffectID = VisualData.EffectID;
+	SSOTIconPath = VisualData.Icon;
+	SSOTNormalTint = VisualData.IconTint;
+	SSOTCriticalTint = VisualData.CriticalIconTint;
 
 	// Update tint colors from SSOT
 	NormalTintColor = SSOTNormalTint;
 	CriticalTintColor = SSOTCriticalTint;
 
-	UE_LOG(LogDebuffIcon, Log, TEXT("LoadIconFromSSOT: Loaded SSOT data for %s (EffectID: %s)"),
+	UE_LOG(LogDebuffIcon, Log, TEXT("LoadIconFromSSOT: Loaded SSOT visuals for %s (EffectID: %s)"),
 		*DoTType.ToString(), *CachedEffectID.ToString());
 
 	if (SSOTIconPath.IsNull())

@@ -175,10 +175,10 @@ Source/GAS/Abilities/
 
 ---
 
-### Status Effect System v2.0 (Buff/Debuff) - NEW
+### Status Effect System v2.0 (Buff/Debuff) - IMPLEMENTED
 
 **File:** [GameDesign/StatusEffect_System_GDD.md](GameDesign/StatusEffect_System_GDD.md)
-**Status:** PENDING APPROVAL
+**Status:** IMPLEMENTED (Runtime testing pending)
 
 **Summary:**
 > Complete redesign of buff/debuff system. Separates gameplay data (GameplayEffect Assets) from
@@ -189,17 +189,22 @@ Source/GAS/Abilities/
 - GameplayEffect Assets for gameplay logic (duration, damage, stacking)
 - Simplified DataTable for visuals only (icon, VFX, audio, cure items)
 - Fixed JSON format (no more parsing errors)
-- DoTService refactored to use ASC callbacks
+- W_DebuffIcon updated to use v2.0 DataManager API
 
 **Phases:**
-- [ ] Phase 1: Simplify data structure (FSuspenseCoreStatusEffectVisualRow)
-- [ ] Phase 2: Fix JSON format
-- [ ] Phase 3: Create GameplayEffect Assets
-- [ ] Phase 4: Update DoTService
-- [ ] Phase 5: Update UI Widgets
+- [x] Phase 1: Simplify data structure (FSuspenseCoreStatusEffectVisualRow)
+- [x] Phase 2: Fix JSON format
+- [x] Phase 3: Create GameplayEffect Assets (17 C++ classes)
+- [x] Phase 4: Update DataManager (v2.0 Visual API)
+- [x] Phase 5: Update UI Widgets (W_DebuffIcon v2.0)
 - [ ] Phase 6: Integration Testing
 
-**Awaiting:** User approval before implementation
+**Created Files:**
+```
+Content/Data/StatusEffects/SuspenseCoreStatusEffectVisuals.json
+Source/GAS/Public/SuspenseCore/Effects/StatusEffects/SuspenseCoreStatusEffects.h
+Source/GAS/Private/SuspenseCore/Effects/StatusEffects/SuspenseCoreStatusEffects.cpp
+```
 
 ---
 

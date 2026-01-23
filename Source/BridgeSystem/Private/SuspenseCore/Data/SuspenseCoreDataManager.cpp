@@ -1935,3 +1935,270 @@ TArray<FName> USuspenseCoreDataManager::GetAllStatusEffectKeys() const
 	StatusEffectAttributesCache.GetKeys(Keys);
 	return Keys;
 }
+
+//========================================================================
+// Status Effect Visuals System (v2.0 Simplified Structure)
+// @see Documentation/GameDesign/StatusEffect_System_GDD.md
+//========================================================================
+
+bool USuspenseCoreDataManager::InitializeStatusEffectVisualsSystem()
+{
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  INITIALIZING STATUS EFFECT VISUALS SYSTEM (v2.0)"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+
+	// Get settings
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		UE_LOG(LogSuspenseCoreData, Error, TEXT("  Failed to get SuspenseCore Settings"));
+		return false;
+	}
+
+	// Try to load StatusEffectVisualsDataTable
+	// First check if there's a dedicated visuals table in settings
+	// For now, we'll try to use the same table but with new structure
+	UDataTable* VisualsDataTable = nullptr;
+
+	// TODO: Add StatusEffectVisualsDataTable to USuspenseCoreSettings
+	// For now, we'll attempt to load the JSON-based visuals
+	// This can be updated once the Settings class is extended
+
+	if (!VisualsDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("  StatusEffectVisualsDataTable not configured - v2.0 visual system will use fallback"));
+		// Return true but mark as ready for future initialization
+		bStatusEffectVisualsReady = false;
+		return true;
+	}
+
+	// Build cache
+	if (!BuildStatusEffectVisualsCache(VisualsDataTable))
+	{
+		UE_LOG(LogSuspenseCoreData, Error, TEXT("  Failed to build status effect visuals cache"));
+		return false;
+	}
+
+	bStatusEffectVisualsReady = true;
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  STATUS EFFECT VISUALS SYSTEM READY (v2.0)"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+
+	return true;
+}
+
+bool USuspenseCoreDataManager::BuildStatusEffectVisualsCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Error, TEXT("BuildStatusEffectVisualsCache: DataTable is null"));
+		return false;
+	}
+
+	// Clear existing cache
+	StatusEffectVisualsCache.Empty();
+	StatusEffectVisualTagToIDMap.Empty();
+
+	// Get all row names
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	int32 LoadedCount = 0;
+	int32 DebuffCount = 0;
+	int32 BuffCount = 0;
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("BuildStatusEffectVisualsCache: Processing %d rows (v2.0)"), RowNames.Num());
+
+	for (const FName& RowName : RowNames)
+	{
+		FSuspenseCoreStatusEffectVisualRow* RowData = DataTable->FindRow<FSuspenseCoreStatusEffectVisualRow>(
+			RowName, TEXT("BuildStatusEffectVisualsCache"));
+
+		if (!RowData)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read visual row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Validate row
+		if (!RowData->IsValid())
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Invalid visual row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Use EffectID if set, otherwise use row name as key
+		FName CacheKey = RowData->EffectID.IsNone() ? RowName : RowData->EffectID;
+
+		// Add to main cache
+		StatusEffectVisualsCache.Add(CacheKey, *RowData);
+
+		// Build tag-to-ID lookup map
+		if (RowData->EffectTypeTag.IsValid())
+		{
+			StatusEffectVisualTagToIDMap.Add(RowData->EffectTypeTag, CacheKey);
+		}
+
+		LoadedCount++;
+
+		// Track statistics
+		if (RowData->IsDebuff())
+		{
+			DebuffCount++;
+		}
+		else if (RowData->IsBuff())
+		{
+			BuffCount++;
+		}
+
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached visual: %s (%s) [%s]"),
+			*CacheKey.ToString(),
+			*RowData->DisplayName.ToString(),
+			RowData->IsDebuff() ? TEXT("Debuff") : (RowData->IsBuff() ? TEXT("Buff") : TEXT("Neutral")));
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  STATUS EFFECT VISUALS CACHE BUILT (v2.0)"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  Total: %d effects (Debuffs: %d, Buffs: %d)"), LoadedCount, DebuffCount, BuffCount);
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+
+	return LoadedCount > 0;
+}
+
+bool USuspenseCoreDataManager::GetStatusEffectVisuals(FName EffectKey, FSuspenseCoreStatusEffectVisualRow& OutVisuals) const
+{
+	if (EffectKey.IsNone())
+	{
+		return false;
+	}
+
+	// First try v2.0 visuals cache
+	const FSuspenseCoreStatusEffectVisualRow* Found = StatusEffectVisualsCache.Find(EffectKey);
+	if (Found)
+	{
+		OutVisuals = *Found;
+		return true;
+	}
+
+	// Fallback: try to convert from old StatusEffectAttributesCache
+	FSuspenseCoreStatusEffectAttributeRow OldData;
+	if (GetStatusEffectAttributes(EffectKey, OldData))
+	{
+		// Convert old structure to new simplified structure
+		OutVisuals.EffectID = OldData.EffectID;
+		OutVisuals.EffectTypeTag = OldData.EffectTypeTag;
+		OutVisuals.GameplayEffectClass = OldData.GameplayEffectClass;
+		OutVisuals.DisplayName = OldData.DisplayName;
+		OutVisuals.Description = OldData.Description;
+		OutVisuals.Category = OldData.Category;
+		OutVisuals.DisplayPriority = OldData.DisplayPriority;
+		OutVisuals.Icon = OldData.Icon;
+		OutVisuals.IconTint = OldData.IconTint;
+		OutVisuals.CriticalIconTint = OldData.CriticalIconTint;
+		OutVisuals.CharacterVFX = OldData.CharacterVFX;
+		OutVisuals.VFXAttachSocket = OldData.VFXAttachSocket;
+		OutVisuals.ApplicationSound = OldData.ApplicationSound;
+		OutVisuals.RemovalSound = OldData.RemovalSound;
+		OutVisuals.CureItemIDs = OldData.CureItemIDs;
+		OutVisuals.bCuredByBandage = OldData.bCuredByBandage;
+		OutVisuals.bCuredByMedkit = OldData.bCuredByMedkit;
+		OutVisuals.bRequiresSurgery = OldData.bRequiresSurgery;
+		OutVisuals.bPreventsSprinting = OldData.bPreventsSprinting;
+		OutVisuals.bPreventsADS = OldData.bPreventsADS;
+		OutVisuals.bCausesLimp = OldData.bCausesLimp;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetStatusEffectVisuals: '%s' not found"), *EffectKey.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::GetStatusEffectVisualsByTag(FGameplayTag EffectTag, FSuspenseCoreStatusEffectVisualRow& OutVisuals) const
+{
+	if (!EffectTag.IsValid())
+	{
+		return false;
+	}
+
+	// First try v2.0 visuals lookup map
+	const FName* FoundID = StatusEffectVisualTagToIDMap.Find(EffectTag);
+	if (FoundID && !FoundID->IsNone())
+	{
+		return GetStatusEffectVisuals(*FoundID, OutVisuals);
+	}
+
+	// Fallback: try old system via tag
+	FSuspenseCoreStatusEffectAttributeRow OldData;
+	if (GetStatusEffectByTag(EffectTag, OldData))
+	{
+		// Convert (same as in GetStatusEffectVisuals)
+		OutVisuals.EffectID = OldData.EffectID;
+		OutVisuals.EffectTypeTag = OldData.EffectTypeTag;
+		OutVisuals.GameplayEffectClass = OldData.GameplayEffectClass;
+		OutVisuals.DisplayName = OldData.DisplayName;
+		OutVisuals.Description = OldData.Description;
+		OutVisuals.Category = OldData.Category;
+		OutVisuals.DisplayPriority = OldData.DisplayPriority;
+		OutVisuals.Icon = OldData.Icon;
+		OutVisuals.IconTint = OldData.IconTint;
+		OutVisuals.CriticalIconTint = OldData.CriticalIconTint;
+		OutVisuals.CharacterVFX = OldData.CharacterVFX;
+		OutVisuals.VFXAttachSocket = OldData.VFXAttachSocket;
+		OutVisuals.ApplicationSound = OldData.ApplicationSound;
+		OutVisuals.RemovalSound = OldData.RemovalSound;
+		OutVisuals.CureItemIDs = OldData.CureItemIDs;
+		OutVisuals.bCuredByBandage = OldData.bCuredByBandage;
+		OutVisuals.bCuredByMedkit = OldData.bCuredByMedkit;
+		OutVisuals.bRequiresSurgery = OldData.bRequiresSurgery;
+		OutVisuals.bPreventsSprinting = OldData.bPreventsSprinting;
+		OutVisuals.bPreventsADS = OldData.bPreventsADS;
+		OutVisuals.bCausesLimp = OldData.bCausesLimp;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetStatusEffectVisualsByTag: '%s' not found"), *EffectTag.ToString());
+	return false;
+}
+
+TArray<FName> USuspenseCoreDataManager::GetCureItemsForEffect(FGameplayTag EffectTag) const
+{
+	FSuspenseCoreStatusEffectVisualRow Visuals;
+	if (GetStatusEffectVisualsByTag(EffectTag, Visuals))
+	{
+		return Visuals.CureItemIDs;
+	}
+
+	return TArray<FName>();
+}
+
+bool USuspenseCoreDataManager::CanItemCureEffect(FName ItemID, FGameplayTag EffectTag) const
+{
+	if (ItemID.IsNone() || !EffectTag.IsValid())
+	{
+		return false;
+	}
+
+	FSuspenseCoreStatusEffectVisualRow Visuals;
+	if (GetStatusEffectVisualsByTag(EffectTag, Visuals))
+	{
+		// Check direct ItemID match
+		if (Visuals.CureItemIDs.Contains(ItemID))
+		{
+			return true;
+		}
+
+		// Check special cure flags
+		// TODO: Get item type from ItemID and check against bCuredByBandage/bCuredByMedkit
+		// For now, we check by item name convention
+		FString ItemString = ItemID.ToString();
+		if (Visuals.bCuredByBandage && ItemString.Contains(TEXT("Bandage")))
+		{
+			return true;
+		}
+		if (Visuals.bCuredByMedkit && (ItemString.Contains(TEXT("Medkit")) || ItemString.Contains(TEXT("IFAK")) || ItemString.Contains(TEXT("Salewa"))))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}

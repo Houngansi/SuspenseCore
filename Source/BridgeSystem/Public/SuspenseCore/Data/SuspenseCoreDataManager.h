@@ -405,6 +405,83 @@ public:
 	bool IsAttachmentAttributesSystemReady() const { return bAttachmentAttributesSystemReady; }
 
 	//========================================================================
+	// Status Effect Attributes Access (SSOT for Buffs/Debuffs)
+	// @see Documentation/Plans/StatusEffect_SSOT_System.md
+	//========================================================================
+
+	/**
+	 * Get status effect attributes by EffectID or RowName
+	 * Uses StatusEffectAttributesDataTable configured in Settings
+	 *
+	 * @param EffectKey EffectID or explicit row name
+	 * @param OutAttributes Output status effect attributes structure
+	 * @return true if attributes found
+	 *
+	 * @see FSuspenseCoreStatusEffectAttributeRow
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|StatusEffect")
+	bool GetStatusEffectAttributes(FName EffectKey, FSuspenseCoreStatusEffectAttributeRow& OutAttributes) const;
+
+	/**
+	 * Get status effect attributes by GameplayTag
+	 * Searches by EffectTypeTag field
+	 *
+	 * @param EffectTag Effect type tag (e.g., State.Health.Bleeding.Light)
+	 * @param OutAttributes Output status effect attributes structure
+	 * @return true if attributes found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|StatusEffect")
+	bool GetStatusEffectByTag(FGameplayTag EffectTag, FSuspenseCoreStatusEffectAttributeRow& OutAttributes) const;
+
+	/**
+	 * Get all status effects of a specific category
+	 * @param Category Buff, Debuff, or Neutral
+	 * @return Array of effect IDs matching the category
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|StatusEffect")
+	TArray<FName> GetStatusEffectsByCategory(ESuspenseCoreStatusEffectCategory Category) const;
+
+	/**
+	 * Get all debuff effect IDs
+	 * @return Array of all debuff effect IDs
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|StatusEffect")
+	TArray<FName> GetAllDebuffIDs() const;
+
+	/**
+	 * Get all buff effect IDs
+	 * @return Array of all buff effect IDs
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|StatusEffect")
+	TArray<FName> GetAllBuffIDs() const;
+
+	/**
+	 * Check if status effect exists for given key
+	 * @param EffectKey EffectID or row name
+	 * @return true if effect exists in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|StatusEffect")
+	bool HasStatusEffect(FName EffectKey) const;
+
+	/**
+	 * Get all cached status effect keys
+	 * @return Array of all status effect keys
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|StatusEffect")
+	TArray<FName> GetAllStatusEffectKeys() const;
+
+	/**
+	 * Get count of cached status effects
+	 * @return Number of status effect rows in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|StatusEffect")
+	int32 GetCachedStatusEffectCount() const { return StatusEffectAttributesCache.Num(); }
+
+	/** Check if status effect system is initialized */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|StatusEffect")
+	bool IsStatusEffectSystemReady() const { return bStatusEffectSystemReady; }
+
+	//========================================================================
 	// Magazine System Access (Tarkov-Style)
 	//========================================================================
 
@@ -572,6 +649,25 @@ protected:
 	bool BuildAttachmentAttributesCache(UDataTable* DataTable);
 
 	//========================================================================
+	// Status Effect Attributes Initialization (SSOT for Buffs/Debuffs)
+	//========================================================================
+
+	/**
+	 * Initialize status effect attributes system
+	 * Loads StatusEffectAttributesDataTable from Settings and caches all rows
+	 * Also builds EffectTag → EffectID lookup map
+	 * @return true if initialization successful
+	 */
+	bool InitializeStatusEffectAttributesSystem();
+
+	/**
+	 * Build status effect attributes cache from DataTable
+	 * @param DataTable Status effect attributes DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildStatusEffectAttributesCache(UDataTable* DataTable);
+
+	//========================================================================
 	// Magazine System Initialization (Tarkov-Style)
 	//========================================================================
 
@@ -708,6 +804,31 @@ private:
 	TObjectPtr<UDataTable> LoadedAttachmentAttributesDataTable;
 
 	//========================================================================
+	// Status Effect Attributes Cached Data (SSOT for Buffs/Debuffs)
+	//========================================================================
+
+	/**
+	 * Status effect attributes cache from StatusEffectAttributesDataTable
+	 * Key: EffectID
+	 * SINGLE SOURCE OF TRUTH for all buffs and debuffs
+	 * @see FSuspenseCoreStatusEffectAttributeRow
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreStatusEffectAttributeRow> StatusEffectAttributesCache;
+
+	/**
+	 * Effect type tag to EffectID lookup map
+	 * Enables fast lookup by GameplayTag
+	 * Key: EffectTypeTag, Value: EffectID
+	 */
+	UPROPERTY()
+	TMap<FGameplayTag, FName> StatusEffectTagToIDMap;
+
+	/** Loaded status effect attributes DataTable reference */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedStatusEffectAttributesDataTable;
+
+	//========================================================================
 	// Magazine System Cached Data (Tarkov-Style)
 	//========================================================================
 
@@ -750,6 +871,9 @@ private:
 
 	/** Attachment attributes system ready flag */
 	bool bAttachmentAttributesSystemReady = false;
+
+	/** Status effect attributes system ready flag */
+	bool bStatusEffectSystemReady = false;
 
 	/** Magazine system ready flag */
 	bool bMagazineSystemReady = false;

@@ -29,6 +29,7 @@ class UTextBlock;
 class UProgressBar;
 class UWidgetAnimation;
 class UTexture2D;
+struct FSuspenseCoreStatusEffectAttributeRow;
 
 /**
  * Individual debuff icon widget
@@ -125,6 +126,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff|Config")
 	FText InfiniteSymbol = NSLOCTEXT("Debuff", "Infinite", "∞");
 
+	/**
+	 * Use SSOT DataTable for visual data instead of hardcoded DebuffIcons map
+	 * When enabled, icons and colors are loaded from StatusEffectAttributesDataTable
+	 * @see FSuspenseCoreStatusEffectAttributeRow
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff|Config")
+	bool bUseSSOTData = true;
+
 	// ═══════════════════════════════════════════════════════════════════
 	// PUBLIC API
 	// ═══════════════════════════════════════════════════════════════════
@@ -137,6 +146,16 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Debuff")
 	void SetDebuffData(FGameplayTag InDoTType, float InDuration, int32 InStackCount = 1);
+
+	/**
+	 * Initialize debuff display using SSOT data
+	 * Automatically queries DataManager for effect data by EffectID
+	 * @param EffectID Effect ID (e.g., "BleedingLight")
+	 * @param InDuration Duration override (-1 for infinite, 0 for SSOT default)
+	 * @param InStackCount Number of stacks
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Debuff")
+	void SetDebuffDataFromSSOT(FName EffectID, float InDuration = 0.0f, int32 InStackCount = 1);
 
 	/**
 	 * Update timer display
@@ -235,8 +254,16 @@ protected:
 
 	/**
 	 * Load icon texture for current debuff type
+	 * Uses SSOT data if bUseSSOTData is true, otherwise uses DebuffIcons map
 	 */
 	void LoadIconForType();
+
+	/**
+	 * Load icon and visual data from SSOT DataTable
+	 * Called when bUseSSOTData is enabled
+	 * @return true if SSOT data was found and applied
+	 */
+	bool LoadIconFromSSOT();
 
 	/**
 	 * Called when icon texture finishes async loading
@@ -283,4 +310,16 @@ private:
 
 	/** Async load handle for icon texture */
 	TSharedPtr<FStreamableHandle> IconLoadHandle;
+
+	/** Cached effect ID from SSOT (if using SSOT data) */
+	FName CachedEffectID;
+
+	/** Cached SSOT icon path (for async loading) */
+	TSoftObjectPtr<UTexture2D> SSOTIconPath;
+
+	/** Cached SSOT normal tint color */
+	FLinearColor SSOTNormalTint = FLinearColor::White;
+
+	/** Cached SSOT critical tint color */
+	FLinearColor SSOTCriticalTint = FLinearColor(1.0f, 0.3f, 0.3f, 1.0f);
 };

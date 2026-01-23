@@ -1147,3 +1147,417 @@ struct BRIDGESYSTEM_API FSuspenseCoreAttachmentAttributeRow : public FTableRowBa
 		return SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Equipment.Slot.Muzzle")));
 	}
 };
+
+
+/**
+ * ESuspenseCoreStatusEffectCategory
+ *
+ * Classification for status effects (buffs vs debuffs)
+ */
+UENUM(BlueprintType)
+enum class ESuspenseCoreStatusEffectCategory : uint8
+{
+	/** Negative effect (damage, slow, etc.) */
+	Debuff UMETA(DisplayName = "Debuff"),
+
+	/** Positive effect (heal, speed boost, etc.) */
+	Buff UMETA(DisplayName = "Buff"),
+
+	/** Neutral effect (marker, reveal, etc.) */
+	Neutral UMETA(DisplayName = "Neutral")
+};
+
+
+/**
+ * ESuspenseCoreStackBehavior
+ *
+ * How stacks of the same effect are handled
+ */
+UENUM(BlueprintType)
+enum class ESuspenseCoreStackBehavior : uint8
+{
+	/** Each stack adds to total effect (e.g., bleeding stacks = more damage) */
+	Additive UMETA(DisplayName = "Additive"),
+
+	/** Only the strongest stack applies */
+	StrongestWins UMETA(DisplayName = "Strongest Wins"),
+
+	/** Duration refreshes on new application */
+	RefreshDuration UMETA(DisplayName = "Refresh Duration"),
+
+	/** Duration extends on new application */
+	ExtendDuration UMETA(DisplayName = "Extend Duration"),
+
+	/** Cannot stack - new application is ignored */
+	NoStack UMETA(DisplayName = "No Stack")
+};
+
+
+/**
+ * FSuspenseCoreStatusEffectModifier
+ *
+ * Single attribute modifier applied by a status effect
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreStatusEffectModifier
+{
+	GENERATED_BODY()
+
+	/** Attribute tag to modify (e.g., Attribute.Health, Attribute.MoveSpeed) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifier",
+		meta = (Categories = "Attribute"))
+	FGameplayTag AttributeTag;
+
+	/** Flat value to add/subtract */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifier")
+	float FlatModifier = 0.0f;
+
+	/** Percentage multiplier (0.8 = -20%, 1.2 = +20%) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifier",
+		meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float PercentModifier = 1.0f;
+};
+
+
+/**
+ * FSuspenseCoreStatusEffectAttributeRow
+ *
+ * DataTable row structure for ALL status effects (buffs and debuffs).
+ * This is the SINGLE SOURCE OF TRUTH for status effect data.
+ *
+ * JSON SOURCE: Content/Data/StatusEffects/SuspenseCoreStatusEffects.json
+ * TARGET DATATABLE: DT_StatusEffects
+ *
+ * USAGE:
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 1. Import JSON into DataTable via Editor (File → Import)
+ * 2. Configure StatusEffectAttributesDataTable in Project Settings → SuspenseCore
+ * 3. DataManager caches rows on Initialize()
+ * 4. DoTService/EffectSystem queries DataManager->GetStatusEffectData()
+ * 5. UI widgets (W_DebuffIcon) get visual data from this SSOT
+ *
+ * SUPPORTED EFFECT TYPES:
+ * ═══════════════════════════════════════════════════════════════════════════
+ * DEBUFFS:
+ * - Bleeding (Light/Heavy) - DoT, infinite duration until healed
+ * - Burning - DoT with duration
+ * - Poisoned - DoT with attribute debuffs
+ * - Stunned - Disables movement/actions
+ * - Slowed - Movement speed reduction
+ * - Suppressed - Aim penalty from enemy fire
+ *
+ * BUFFS:
+ * - Regenerating - HoT (healing over time)
+ * - Painkiller - Ignores pain effects
+ * - Adrenaline - Temporary stat boost
+ * - Fortified - Damage resistance
+ *
+ * @see USuspenseCoreDoTService
+ * @see UW_DebuffIcon, UW_DebuffContainer
+ * @see Documentation/Plans/StatusEffect_SSOT_System.md
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreStatusEffectAttributeRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	//========================================================================
+	// Identity
+	//========================================================================
+
+	/** Unique status effect identifier (e.g., "BleedingLight", "BurningFire") */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FName EffectID;
+
+	/** Localized display name for UI */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FText DisplayName;
+
+	/** Short description for tooltip */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FText Description;
+
+	/** Effect type tag (State.Health.Bleeding.Light, State.Combat.Suppressed, etc.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity",
+		meta = (Categories = "State"))
+	FGameplayTag EffectTypeTag;
+
+	/** Category: Buff, Debuff, or Neutral */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	ESuspenseCoreStatusEffectCategory Category = ESuspenseCoreStatusEffectCategory::Debuff;
+
+	/** Priority for UI sorting (higher = shown first, 0-100) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity",
+		meta = (ClampMin = "0", ClampMax = "100"))
+	int32 DisplayPriority = 50;
+
+	//========================================================================
+	// Duration & Stacking
+	//========================================================================
+
+	/** Default duration in seconds (-1 = infinite, must be healed/cured) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Duration",
+		meta = (ClampMin = "-1", ToolTip = "-1 for infinite (bleeding), positive for timed"))
+	float DefaultDuration = 10.0f;
+
+	/** Is this an infinite-duration effect (requires healing to remove) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Duration")
+	bool bIsInfinite = false;
+
+	/** Maximum stack count (1 = no stacking) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Duration",
+		meta = (ClampMin = "1", ClampMax = "99"))
+	int32 MaxStacks = 1;
+
+	/** How new applications of this effect are handled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Duration")
+	ESuspenseCoreStackBehavior StackBehavior = ESuspenseCoreStackBehavior::RefreshDuration;
+
+	//========================================================================
+	// Damage Over Time (DoT)
+	//========================================================================
+
+	/** Damage dealt per tick (0 = no DoT) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0", ClampMax = "100", ToolTip = "Damage per tick (0 = no DoT)"))
+	float DamagePerTick = 0.0f;
+
+	/** Time between damage ticks in seconds */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0.1", ClampMax = "5.0", EditCondition = "DamagePerTick > 0"))
+	float TickInterval = 1.0f;
+
+	/** Damage type tag for resistance calculations */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (Categories = "Damage.Type"))
+	FGameplayTag DamageTypeTag;
+
+	/** Does damage bypass armor */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT")
+	bool bBypassArmor = false;
+
+	/** Per-stack damage multiplier (for additive stacking) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0.0", ClampMax = "2.0", EditCondition = "DamagePerTick > 0"))
+	float StackDamageMultiplier = 1.0f;
+
+	//========================================================================
+	// Healing Over Time (HoT)
+	//========================================================================
+
+	/** Health restored per tick (0 = no HoT) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HoT",
+		meta = (ClampMin = "0", ClampMax = "100", ToolTip = "Healing per tick (0 = no HoT)"))
+	float HealPerTick = 0.0f;
+
+	/** Time between heal ticks in seconds */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HoT",
+		meta = (ClampMin = "0.1", ClampMax = "5.0", EditCondition = "HealPerTick > 0"))
+	float HealTickInterval = 1.0f;
+
+	//========================================================================
+	// Attribute Modifiers
+	//========================================================================
+
+	/** Attribute modifiers applied while effect is active */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifiers")
+	TArray<FSuspenseCoreStatusEffectModifier> AttributeModifiers;
+
+	//========================================================================
+	// Cure/Removal Requirements
+	//========================================================================
+
+	/** Items that can cure this effect (by ItemID) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure")
+	TArray<FName> CureItemIDs;
+
+	/** Effect tags that can cure/remove this effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure",
+		meta = (Categories = "Effect.Cure"))
+	FGameplayTagContainer CureEffectTags;
+
+	/** Can this effect be removed by basic bandage */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure")
+	bool bCuredByBandage = false;
+
+	/** Can this effect be removed by medkit */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure")
+	bool bCuredByMedkit = false;
+
+	/** Can this effect be removed by surgery */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure")
+	bool bRequiresSurgery = false;
+
+	//========================================================================
+	// Visual - Icons
+	//========================================================================
+
+	/** Icon texture for UI display */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|Icon")
+	TSoftObjectPtr<UTexture2D> Icon;
+
+	/** Icon tint color (normal state) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|Icon")
+	FLinearColor IconTint = FLinearColor::White;
+
+	/** Icon tint color (critical/low health state) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|Icon")
+	FLinearColor CriticalIconTint = FLinearColor(1.0f, 0.3f, 0.3f, 1.0f);
+
+	/** Icon size multiplier (1.0 = default 48x48) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|Icon",
+		meta = (ClampMin = "0.5", ClampMax = "2.0"))
+	float IconScale = 1.0f;
+
+	//========================================================================
+	// Visual - VFX
+	//========================================================================
+
+	/** Niagara particle effect applied to character */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|VFX")
+	TSoftObjectPtr<class UNiagaraSystem> CharacterVFX;
+
+	/** Legacy Cascade particle effect (fallback) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|VFX")
+	TSoftObjectPtr<class UParticleSystem> CharacterVFXLegacy;
+
+	/** VFX attachment socket on character mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|VFX")
+	FName VFXAttachSocket = NAME_None;
+
+	/** Screen overlay material (for effects like burning screen edge) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|VFX")
+	TSoftObjectPtr<class UMaterialInterface> ScreenOverlayMaterial;
+
+	/** Post-process material (for effects like poison haze) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual|VFX")
+	TSoftObjectPtr<class UMaterialInterface> PostProcessMaterial;
+
+	//========================================================================
+	// Audio
+	//========================================================================
+
+	/** Sound played when effect is applied */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> ApplicationSound;
+
+	/** Sound played on each tick (looping ambient for continuous effects) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> TickSound;
+
+	/** Sound played when effect is removed/cured */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> RemovalSound;
+
+	/** Ambient sound loop while effect is active */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> AmbientLoop;
+
+	//========================================================================
+	// Animation
+	//========================================================================
+
+	/** Animation montage to play on application */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TSoftObjectPtr<class UAnimMontage> ApplicationMontage;
+
+	/** Does this effect prevent sprinting */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	bool bPreventsSprinting = false;
+
+	/** Does this effect prevent ADS */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	bool bPreventsADS = false;
+
+	/** Does this effect cause limping animation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	bool bCausesLimp = false;
+
+	//========================================================================
+	// GameplayEffect Integration
+	//========================================================================
+
+	/** GameplayEffect class to apply (for GAS integration) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GAS")
+	TSoftClassPtr<class UGameplayEffect> GameplayEffectClass;
+
+	/** Additional tags granted while effect is active */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GAS")
+	FGameplayTagContainer GrantedTags;
+
+	/** Tags that block this effect from being applied */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GAS")
+	FGameplayTagContainer BlockedByTags;
+
+	/** Tags required for this effect to be applied */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GAS")
+	FGameplayTagContainer RequiredTags;
+
+	//========================================================================
+	// Helper Methods
+	//========================================================================
+
+	/** Check if row has valid data */
+	bool IsValid() const
+	{
+		return !EffectID.IsNone() && EffectTypeTag.IsValid();
+	}
+
+	/** Check if this is a debuff */
+	bool IsDebuff() const
+	{
+		return Category == ESuspenseCoreStatusEffectCategory::Debuff;
+	}
+
+	/** Check if this is a buff */
+	bool IsBuff() const
+	{
+		return Category == ESuspenseCoreStatusEffectCategory::Buff;
+	}
+
+	/** Check if this effect deals damage over time */
+	bool IsDoT() const
+	{
+		return DamagePerTick > 0.0f;
+	}
+
+	/** Check if this effect heals over time */
+	bool IsHoT() const
+	{
+		return HealPerTick > 0.0f;
+	}
+
+	/** Check if this effect is infinite duration (requires cure) */
+	bool RequiresCure() const
+	{
+		return bIsInfinite || DefaultDuration < 0.0f;
+	}
+
+	/** Check if this effect modifies attributes */
+	bool HasAttributeModifiers() const
+	{
+		return AttributeModifiers.Num() > 0;
+	}
+
+	/** Check if this effect has visual icon */
+	bool HasIcon() const
+	{
+		return !Icon.IsNull();
+	}
+
+	/** Check if this effect has character VFX */
+	bool HasCharacterVFX() const
+	{
+		return !CharacterVFX.IsNull() || !CharacterVFXLegacy.IsNull();
+	}
+
+	/** Get total damage for given stack count */
+	float GetTotalDamagePerTick(int32 Stacks) const
+	{
+		if (StackBehavior == ESuspenseCoreStackBehavior::Additive)
+		{
+			return DamagePerTick * Stacks * StackDamageMultiplier;
+		}
+		return DamagePerTick;
+	}
+};

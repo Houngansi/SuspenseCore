@@ -201,6 +201,28 @@ public:
 				ToolTip = "Attachment attributes DataTable. Row Structure: FSuspenseCoreAttachmentAttributeRow"))
 	TSoftObjectPtr<UDataTable> AttachmentAttributesDataTable;
 
+	/**
+	 * DataTable containing ALL status effect definitions (buffs AND debuffs)
+	 * Row Structure: FSuspenseCoreStatusEffectAttributeRow
+	 *
+	 * JSON SOURCE: Content/Data/StatusEffects/SuspenseCoreStatusEffects.json
+	 * SINGLE SOURCE OF TRUTH for all gameplay status effects.
+	 *
+	 * EFFECT TYPES:
+	 * - Debuffs: Bleeding, Burning, Poisoned, Stunned, Slowed, Suppressed
+	 * - Buffs: Regenerating, Painkiller, Adrenaline, Fortified
+	 *
+	 * UI WIDGETS: W_DebuffIcon, W_DebuffContainer read visual data from here.
+	 *
+	 * @see SuspenseCoreGASAttributeRows.h
+	 * @see Documentation/Plans/StatusEffect_SSOT_System.md
+	 * @see Documentation/Plans/DebuffWidget_System_Plan.md
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Status effects DataTable. Row Structure: FSuspenseCoreStatusEffectAttributeRow"))
+	TSoftObjectPtr<UDataTable> StatusEffectAttributesDataTable;
+
 	/** Use SSOT DataTable attributes instead of legacy fields */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
 		meta = (ToolTip = "Enable new SSOT attribute system. Disable for legacy fallback."))

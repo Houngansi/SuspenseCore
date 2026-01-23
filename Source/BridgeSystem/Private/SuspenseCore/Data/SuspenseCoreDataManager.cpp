@@ -163,6 +163,17 @@ void USuspenseCoreDataManager::Initialize(FSubsystemCollectionBase& Collection)
 		{
 			UE_LOG(LogSuspenseCoreData, Log, TEXT("Throwable Attributes System: READY (%d rows cached)"), ThrowableAttributesCache.Num());
 		}
+
+		// Status Effect Attributes (Buffs/Debuffs SSOT)
+		bStatusEffectSystemReady = InitializeStatusEffectAttributesSystem();
+		if (bStatusEffectSystemReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Status Effect System: READY (%d effects cached)"), StatusEffectAttributesCache.Num());
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("Status Effect System initialization failed (may be optional)"));
+		}
 	}
 	else
 	{
@@ -266,6 +277,11 @@ void USuspenseCoreDataManager::Deinitialize()
 	MagazineCache.Empty();
 	LoadedMagazineDataTable = nullptr;
 
+	// Clear status effect cache (Buffs/Debuffs SSOT)
+	StatusEffectAttributesCache.Empty();
+	StatusEffectTagToIDMap.Empty();
+	LoadedStatusEffectAttributesDataTable = nullptr;
+
 	CachedEventBus.Reset();
 
 	// Reset all flags
@@ -276,6 +292,8 @@ void USuspenseCoreDataManager::Deinitialize()
 	bWeaponAttributesSystemReady = false;
 	bAmmoAttributesSystemReady = false;
 	bArmorAttributesSystemReady = false;
+	bAttachmentAttributesSystemReady = false;
+	bStatusEffectSystemReady = false;
 	bMagazineSystemReady = false;
 
 	Super::Deinitialize();
@@ -1713,4 +1731,207 @@ bool USuspenseCoreDataManager::CreateMagazineInstance(FName MagazineID, int32 In
 	}
 
 	return true;
+}
+
+//========================================================================
+// Status Effect Attributes Initialization (SSOT for Buffs/Debuffs)
+// @see Documentation/Plans/StatusEffect_SSOT_System.md
+//========================================================================
+
+bool USuspenseCoreDataManager::InitializeStatusEffectAttributesSystem()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	if (Settings->StatusEffectAttributesDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("StatusEffectAttributesDataTable not configured (optional)"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Loading StatusEffectAttributesDataTable: %s"),
+		*Settings->StatusEffectAttributesDataTable.ToString());
+
+	LoadedStatusEffectAttributesDataTable = Settings->StatusEffectAttributesDataTable.LoadSynchronous();
+
+	if (!LoadedStatusEffectAttributesDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to load StatusEffectAttributesDataTable"));
+		return false;
+	}
+
+	// Verify row structure
+	const UScriptStruct* RowStruct = LoadedStatusEffectAttributesDataTable->GetRowStruct();
+	if (!RowStruct)
+	{
+		UE_LOG(LogSuspenseCoreData, Error, TEXT("StatusEffectAttributesDataTable has no row structure!"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("StatusEffectAttributes Row Structure: %s"), *RowStruct->GetName());
+
+	return BuildStatusEffectAttributesCache(LoadedStatusEffectAttributesDataTable);
+}
+
+bool USuspenseCoreDataManager::BuildStatusEffectAttributesCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	StatusEffectAttributesCache.Empty();
+	StatusEffectTagToIDMap.Empty();
+
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Building status effect attributes cache from %d rows..."), RowNames.Num());
+
+	int32 LoadedCount = 0;
+	int32 DebuffCount = 0;
+	int32 BuffCount = 0;
+
+	for (const FName& RowName : RowNames)
+	{
+		FSuspenseCoreStatusEffectAttributeRow* RowData = DataTable->FindRow<FSuspenseCoreStatusEffectAttributeRow>(RowName, TEXT(""));
+		if (!RowData)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read status effect row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Validate row
+		if (!RowData->IsValid())
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Invalid status effect row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Use EffectID if set, otherwise use row name as key
+		FName CacheKey = RowData->EffectID.IsNone() ? RowName : RowData->EffectID;
+
+		// Add to main cache
+		StatusEffectAttributesCache.Add(CacheKey, *RowData);
+
+		// Build tag-to-ID lookup map
+		if (RowData->EffectTypeTag.IsValid())
+		{
+			StatusEffectTagToIDMap.Add(RowData->EffectTypeTag, CacheKey);
+		}
+
+		LoadedCount++;
+
+		// Track statistics
+		if (RowData->IsDebuff())
+		{
+			DebuffCount++;
+		}
+		else if (RowData->IsBuff())
+		{
+			BuffCount++;
+		}
+
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached status effect: %s (%s) [%s, Duration=%.1f, DoT=%.1f]"),
+			*CacheKey.ToString(),
+			*RowData->DisplayName.ToString(),
+			RowData->IsDebuff() ? TEXT("Debuff") : (RowData->IsBuff() ? TEXT("Buff") : TEXT("Neutral")),
+			RowData->DefaultDuration,
+			RowData->DamagePerTick);
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  STATUS EFFECT CACHE BUILT"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  Total: %d effects (Debuffs: %d, Buffs: %d)"), LoadedCount, DebuffCount, BuffCount);
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+
+	return LoadedCount > 0;
+}
+
+//========================================================================
+// Status Effect Attributes Access (SSOT)
+//========================================================================
+
+bool USuspenseCoreDataManager::GetStatusEffectAttributes(FName EffectKey, FSuspenseCoreStatusEffectAttributeRow& OutAttributes) const
+{
+	if (EffectKey.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreStatusEffectAttributeRow* Found = StatusEffectAttributesCache.Find(EffectKey);
+	if (Found)
+	{
+		OutAttributes = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetStatusEffectAttributes: '%s' not found in cache"), *EffectKey.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::GetStatusEffectByTag(FGameplayTag EffectTag, FSuspenseCoreStatusEffectAttributeRow& OutAttributes) const
+{
+	if (!EffectTag.IsValid())
+	{
+		return false;
+	}
+
+	// First try exact tag match in lookup map
+	const FName* FoundID = StatusEffectTagToIDMap.Find(EffectTag);
+	if (FoundID && !FoundID->IsNone())
+	{
+		return GetStatusEffectAttributes(*FoundID, OutAttributes);
+	}
+
+	// Fallback: search through cache for partial tag match
+	for (const auto& Pair : StatusEffectAttributesCache)
+	{
+		if (Pair.Value.EffectTypeTag.MatchesTag(EffectTag) || EffectTag.MatchesTag(Pair.Value.EffectTypeTag))
+		{
+			OutAttributes = Pair.Value;
+			return true;
+		}
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetStatusEffectByTag: '%s' not found"), *EffectTag.ToString());
+	return false;
+}
+
+TArray<FName> USuspenseCoreDataManager::GetStatusEffectsByCategory(ESuspenseCoreStatusEffectCategory Category) const
+{
+	TArray<FName> Result;
+
+	for (const auto& Pair : StatusEffectAttributesCache)
+	{
+		if (Pair.Value.Category == Category)
+		{
+			Result.Add(Pair.Key);
+		}
+	}
+
+	return Result;
+}
+
+TArray<FName> USuspenseCoreDataManager::GetAllDebuffIDs() const
+{
+	return GetStatusEffectsByCategory(ESuspenseCoreStatusEffectCategory::Debuff);
+}
+
+TArray<FName> USuspenseCoreDataManager::GetAllBuffIDs() const
+{
+	return GetStatusEffectsByCategory(ESuspenseCoreStatusEffectCategory::Buff);
+}
+
+bool USuspenseCoreDataManager::HasStatusEffect(FName EffectKey) const
+{
+	return StatusEffectAttributesCache.Contains(EffectKey);
+}
+
+TArray<FName> USuspenseCoreDataManager::GetAllStatusEffectKeys() const
+{
+	TArray<FName> Keys;
+	StatusEffectAttributesCache.GetKeys(Keys);
+	return Keys;
 }

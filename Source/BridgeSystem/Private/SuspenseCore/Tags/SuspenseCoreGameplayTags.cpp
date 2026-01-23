@@ -536,11 +536,8 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Duration, "Data.Effect.Duration");
 		}
 
-		// Damage data tags for SetByCaller
-		namespace Damage
-		{
-			UE_DEFINE_GAMEPLAY_TAG(Poison, "Data.Damage.Poison");
-		}
+		// Damage data tags for SetByCaller (prefixed to avoid conflict with Data::Damage tag)
+		UE_DEFINE_GAMEPLAY_TAG(DamagePoison, "Data.Damage.Poison");
 
 		// Heal data tags for SetByCaller
 		namespace Heal
@@ -599,16 +596,11 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(Buff, "Effect.Buff");
 		UE_DEFINE_GAMEPLAY_TAG(HoT, "Effect.HoT");
 
-		//--------------------------------------------------------------
-		// Debuff Effect Tags (Effect.Debuff.*)
-		//--------------------------------------------------------------
-		namespace Debuff
-		{
-			UE_DEFINE_GAMEPLAY_TAG(Stun, "Effect.Debuff.Stun");
-			UE_DEFINE_GAMEPLAY_TAG(Suppression, "Effect.Debuff.Suppression");
-			UE_DEFINE_GAMEPLAY_TAG(Fracture, "Effect.Debuff.Fracture");
-			UE_DEFINE_GAMEPLAY_TAG(Survival, "Effect.Debuff.Survival");
-		}
+		// Debuff Effect Tags (prefixed to avoid conflict with Effect::Debuff tag)
+		UE_DEFINE_GAMEPLAY_TAG(DebuffStun, "Effect.Debuff.Stun");
+		UE_DEFINE_GAMEPLAY_TAG(DebuffSuppression, "Effect.Debuff.Suppression");
+		UE_DEFINE_GAMEPLAY_TAG(DebuffFracture, "Effect.Debuff.Fracture");
+		UE_DEFINE_GAMEPLAY_TAG(DebuffSurvival, "Effect.Debuff.Survival");
 
 		// Grenade effect tags
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbang, "Effect.Grenade.Flashbang");

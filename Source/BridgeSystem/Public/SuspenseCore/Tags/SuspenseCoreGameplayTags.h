@@ -560,11 +560,8 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Duration);  // Data.Effect.Duration
 		}
 
-		// Damage data tags for SetByCaller
-		namespace Damage
-		{
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Poison);    // Data.Damage.Poison
-		}
+		// Damage data tags for SetByCaller (prefixed to avoid conflict with Data::Damage tag)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamagePoison);    // Data.Damage.Poison
 
 		// Heal data tags for SetByCaller
 		namespace Heal
@@ -623,16 +620,11 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Buff);                // Effect.Buff (base buff tag)
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(HoT);                 // Effect.HoT (heal over time)
 
-		//--------------------------------------------------------------
-		// Debuff Effect Tags (Effect.Debuff.*)
-		//--------------------------------------------------------------
-		namespace Debuff
-		{
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stun);            // Effect.Debuff.Stun
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Suppression);     // Effect.Debuff.Suppression
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fracture);        // Effect.Debuff.Fracture
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Survival);        // Effect.Debuff.Survival
-		}
+		// Debuff Effect Tags (prefixed to avoid conflict with Effect::Debuff tag)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DebuffStun);          // Effect.Debuff.Stun
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DebuffSuppression);   // Effect.Debuff.Suppression
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DebuffFracture);      // Effect.Debuff.Fracture
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DebuffSurvival);      // Effect.Debuff.Survival
 
 		// Grenade effect tags (Effect.Grenade.*)
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbang);         // Effect.Grenade.Flashbang

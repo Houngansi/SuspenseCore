@@ -637,20 +637,15 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Exhaustion, "Effect.Cure.Exhaustion");
 		}
 
-		//--------------------------------------------------------------
-		// Buff Effect Tags (Effect.Buff.*)
-		//--------------------------------------------------------------
-		namespace Buff
-		{
-			UE_DEFINE_GAMEPLAY_TAG(Regenerating, "Effect.Buff.Regenerating");
-			UE_DEFINE_GAMEPLAY_TAG(Painkiller, "Effect.Buff.Painkiller");
-			UE_DEFINE_GAMEPLAY_TAG(Adrenaline, "Effect.Buff.Adrenaline");
-			UE_DEFINE_GAMEPLAY_TAG(Fortified, "Effect.Buff.Fortified");
-			UE_DEFINE_GAMEPLAY_TAG(Heal, "Effect.Buff.Heal");
-			UE_DEFINE_GAMEPLAY_TAG(Combat, "Effect.Buff.Combat");
-			UE_DEFINE_GAMEPLAY_TAG(Defense, "Effect.Buff.Defense");
-			UE_DEFINE_GAMEPLAY_TAG(Movement, "Effect.Buff.Movement");
-		}
+		// Buff Effect Tags (prefixed to avoid conflict with Effect::Buff tag)
+		UE_DEFINE_GAMEPLAY_TAG(BuffRegenerating, "Effect.Buff.Regenerating");
+		UE_DEFINE_GAMEPLAY_TAG(BuffPainkiller, "Effect.Buff.Painkiller");
+		UE_DEFINE_GAMEPLAY_TAG(BuffAdrenaline, "Effect.Buff.Adrenaline");
+		UE_DEFINE_GAMEPLAY_TAG(BuffFortified, "Effect.Buff.Fortified");
+		UE_DEFINE_GAMEPLAY_TAG(BuffHeal, "Effect.Buff.Heal");
+		UE_DEFINE_GAMEPLAY_TAG(BuffCombat, "Effect.Buff.Combat");
+		UE_DEFINE_GAMEPLAY_TAG(BuffDefense, "Effect.Buff.Defense");
+		UE_DEFINE_GAMEPLAY_TAG(BuffMovement, "Effect.Buff.Movement");
 	}
 
 	//==================================================================

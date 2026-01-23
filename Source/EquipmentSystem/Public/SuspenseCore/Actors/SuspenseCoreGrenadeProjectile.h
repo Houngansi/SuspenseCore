@@ -39,6 +39,7 @@ class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
 class UGameplayEffect;
+class UAbilitySystemComponent;
 class USoundBase;
 class UNiagaraSystem;
 class UNiagaraComponent;

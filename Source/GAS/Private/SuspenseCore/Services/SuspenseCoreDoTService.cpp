@@ -88,7 +88,7 @@ FSuspenseCoreEventData FSuspenseCoreDoTEventPayload::ToEventData() const
 FSuspenseCoreDoTEventPayload FSuspenseCoreDoTEventPayload::FromEventData(const FSuspenseCoreEventData& EventData)
 {
 	FSuspenseCoreDoTEventPayload Payload;
-	Payload.AffectedActor = EventData.Source;
+	Payload.AffectedActor = Cast<AActor>(EventData.Source.Get());
 
 	if (const FString* TypeStr = EventData.StringPayload.Find(TEXT("DoTType")))
 	{

@@ -1197,9 +1197,9 @@ void ASuspenseCoreGrenadeProjectile::NotifyDoTServiceOfApplication(
         return;
     }
 
-    // Register the DoT application with the service
+    // Notify the DoT service about the application
     // This triggers EventBus publication for UI widgets
-    DoTService->RegisterDoTApplied(
+    DoTService->NotifyDoTApplied(
         TargetActor,
         DoTType,
         DamagePerTick,

@@ -82,7 +82,7 @@ UGE_Poisoned::UGE_Poisoned()
 
 	// Movement speed debuff: -10%
 	FGameplayModifierInfo SpeedDebuff;
-	SpeedDebuff.Attribute = USuspenseCoreMovementAttributeSet::GetMoveSpeedAttribute();
+	SpeedDebuff.Attribute = USuspenseCoreMovementAttributeSet::GetWalkSpeedAttribute();
 	SpeedDebuff.ModifierOp = EGameplayModOp::Multiplicitive;
 
 	FScalableFloat SpeedMultiplier;
@@ -131,7 +131,7 @@ UGE_Stunned::UGE_Stunned()
 
 	// Movement speed: 0 (cannot move)
 	FGameplayModifierInfo SpeedZero;
-	SpeedZero.Attribute = USuspenseCoreMovementAttributeSet::GetMoveSpeedAttribute();
+	SpeedZero.Attribute = USuspenseCoreMovementAttributeSet::GetWalkSpeedAttribute();
 	SpeedZero.ModifierOp = EGameplayModOp::Override;
 
 	FScalableFloat ZeroSpeed;
@@ -213,7 +213,7 @@ UGE_Fracture_Leg::UGE_Fracture_Leg()
 
 	// Movement speed: -40%
 	FGameplayModifierInfo SpeedDebuff;
-	SpeedDebuff.Attribute = USuspenseCoreMovementAttributeSet::GetMoveSpeedAttribute();
+	SpeedDebuff.Attribute = USuspenseCoreMovementAttributeSet::GetWalkSpeedAttribute();
 	SpeedDebuff.ModifierOp = EGameplayModOp::Multiplicitive;
 
 	FScalableFloat SpeedMultiplier;
@@ -348,7 +348,7 @@ UGE_Exhausted::UGE_Exhausted()
 
 	// Stamina regen: 0 (override to zero)
 	FGameplayModifierInfo StaminaRegenZero;
-	StaminaRegenZero.Attribute = USuspenseCoreMovementAttributeSet::GetStaminaRegenRateAttribute();
+	StaminaRegenZero.Attribute = USuspenseCoreAttributeSet::GetStaminaRegenAttribute();
 	StaminaRegenZero.ModifierOp = EGameplayModOp::Override;
 
 	FScalableFloat ZeroRegen;
@@ -486,7 +486,7 @@ UGE_Adrenaline::UGE_Adrenaline()
 
 	// Movement speed: +15%
 	FGameplayModifierInfo SpeedBuff;
-	SpeedBuff.Attribute = USuspenseCoreMovementAttributeSet::GetMoveSpeedAttribute();
+	SpeedBuff.Attribute = USuspenseCoreMovementAttributeSet::GetWalkSpeedAttribute();
 	SpeedBuff.ModifierOp = EGameplayModOp::Multiplicitive;
 
 	FScalableFloat SpeedMultiplier;
@@ -496,7 +496,7 @@ UGE_Adrenaline::UGE_Adrenaline()
 
 	// Stamina regen: +25%
 	FGameplayModifierInfo StaminaBuff;
-	StaminaBuff.Attribute = USuspenseCoreMovementAttributeSet::GetStaminaRegenRateAttribute();
+	StaminaBuff.Attribute = USuspenseCoreAttributeSet::GetStaminaRegenAttribute();
 	StaminaBuff.ModifierOp = EGameplayModOp::Multiplicitive;
 
 	FScalableFloat StaminaMultiplier;
@@ -580,7 +580,7 @@ UGE_Haste::UGE_Haste()
 
 	// Movement speed: +20%
 	FGameplayModifierInfo SpeedBuff;
-	SpeedBuff.Attribute = USuspenseCoreMovementAttributeSet::GetMoveSpeedAttribute();
+	SpeedBuff.Attribute = USuspenseCoreMovementAttributeSet::GetWalkSpeedAttribute();
 	SpeedBuff.ModifierOp = EGameplayModOp::Multiplicitive;
 
 	FScalableFloat SpeedMultiplier;

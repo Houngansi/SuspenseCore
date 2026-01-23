@@ -4,7 +4,7 @@
 
 > **For Devlog:** See [Completed Features](#completed-features) for ready-to-publish content.
 
-**Last Updated:** 2026-01-22
+**Last Updated:** 2026-01-23
 
 ---
 
@@ -175,6 +175,34 @@ Source/GAS/Abilities/
 
 ---
 
+### Status Effect System v2.0 (Buff/Debuff) - NEW
+
+**File:** [GameDesign/StatusEffect_System_GDD.md](GameDesign/StatusEffect_System_GDD.md)
+**Status:** PENDING APPROVAL
+
+**Summary:**
+> Complete redesign of buff/debuff system. Separates gameplay data (GameplayEffect Assets) from
+> visual data (DataTable/JSON). Reduces JSON fields from 43+ to 18. Duration, damage, stacking
+> now managed entirely by GAS GameplayEffects.
+
+**Key Changes:**
+- GameplayEffect Assets for gameplay logic (duration, damage, stacking)
+- Simplified DataTable for visuals only (icon, VFX, audio, cure items)
+- Fixed JSON format (no more parsing errors)
+- DoTService refactored to use ASC callbacks
+
+**Phases:**
+- [ ] Phase 1: Simplify data structure (FSuspenseCoreStatusEffectVisualRow)
+- [ ] Phase 2: Fix JSON format
+- [ ] Phase 3: Create GameplayEffect Assets
+- [ ] Phase 4: Update DoTService
+- [ ] Phase 5: Update UI Widgets
+- [ ] Phase 6: Integration Testing
+
+**Awaiting:** User approval before implementation
+
+---
+
 ## Developer Guides
 
 ### Core Guides
@@ -230,6 +258,7 @@ Source/GAS/Abilities/
 |----------|-------------|
 | [GameDesign/ExtractionPvE_DesignDocument.md](GameDesign/ExtractionPvE_DesignDocument.md) | Core game loop design |
 | [GameDesign/Narrative_Design.md](GameDesign/Narrative_Design.md) | Story and lore |
+| [GameDesign/StatusEffect_System_GDD.md](GameDesign/StatusEffect_System_GDD.md) | **NEW** Buff/Debuff system (PENDING APPROVAL) |
 
 ---
 
@@ -337,7 +366,8 @@ Documentation/
 │   └── ...
 ├── GameDesign/                           ← GDD documents
 │   ├── ExtractionPvE_DesignDocument.md
-│   └── Narrative_Design.md
+│   ├── Narrative_Design.md
+│   └── StatusEffect_System_GDD.md            ← NEW (PENDING APPROVAL)
 ├── Guides/                               ← Setup guides
 │   └── MagazineInspectionWidget_Setup_Guide.md
 ├── Data/                                 ← Data references

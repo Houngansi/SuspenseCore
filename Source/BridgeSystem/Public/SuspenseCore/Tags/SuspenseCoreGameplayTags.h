@@ -663,21 +663,15 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Exhaustion);            // Effect.Cure.Exhaustion
 		}
 
-		//--------------------------------------------------------------
-		// Buff Effect Tags (Effect.Buff.*)
-		// Positive effects applied by consumables
-		//--------------------------------------------------------------
-		namespace Buff
-		{
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Regenerating);          // Effect.Buff.Regenerating
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Painkiller);            // Effect.Buff.Painkiller
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Adrenaline);            // Effect.Buff.Adrenaline
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fortified);             // Effect.Buff.Fortified
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Heal);                  // Effect.Buff.Heal
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat);                // Effect.Buff.Combat
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Defense);               // Effect.Buff.Defense
-			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement);              // Effect.Buff.Movement
-		}
+		// Buff Effect Tags (prefixed to avoid conflict with Effect::Buff tag)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BuffRegenerating);    // Effect.Buff.Regenerating
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BuffPainkiller);      // Effect.Buff.Painkiller
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BuffAdrenaline);      // Effect.Buff.Adrenaline
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BuffFortified);       // Effect.Buff.Fortified
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BuffHeal);            // Effect.Buff.Heal
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BuffCombat);          // Effect.Buff.Combat
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BuffDefense);         // Effect.Buff.Defense
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BuffMovement);        // Effect.Buff.Movement
 	}
 
 	//==================================================================

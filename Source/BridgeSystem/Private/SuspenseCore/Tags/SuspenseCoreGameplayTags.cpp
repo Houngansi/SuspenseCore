@@ -505,12 +505,17 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(DamageShrapnel, "Effect.Damage.Shrapnel");
 		UE_DEFINE_GAMEPLAY_TAG(DamageBurn, "Effect.Damage.Burn");
 		UE_DEFINE_GAMEPLAY_TAG(DamageWithHitInfo, "Effect.Damage.WithHitInfo");
+		UE_DEFINE_GAMEPLAY_TAG(DamageBleed, "Effect.Damage.Bleed");
+		UE_DEFINE_GAMEPLAY_TAG(DamageBleedLight, "Effect.Damage.Bleed.Light");
+		UE_DEFINE_GAMEPLAY_TAG(DamageBleedHeavy, "Effect.Damage.Bleed.Heavy");
 
 		// Grenade effect tags
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbang, "Effect.Grenade.Flashbang");
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbangPartial, "Effect.Grenade.Flashbang.Partial");
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeIncendiary, "Effect.Grenade.Incendiary");
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeIncendiaryZone, "Effect.Grenade.Incendiary.Zone");
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeIncendiaryArmorBypass, "Effect.Grenade.Incendiary.ArmorBypass");
+		UE_DEFINE_GAMEPLAY_TAG(GrenadeShrapnel, "Effect.Grenade.Shrapnel");
 
 		//--------------------------------------------------------------
 		// DoT Effect Tags (Effect.DoT.*)

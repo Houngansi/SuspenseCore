@@ -8,6 +8,7 @@
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreCrosshairWidget.h"
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreQuickSlotHUDWidget.h"
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreReloadProgressWidget.h"
+#include "SuspenseCore/Widgets/HUD/W_DebuffContainer.h"
 #include "Components/CanvasPanel.h"
 #include "Widgets/SWidget.h"
 
@@ -152,6 +153,14 @@ void USuspenseCoreMasterHUDWidget::SetReloadProgressVisible(bool bVisible)
 	}
 }
 
+void USuspenseCoreMasterHUDWidget::SetDebuffContainerVisible(bool bVisible)
+{
+	if (DebuffContainerWidget)
+	{
+		DebuffContainerWidget->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // INTERNAL METHODS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -163,6 +172,9 @@ void USuspenseCoreMasterHUDWidget::ApplyInitialVisibility()
 
 	// Quick slots always visible by default
 	SetQuickSlotsVisible(true);
+
+	// Debuff container always visible by default (icons appear/disappear dynamically)
+	SetDebuffContainerVisible(true);
 
 	// Weapon-related widgets depend on configuration
 	UpdateWeaponWidgetsVisibility();

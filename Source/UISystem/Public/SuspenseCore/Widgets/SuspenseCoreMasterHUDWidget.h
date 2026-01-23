@@ -15,6 +15,7 @@ class USuspenseCoreAmmoCounterWidget;
 class USuspenseCoreCrosshairWidget;
 class USuspenseCoreQuickSlotHUDWidget;
 class USuspenseCoreReloadProgressWidget;
+class UW_DebuffContainer;
 class UCanvasPanel;
 class UOverlay;
 
@@ -27,6 +28,7 @@ class UOverlay;
  * - Crosshair (Dynamic spread indicator)
  * - Quick Slots (Equipment shortcuts)
  * - Reload Progress (Tarkov-style reload phases)
+ * - Debuff Container (Status effect icons)
  *
  * ARCHITECTURE:
  * - Container widget that holds all HUD sub-widgets
@@ -57,6 +59,7 @@ class UOverlay;
  * @see USuspenseCoreCrosshairWidget
  * @see USuspenseCoreQuickSlotHUDWidget
  * @see USuspenseCoreReloadProgressWidget
+ * @see UW_DebuffContainer
  */
 UCLASS(Blueprintable, BlueprintType)
 class UISYSTEM_API USuspenseCoreMasterHUDWidget : public UUserWidget
@@ -153,6 +156,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MasterHUD|Sections")
 	void SetReloadProgressVisible(bool bVisible);
 
+	/**
+	 * Show/hide debuff container
+	 * @param bVisible New visibility state
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MasterHUD|Sections")
+	void SetDebuffContainerVisible(bool bVisible);
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// GETTERS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -176,6 +186,10 @@ public:
 	/** Get reload progress widget */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|MasterHUD")
 	USuspenseCoreReloadProgressWidget* GetReloadProgressWidget() const { return ReloadProgressWidget; }
+
+	/** Get debuff container widget */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|MasterHUD")
+	UW_DebuffContainer* GetDebuffContainerWidget() const { return DebuffContainerWidget; }
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
@@ -225,6 +239,10 @@ protected:
 	/** Reload progress widget (Tarkov-style phases) */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<USuspenseCoreReloadProgressWidget> ReloadProgressWidget;
+
+	/** Debuff container widget (Status effect icons) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	TObjectPtr<UW_DebuffContainer> DebuffContainerWidget;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION

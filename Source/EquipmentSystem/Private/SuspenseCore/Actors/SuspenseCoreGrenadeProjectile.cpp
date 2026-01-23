@@ -380,6 +380,39 @@ void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrow
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // DoT EFFECTS (Bleeding)
+    // ═══════════════════════════════════════════════════════════════════
+    if (bUsePreloaded && PreloadedCache.BleedingLightEffectClass)
+    {
+        BleedingLightEffectClass = PreloadedCache.BleedingLightEffectClass;
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Using preloaded BleedingLightEffect: %s"), *GetNameSafe(BleedingLightEffectClass));
+    }
+    else if (!Attributes.BleedingLightEffectClass.IsNull())
+    {
+        BleedingLightEffectClass = Attributes.BleedingLightEffectClass.LoadSynchronous();
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Sync loaded BleedingLightEffect: %s"), *GetNameSafe(BleedingLightEffectClass));
+    }
+
+    if (bUsePreloaded && PreloadedCache.BleedingHeavyEffectClass)
+    {
+        BleedingHeavyEffectClass = PreloadedCache.BleedingHeavyEffectClass;
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Using preloaded BleedingHeavyEffect: %s"), *GetNameSafe(BleedingHeavyEffectClass));
+    }
+    else if (!Attributes.BleedingHeavyEffectClass.IsNull())
+    {
+        BleedingHeavyEffectClass = Attributes.BleedingHeavyEffectClass.LoadSynchronous();
+        GRENADE_PROJECTILE_LOG(Verbose, TEXT("  Sync loaded BleedingHeavyEffect: %s"), *GetNameSafe(BleedingHeavyEffectClass));
+    }
+
+    // Copy additional DoT config from SSOT
+    BleedingDamagePerTick = Attributes.BleedingDamagePerTick;
+    BleedingTickInterval = Attributes.BleedingTickInterval;
+    BleedingDuration = Attributes.BleedingDuration;
+    BleedingChance = Attributes.BleedingChance;
+    ArmorThresholdForBleeding = Attributes.ArmorThresholdForBleeding;
+    FragmentHitsForHeavyBleed = Attributes.FragmentHitsForHeavyBleed;
+
+    // ═══════════════════════════════════════════════════════════════════
     // GRENADE TYPE
     // ═══════════════════════════════════════════════════════════════════
     if (Attributes.IsFragGrenade())

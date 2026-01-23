@@ -405,10 +405,8 @@ void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrow
     }
 
     // Copy additional DoT config from SSOT
-    BleedingDamagePerTick = Attributes.BleedingDamagePerTick;
-    BleedingTickInterval = Attributes.BleedingTickInterval;
-    BleedingDuration = Attributes.BleedingDuration;
-    BleedingChance = Attributes.BleedingChance;
+    BleedDamagePerTick = Attributes.BleedDamagePerTick;
+    BleedTickInterval = Attributes.BleedTickInterval;
     ArmorThresholdForBleeding = Attributes.ArmorThresholdForBleeding;
     FragmentHitsForHeavyBleed = Attributes.FragmentHitsForHeavyBleed;
 

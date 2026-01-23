@@ -9,6 +9,8 @@
 // - Animation support via Blueprint
 
 #include "SuspenseCore/Widgets/HUD/W_DebuffIcon.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+#include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/ProgressBar.h"
@@ -99,6 +101,90 @@ void UW_DebuffIcon::SetDebuffData(FGameplayTag InDoTType, float InDuration, int3
 		*DoTType.ToString(), TotalDuration, StackCount);
 
 	// Update all visuals
+	UpdateVisuals();
+	UpdateTimer(RemainingDuration);
+	UpdateStackCount(StackCount);
+
+	// Show widget
+	SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	// Play fade in animation
+	if (FadeInAnimation)
+	{
+		PlayAnimation(FadeInAnimation);
+	}
+
+	// Hide duration bar for infinite effects
+	if (DurationBar)
+	{
+		DurationBar->SetVisibility(IsInfinite() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+
+		if (!IsInfinite())
+		{
+			DurationBar->SetPercent(1.0f);
+		}
+	}
+
+	// Notify Blueprint
+	OnDebuffApplied(DoTType);
+}
+
+void UW_DebuffIcon::SetDebuffDataFromSSOT(FName EffectID, float InDuration, int32 InStackCount)
+{
+	if (EffectID.IsNone())
+	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("SetDebuffDataFromSSOT: EffectID is None"));
+		return;
+	}
+
+	// Query SSOT data from DataManager
+	USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
+	if (!DataManager || !DataManager->IsStatusEffectSystemReady())
+	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("SetDebuffDataFromSSOT: DataManager not available or StatusEffect system not ready"));
+		return;
+	}
+
+	FSuspenseCoreStatusEffectAttributeRow EffectData;
+	if (!DataManager->GetStatusEffectAttributes(EffectID, EffectData))
+	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("SetDebuffDataFromSSOT: Effect '%s' not found in SSOT"), *EffectID.ToString());
+		return;
+	}
+
+	// Cache SSOT data
+	CachedEffectID = EffectID;
+	SSOTIconPath = EffectData.Icon;
+	SSOTNormalTint = EffectData.IconTint;
+	SSOTCriticalTint = EffectData.CriticalIconTint;
+
+	// Use SSOT tag and duration
+	DoTType = EffectData.EffectTypeTag;
+
+	// Determine duration: use override if provided, otherwise use SSOT default
+	if (InDuration != 0.0f)
+	{
+		TotalDuration = InDuration;
+	}
+	else if (EffectData.bIsInfinite)
+	{
+		TotalDuration = -1.0f;
+	}
+	else
+	{
+		TotalDuration = EffectData.DefaultDuration;
+	}
+
+	RemainingDuration = TotalDuration;
+	StackCount = InStackCount;
+	bIsActive = true;
+	bIsRemoving = false;
+	bIsInCriticalState = false;
+
+	UE_LOG(LogDebuffIcon, Log, TEXT("SetDebuffDataFromSSOT: EffectID=%s, Type=%s, Duration=%.1f, Stacks=%d"),
+		*EffectID.ToString(), *DoTType.ToString(), TotalDuration, StackCount);
+
+	// Update all visuals using SSOT data
 	UpdateVisuals();
 	UpdateTimer(RemainingDuration);
 	UpdateStackCount(StackCount);
@@ -222,6 +308,12 @@ void UW_DebuffIcon::ResetToDefault()
 	bIsRemoving = false;
 	bIsInCriticalState = false;
 
+	// Reset SSOT cached data
+	CachedEffectID = NAME_None;
+	SSOTIconPath.Reset();
+	SSOTNormalTint = FLinearColor::White;
+	SSOTCriticalTint = FLinearColor(1.0f, 0.3f, 0.3f, 1.0f);
+
 	// Reset visuals
 	if (DebuffImage)
 	{
@@ -327,7 +419,13 @@ void UW_DebuffIcon::LoadIconForType()
 		IconLoadHandle->CancelHandle();
 	}
 
-	// Find icon for this DoT type
+	// Try SSOT first if enabled
+	if (bUseSSOTData && LoadIconFromSSOT())
+	{
+		return;
+	}
+
+	// Find icon for this DoT type from local map
 	const TSoftObjectPtr<UTexture2D>* IconPtr = DebuffIcons.Find(DoTType);
 
 	if (!IconPtr || IconPtr->IsNull())
@@ -358,9 +456,94 @@ void UW_DebuffIcon::LoadIconForType()
 	);
 }
 
+bool UW_DebuffIcon::LoadIconFromSSOT()
+{
+	// Check if we have a cached SSOT icon path
+	if (!SSOTIconPath.IsNull())
+	{
+		// Already have cached SSOT data, use it
+		if (SSOTIconPath.IsValid())
+		{
+			// Already loaded
+			DebuffImage->SetBrushFromTexture(SSOTIconPath.Get());
+			return true;
+		}
+
+		// Async load SSOT icon
+		FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+		IconLoadHandle = StreamableManager.RequestAsyncLoad(
+			SSOTIconPath.ToSoftObjectPath(),
+			FStreamableDelegate::CreateUObject(this, &UW_DebuffIcon::OnIconLoaded)
+		);
+		return true;
+	}
+
+	// Query SSOT by tag if no cached data
+	USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
+	if (!DataManager || !DataManager->IsStatusEffectSystemReady())
+	{
+		return false;
+	}
+
+	FSuspenseCoreStatusEffectAttributeRow EffectData;
+	if (!DataManager->GetStatusEffectByTag(DoTType, EffectData))
+	{
+		UE_LOG(LogDebuffIcon, Verbose, TEXT("LoadIconFromSSOT: No SSOT data for tag %s"), *DoTType.ToString());
+		return false;
+	}
+
+	// Cache SSOT visual data
+	CachedEffectID = EffectData.EffectID;
+	SSOTIconPath = EffectData.Icon;
+	SSOTNormalTint = EffectData.IconTint;
+	SSOTCriticalTint = EffectData.CriticalIconTint;
+
+	// Update tint colors from SSOT
+	NormalTintColor = SSOTNormalTint;
+	CriticalTintColor = SSOTCriticalTint;
+
+	UE_LOG(LogDebuffIcon, Log, TEXT("LoadIconFromSSOT: Loaded SSOT data for %s (EffectID: %s)"),
+		*DoTType.ToString(), *CachedEffectID.ToString());
+
+	if (SSOTIconPath.IsNull())
+	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("LoadIconFromSSOT: SSOT effect '%s' has no icon configured"), *CachedEffectID.ToString());
+		return false;
+	}
+
+	// Check if already loaded
+	if (SSOTIconPath.IsValid())
+	{
+		DebuffImage->SetBrushFromTexture(SSOTIconPath.Get());
+		return true;
+	}
+
+	// Async load SSOT icon
+	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+	IconLoadHandle = StreamableManager.RequestAsyncLoad(
+		SSOTIconPath.ToSoftObjectPath(),
+		FStreamableDelegate::CreateUObject(this, &UW_DebuffIcon::OnIconLoaded)
+	);
+
+	return true;
+}
+
 void UW_DebuffIcon::OnIconLoaded()
 {
-	// Find the icon again and set it
+	if (!DebuffImage)
+	{
+		return;
+	}
+
+	// Check if we loaded SSOT icon
+	if (bUseSSOTData && SSOTIconPath.IsValid())
+	{
+		DebuffImage->SetBrushFromTexture(SSOTIconPath.Get());
+		UE_LOG(LogDebuffIcon, Verbose, TEXT("SSOT icon loaded for effect: %s"), *CachedEffectID.ToString());
+		return;
+	}
+
+	// Find the icon again and set it from local map
 	const TSoftObjectPtr<UTexture2D>* IconPtr = DebuffIcons.Find(DoTType);
 
 	if (!IconPtr)
@@ -370,10 +553,9 @@ void UW_DebuffIcon::OnIconLoaded()
 		IconPtr = DebuffIcons.Find(ParentTag);
 	}
 
-	if (IconPtr && IconPtr->IsValid() && DebuffImage)
+	if (IconPtr && IconPtr->IsValid())
 	{
 		DebuffImage->SetBrushFromTexture(IconPtr->Get());
-
 		UE_LOG(LogDebuffIcon, Verbose, TEXT("Icon loaded for DoT type: %s"), *DoTType.ToString());
 	}
 }
@@ -392,10 +574,12 @@ void UW_DebuffIcon::UpdateCriticalState()
 	{
 		bIsInCriticalState = bShouldBeCritical;
 
-		// Update visual tint
+		// Update visual tint (use SSOT colors if available)
 		if (DebuffImage)
 		{
-			DebuffImage->SetColorAndOpacity(bIsInCriticalState ? CriticalTintColor : NormalTintColor);
+			const FLinearColor& NormalColor = (bUseSSOTData && !CachedEffectID.IsNone()) ? SSOTNormalTint : NormalTintColor;
+			const FLinearColor& CriticalColor = (bUseSSOTData && !CachedEffectID.IsNone()) ? SSOTCriticalTint : CriticalTintColor;
+			DebuffImage->SetColorAndOpacity(bIsInCriticalState ? CriticalColor : NormalColor);
 		}
 
 		// Start/stop pulse animation

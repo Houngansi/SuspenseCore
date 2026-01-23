@@ -290,6 +290,52 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(BleedingLight, "State.Health.Bleeding.Light");
 			UE_DEFINE_GAMEPLAY_TAG(BleedingHeavy, "State.Health.Bleeding.Heavy");
 			UE_DEFINE_GAMEPLAY_TAG(Regenerating, "State.Health.Regenerating");
+			UE_DEFINE_GAMEPLAY_TAG(Poisoned, "State.Health.Poisoned");
+			UE_DEFINE_GAMEPLAY_TAG(Fracture, "State.Health.Fracture");
+			UE_DEFINE_GAMEPLAY_TAG(Painkiller, "State.Health.Painkiller");
+		}
+
+		//--------------------------------------------------------------
+		// Combat Status States
+		//--------------------------------------------------------------
+		namespace Combat
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Blinded, "State.Combat.Blinded");
+			UE_DEFINE_GAMEPLAY_TAG(Suppressed, "State.Combat.Suppressed");
+			UE_DEFINE_GAMEPLAY_TAG(Adrenaline, "State.Combat.Adrenaline");
+			UE_DEFINE_GAMEPLAY_TAG(Fortified, "State.Combat.Fortified");
+		}
+
+		//--------------------------------------------------------------
+		// Movement Status States
+		//--------------------------------------------------------------
+		namespace Movement
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Slowed, "State.Movement.Slowed");
+			UE_DEFINE_GAMEPLAY_TAG(Disabled, "State.Movement.Disabled");
+		}
+
+		//--------------------------------------------------------------
+		// Survival Status States
+		//--------------------------------------------------------------
+		namespace Survival
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Dehydrated, "State.Survival.Dehydrated");
+			UE_DEFINE_GAMEPLAY_TAG(Exhausted, "State.Survival.Exhausted");
+			UE_DEFINE_GAMEPLAY_TAG(Hungry, "State.Survival.Hungry");
+		}
+
+		//--------------------------------------------------------------
+		// Immunity Tags
+		//--------------------------------------------------------------
+		namespace Immunity
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Pain, "State.Immunity.Pain");
+			UE_DEFINE_GAMEPLAY_TAG(Fire, "State.Immunity.Fire");
+			UE_DEFINE_GAMEPLAY_TAG(Poison, "State.Immunity.Poison");
+			UE_DEFINE_GAMEPLAY_TAG(Stun, "State.Immunity.Stun");
+			UE_DEFINE_GAMEPLAY_TAG(Flash, "State.Immunity.Flash");
+			UE_DEFINE_GAMEPLAY_TAG(Slow, "State.Immunity.Slow");
 		}
 	}
 
@@ -527,6 +573,32 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(BleedHeavy, "Effect.DoT.Bleed.Heavy");
 			UE_DEFINE_GAMEPLAY_TAG(Burn, "Effect.DoT.Burn");
 			UE_DEFINE_GAMEPLAY_TAG(BurnArmorBypass, "Effect.DoT.Burn.ArmorBypass");
+			UE_DEFINE_GAMEPLAY_TAG(Poison, "Effect.DoT.Poison");
+		}
+
+		//--------------------------------------------------------------
+		// Cure Effect Tags (Effect.Cure.*)
+		//--------------------------------------------------------------
+		namespace Cure
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Bleeding, "Effect.Cure.Bleeding");
+			UE_DEFINE_GAMEPLAY_TAG(BleedingHeavy, "Effect.Cure.Bleeding.Heavy");
+			UE_DEFINE_GAMEPLAY_TAG(Fire, "Effect.Cure.Fire");
+			UE_DEFINE_GAMEPLAY_TAG(Poison, "Effect.Cure.Poison");
+			UE_DEFINE_GAMEPLAY_TAG(Fracture, "Effect.Cure.Fracture");
+			UE_DEFINE_GAMEPLAY_TAG(Dehydration, "Effect.Cure.Dehydration");
+			UE_DEFINE_GAMEPLAY_TAG(Exhaustion, "Effect.Cure.Exhaustion");
+		}
+
+		//--------------------------------------------------------------
+		// Buff Effect Tags (Effect.Buff.*)
+		//--------------------------------------------------------------
+		namespace Buff
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Regenerating, "Effect.Buff.Regenerating");
+			UE_DEFINE_GAMEPLAY_TAG(Painkiller, "Effect.Buff.Painkiller");
+			UE_DEFINE_GAMEPLAY_TAG(Adrenaline, "Effect.Buff.Adrenaline");
+			UE_DEFINE_GAMEPLAY_TAG(Fortified, "Effect.Buff.Fortified");
 		}
 	}
 

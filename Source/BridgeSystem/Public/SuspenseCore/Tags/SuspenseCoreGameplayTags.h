@@ -306,12 +306,59 @@ namespace SuspenseCoreTags
 
 		//--------------------------------------------------------------
 		// DoT (Damage-over-Time) States - Bleeding, Burning, etc.
+		// @see FSuspenseCoreStatusEffectAttributeRow (SSOT)
 		//--------------------------------------------------------------
 		namespace Health
 		{
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedingLight);   // State.Health.Bleeding.Light
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedingHeavy);   // State.Health.Bleeding.Heavy
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Regenerating);    // State.Health.Regenerating (HoT active)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Poisoned);        // State.Health.Poisoned
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fracture);        // State.Health.Fracture
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Painkiller);      // State.Health.Painkiller (pain suppression)
+		}
+
+		//--------------------------------------------------------------
+		// Combat Status States
+		//--------------------------------------------------------------
+		namespace Combat
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Blinded);         // State.Combat.Blinded (flashbang)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Suppressed);      // State.Combat.Suppressed (under fire)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Adrenaline);      // State.Combat.Adrenaline (combat high)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fortified);       // State.Combat.Fortified (damage resist)
+		}
+
+		//--------------------------------------------------------------
+		// Movement Status States
+		//--------------------------------------------------------------
+		namespace Movement
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Slowed);          // State.Movement.Slowed
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Disabled);        // State.Movement.Disabled
+		}
+
+		//--------------------------------------------------------------
+		// Survival Status States
+		//--------------------------------------------------------------
+		namespace Survival
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Dehydrated);      // State.Survival.Dehydrated
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Exhausted);       // State.Survival.Exhausted
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Hungry);          // State.Survival.Hungry
+		}
+
+		//--------------------------------------------------------------
+		// Immunity Tags (blocks effect application)
+		//--------------------------------------------------------------
+		namespace Immunity
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pain);            // State.Immunity.Pain
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fire);            // State.Immunity.Fire
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Poison);          // State.Immunity.Poison
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stun);            // State.Immunity.Stun
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flash);           // State.Immunity.Flash
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Slow);            // State.Immunity.Slow
 		}
 	}
 
@@ -550,6 +597,35 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedHeavy);            // Effect.DoT.Bleed.Heavy
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burn);                  // Effect.DoT.Burn
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurnArmorBypass);       // Effect.DoT.Burn.ArmorBypass
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Poison);                // Effect.DoT.Poison
+		}
+
+		//--------------------------------------------------------------
+		// Cure Effect Tags (Effect.Cure.*)
+		// Used by medical items to cure specific status effects
+		// @see FSuspenseCoreStatusEffectAttributeRow.CureEffectTags
+		//--------------------------------------------------------------
+		namespace Cure
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Bleeding);              // Effect.Cure.Bleeding (all bleeding)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BleedingHeavy);         // Effect.Cure.Bleeding.Heavy
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fire);                  // Effect.Cure.Fire
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Poison);                // Effect.Cure.Poison
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fracture);              // Effect.Cure.Fracture
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Dehydration);           // Effect.Cure.Dehydration
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Exhaustion);            // Effect.Cure.Exhaustion
+		}
+
+		//--------------------------------------------------------------
+		// Buff Effect Tags (Effect.Buff.*)
+		// Positive effects applied by consumables
+		//--------------------------------------------------------------
+		namespace Buff
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Regenerating);          // Effect.Buff.Regenerating
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Painkiller);            // Effect.Buff.Painkiller
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Adrenaline);            // Effect.Buff.Adrenaline
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fortified);             // Effect.Buff.Fortified
 		}
 	}
 

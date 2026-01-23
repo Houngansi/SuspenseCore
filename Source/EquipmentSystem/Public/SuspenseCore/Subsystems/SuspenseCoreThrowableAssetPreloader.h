@@ -109,6 +109,16 @@ struct FSuspenseCoreThrowableAssetCache
 	UPROPERTY()
 	TSubclassOf<UGameplayEffect> IncendiaryEffectClass;
 
+	// ═══════════════════════════════════════════════════════════════════
+	// DoT Effects (Bleeding)
+	// ═══════════════════════════════════════════════════════════════════
+
+	UPROPERTY()
+	TSubclassOf<UGameplayEffect> BleedingLightEffectClass;
+
+	UPROPERTY()
+	TSubclassOf<UGameplayEffect> BleedingHeavyEffectClass;
+
 	/** Check if cache has loaded assets */
 	bool IsLoaded() const
 	{

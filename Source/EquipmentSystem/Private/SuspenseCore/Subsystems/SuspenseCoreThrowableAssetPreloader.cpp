@@ -337,6 +337,16 @@ void USuspenseCoreThrowableAssetPreloader::LoadThrowableAssets(FName ThrowableID
 		{
 			AssetsToLoad.Add(ThrowableAttrs.IncendiaryEffectClass.ToSoftObjectPath());
 		}
+
+		// DoT Effects (Bleeding)
+		if (!ThrowableAttrs.BleedingLightEffectClass.IsNull())
+		{
+			AssetsToLoad.Add(ThrowableAttrs.BleedingLightEffectClass.ToSoftObjectPath());
+		}
+		if (!ThrowableAttrs.BleedingHeavyEffectClass.IsNull())
+		{
+			AssetsToLoad.Add(ThrowableAttrs.BleedingHeavyEffectClass.ToSoftObjectPath());
+		}
 	}
 
 	if (AssetsToLoad.Num() == 0)
@@ -422,6 +432,16 @@ void USuspenseCoreThrowableAssetPreloader::LoadThrowableAssets(FName ThrowableID
 				if (!ThrowableAttrs.IncendiaryEffectClass.IsNull())
 				{
 					CacheEntry.IncendiaryEffectClass = ThrowableAttrs.IncendiaryEffectClass.Get();
+				}
+
+				// DoT Effects (Bleeding)
+				if (!ThrowableAttrs.BleedingLightEffectClass.IsNull())
+				{
+					CacheEntry.BleedingLightEffectClass = ThrowableAttrs.BleedingLightEffectClass.Get();
+				}
+				if (!ThrowableAttrs.BleedingHeavyEffectClass.IsNull())
+				{
+					CacheEntry.BleedingHeavyEffectClass = ThrowableAttrs.BleedingHeavyEffectClass.Get();
 				}
 			}
 

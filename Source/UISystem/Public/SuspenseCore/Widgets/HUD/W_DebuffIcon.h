@@ -210,7 +210,7 @@ public:
 
 	/** Called when timer enters critical state */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Debuff|Events")
-	void OnCriticalState(bool bIsCritical);
+	void OnCriticalState(bool bInCriticalState);
 
 	/** Called when stack count changes */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Debuff|Events")

@@ -294,7 +294,9 @@ void UW_DebuffContainer::OnDoTTick(FGameplayTag EventTag, const FSuspenseCoreEve
 		FGameplayTag DoTType = FGameplayTag::RequestGameplayTag(FName(*DoTTypeStr), false);
 		if (DoTType.IsValid())
 		{
-			if (UW_DebuffIcon** IconPtr = ActiveDebuffs.Find(DoTType))
+				// TMap::Find returns TObjectPtr<T>*, not T**
+			TObjectPtr<UW_DebuffIcon>* IconPtr = ActiveDebuffs.Find(DoTType);
+			if (IconPtr && *IconPtr)
 			{
 				float RemainingDuration = EventData.GetFloat(TEXT("RemainingDuration"), -1.0f);
 				if (RemainingDuration >= 0.0f)
@@ -399,11 +401,13 @@ USuspenseCoreEventBus* UW_DebuffContainer::GetEventBus() const
 void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration, int32 StackCount)
 {
 	// Check if we already have an icon for this type
-	if (UW_DebuffIcon** ExistingIcon = ActiveDebuffs.Find(DoTType))
+	// TMap::Find returns TObjectPtr<T>*, not T**
+	TObjectPtr<UW_DebuffIcon>* ExistingIconPtr = ActiveDebuffs.Find(DoTType);
+	if (ExistingIconPtr && *ExistingIconPtr)
 	{
 		// Update existing icon
-		(*ExistingIcon)->UpdateTimer(Duration);
-		(*ExistingIcon)->UpdateStackCount(StackCount);
+		(*ExistingIconPtr)->UpdateTimer(Duration);
+		(*ExistingIconPtr)->UpdateStackCount(StackCount);
 
 		UE_LOG(LogDebuffContainer, Verbose, TEXT("Updated existing debuff icon: %s"), *DoTType.ToString());
 		return;
@@ -434,10 +438,11 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 	// Add to container
 	if (DebuffBox)
 	{
-		UHorizontalBoxSlot* Slot = DebuffBox->AddChildToHorizontalBox(NewIcon);
-		if (Slot)
+		// Note: Local variable renamed to avoid shadowing UWidget::Slot
+		UHorizontalBoxSlot* BoxSlot = DebuffBox->AddChildToHorizontalBox(NewIcon);
+		if (BoxSlot)
 		{
-			Slot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f));
+			BoxSlot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f));
 		}
 	}
 
@@ -450,14 +455,15 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 
 void UW_DebuffContainer::RemoveDebuff(FGameplayTag DoTType)
 {
-	UW_DebuffIcon** IconPtr = ActiveDebuffs.Find(DoTType);
-	if (!IconPtr || !*IconPtr)
+	// TMap::Find returns TObjectPtr<T>*, not T**
+	TObjectPtr<UW_DebuffIcon>* IconPtr = ActiveDebuffs.Find(DoTType);
+	if (!IconPtr || !(*IconPtr))
 	{
 		UE_LOG(LogDebuffContainer, Verbose, TEXT("RemoveDebuff: No active icon for type: %s"), *DoTType.ToString());
 		return;
 	}
 
-	UW_DebuffIcon* Icon = *IconPtr;
+	UW_DebuffIcon* Icon = IconPtr->Get();
 
 	// Play removal animation - icon will call OnRemovalComplete when done
 	Icon->PlayRemovalAnimation();

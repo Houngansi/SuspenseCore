@@ -273,7 +273,7 @@ private:
 	int32 StackCount = 1;
 
 	/** Is in critical state */
-	bool bIsCritical = false;
+	bool bIsInCriticalState = false;
 
 	/** Is icon currently active (displaying a debuff) */
 	bool bIsActive = false;

@@ -93,7 +93,7 @@ void UW_DebuffIcon::SetDebuffData(FGameplayTag InDoTType, float InDuration, int3
 	StackCount = InStackCount;
 	bIsActive = true;
 	bIsRemoving = false;
-	bIsCritical = false;
+	bIsInCriticalState = false;
 
 	UE_LOG(LogDebuffIcon, Log, TEXT("SetDebuffData: Type=%s, Duration=%.1f, Stacks=%d"),
 		*DoTType.ToString(), TotalDuration, StackCount);
@@ -220,7 +220,7 @@ void UW_DebuffIcon::ResetToDefault()
 	StackCount = 1;
 	bIsActive = false;
 	bIsRemoving = false;
-	bIsCritical = false;
+	bIsInCriticalState = false;
 
 	// Reset visuals
 	if (DebuffImage)
@@ -388,20 +388,20 @@ void UW_DebuffIcon::UpdateCriticalState()
 
 	const bool bShouldBeCritical = (RemainingDuration > 0.0f && RemainingDuration <= CriticalDurationThreshold);
 
-	if (bShouldBeCritical != bIsCritical)
+	if (bShouldBeCritical != bIsInCriticalState)
 	{
-		bIsCritical = bShouldBeCritical;
+		bIsInCriticalState = bShouldBeCritical;
 
 		// Update visual tint
 		if (DebuffImage)
 		{
-			DebuffImage->SetColorAndOpacity(bIsCritical ? CriticalTintColor : NormalTintColor);
+			DebuffImage->SetColorAndOpacity(bIsInCriticalState ? CriticalTintColor : NormalTintColor);
 		}
 
 		// Start/stop pulse animation
 		if (PulseAnimation)
 		{
-			if (bIsCritical)
+			if (bIsInCriticalState)
 			{
 				PlayAnimation(PulseAnimation, 0.0f, 0);  // 0 = loop forever
 			}
@@ -412,7 +412,7 @@ void UW_DebuffIcon::UpdateCriticalState()
 		}
 
 		// Notify Blueprint
-		OnCriticalState(bIsCritical);
+		OnCriticalState(bIsInCriticalState);
 	}
 }
 

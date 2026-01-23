@@ -294,7 +294,7 @@ void UW_DebuffContainer::OnDoTTick(FGameplayTag EventTag, const FSuspenseCoreEve
 		FGameplayTag DoTType = FGameplayTag::RequestGameplayTag(FName(*DoTTypeStr), false);
 		if (DoTType.IsValid())
 		{
-			if (UW_DebuffIcon** IconPtr = ActiveDebuffs.Find(DoTType))
+			if (TObjectPtr<UW_DebuffIcon>* IconPtr = ActiveDebuffs.Find(DoTType))
 			{
 				float RemainingDuration = EventData.GetFloat(TEXT("RemainingDuration"), -1.0f);
 				if (RemainingDuration >= 0.0f)
@@ -399,7 +399,7 @@ USuspenseCoreEventBus* UW_DebuffContainer::GetEventBus() const
 void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration, int32 StackCount)
 {
 	// Check if we already have an icon for this type
-	if (UW_DebuffIcon** ExistingIcon = ActiveDebuffs.Find(DoTType))
+	if (TObjectPtr<UW_DebuffIcon>* ExistingIcon = ActiveDebuffs.Find(DoTType))
 	{
 		// Update existing icon
 		(*ExistingIcon)->UpdateTimer(Duration);
@@ -434,10 +434,10 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 	// Add to container
 	if (DebuffBox)
 	{
-		UHorizontalBoxSlot* Slot = DebuffBox->AddChildToHorizontalBox(NewIcon);
-		if (Slot)
+		UHorizontalBoxSlot* IconSlot = DebuffBox->AddChildToHorizontalBox(NewIcon);
+		if (IconSlot)
 		{
-			Slot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f));
+			IconSlot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f));
 		}
 	}
 
@@ -450,7 +450,7 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 
 void UW_DebuffContainer::RemoveDebuff(FGameplayTag DoTType)
 {
-	UW_DebuffIcon** IconPtr = ActiveDebuffs.Find(DoTType);
+	TObjectPtr<UW_DebuffIcon>* IconPtr = ActiveDebuffs.Find(DoTType);
 	if (!IconPtr || !*IconPtr)
 	{
 		UE_LOG(LogDebuffContainer, Verbose, TEXT("RemoveDebuff: No active icon for type: %s"), *DoTType.ToString());

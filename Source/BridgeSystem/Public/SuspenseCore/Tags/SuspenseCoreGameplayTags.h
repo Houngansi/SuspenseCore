@@ -315,7 +315,11 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Regenerating);    // State.Health.Regenerating (HoT active)
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Poisoned);        // State.Health.Poisoned
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fracture);        // State.Health.Fracture
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(FractureLeg);     // State.Health.Fracture.Leg
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(FractureArm);     // State.Health.Fracture.Arm
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Painkiller);      // State.Health.Painkiller (pain suppression)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Dehydrated);      // State.Health.Dehydrated
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Exhausted);       // State.Health.Exhausted
 		}
 
 		//--------------------------------------------------------------
@@ -327,6 +331,11 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Suppressed);      // State.Combat.Suppressed (under fire)
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Adrenaline);      // State.Combat.Adrenaline (combat high)
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fortified);       // State.Combat.Fortified (damage resist)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stunned);         // State.Combat.Stunned
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(NoADS);           // State.Combat.NoADS (fracture arm)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Painkiller);      // State.Combat.Painkiller
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PainImmune);      // State.Combat.PainImmune
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageResist);    // State.Combat.DamageResist
 		}
 
 		//--------------------------------------------------------------
@@ -336,6 +345,17 @@ namespace SuspenseCoreTags
 		{
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Slowed);          // State.Movement.Slowed
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Disabled);        // State.Movement.Disabled
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Limp);            // State.Movement.Limp (fracture leg)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(NoSprint);        // State.Movement.NoSprint
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Haste);           // State.Movement.Haste
+		}
+
+		//--------------------------------------------------------------
+		// Action Status States
+		//--------------------------------------------------------------
+		namespace Action
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Disabled);        // State.Action.Disabled
 		}
 
 		//--------------------------------------------------------------
@@ -534,6 +554,24 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpeedMultiplier);
 		}
 
+		// Effect tags for SetByCaller (GameplayEffects duration/magnitude)
+		namespace Effect
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Duration);  // Data.Effect.Duration
+		}
+
+		// Damage data tags for SetByCaller
+		namespace Damage
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Poison);    // Data.Damage.Poison
+		}
+
+		// Heal data tags for SetByCaller
+		namespace Heal
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PerTick);   // Data.Heal.PerTick
+		}
+
 		// Grenade effect data tags
 		namespace Grenade
 		{
@@ -574,10 +612,27 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageExplosion);     // Effect.Damage.Explosion
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageShrapnel);      // Effect.Damage.Shrapnel
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBurn);          // Effect.Damage.Burn
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamagePoison);        // Effect.Damage.Poison
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageWithHitInfo);   // Effect.Damage.WithHitInfo
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBleed);         // Effect.Damage.Bleed (base bleeding)
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBleedLight);    // Effect.Damage.Bleed.Light
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBleedHeavy);    // Effect.Damage.Bleed.Heavy
+
+		// Base effect type tags
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Debuff);              // Effect.Debuff (base debuff tag)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Buff);                // Effect.Buff (base buff tag)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(HoT);                 // Effect.HoT (heal over time)
+
+		//--------------------------------------------------------------
+		// Debuff Effect Tags (Effect.Debuff.*)
+		//--------------------------------------------------------------
+		namespace Debuff
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stun);            // Effect.Debuff.Stun
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Suppression);     // Effect.Debuff.Suppression
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fracture);        // Effect.Debuff.Fracture
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Survival);        // Effect.Debuff.Survival
+		}
 
 		// Grenade effect tags (Effect.Grenade.*)
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbang);         // Effect.Grenade.Flashbang
@@ -626,6 +681,10 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Painkiller);            // Effect.Buff.Painkiller
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Adrenaline);            // Effect.Buff.Adrenaline
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fortified);             // Effect.Buff.Fortified
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Heal);                  // Effect.Buff.Heal
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat);                // Effect.Buff.Combat
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Defense);               // Effect.Buff.Defense
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement);              // Effect.Buff.Movement
 		}
 	}
 

@@ -29,7 +29,7 @@ class UTextBlock;
 class UProgressBar;
 class UWidgetAnimation;
 class UTexture2D;
-struct FSuspenseCoreStatusEffectAttributeRow;
+struct FSuspenseCoreStatusEffectVisualRow;
 
 /**
  * Individual debuff icon widget
@@ -128,8 +128,8 @@ public:
 
 	/**
 	 * Use SSOT DataTable for visual data instead of hardcoded DebuffIcons map
-	 * When enabled, icons and colors are loaded from StatusEffectAttributesDataTable
-	 * @see FSuspenseCoreStatusEffectAttributeRow
+	 * When enabled, icons and colors are loaded from StatusEffectVisualsDataTable
+	 * @see FSuspenseCoreStatusEffectVisualRow (v2.0 simplified visual-only structure)
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff|Config")
 	bool bUseSSOTData = true;

@@ -482,6 +482,56 @@ public:
 	bool IsStatusEffectSystemReady() const { return bStatusEffectSystemReady; }
 
 	//========================================================================
+	// Status Effect Visual Data Access (v2.0 Simplified Structure)
+	// @see Documentation/GameDesign/StatusEffect_System_GDD.md
+	//========================================================================
+
+	/**
+	 * Get status effect visual data by EffectID
+	 * NEW v2.0 API - uses simplified FSuspenseCoreStatusEffectVisualRow
+	 *
+	 * @param EffectKey EffectID or explicit row name
+	 * @param OutVisuals Output visual data structure
+	 * @return true if found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|StatusEffect")
+	bool GetStatusEffectVisuals(FName EffectKey, FSuspenseCoreStatusEffectVisualRow& OutVisuals) const;
+
+	/**
+	 * Get status effect visual data by GameplayTag
+	 * NEW v2.0 API - searches by EffectTypeTag
+	 *
+	 * @param EffectTag Effect type tag (e.g., State.Health.Bleeding.Light)
+	 * @param OutVisuals Output visual data structure
+	 * @return true if found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|StatusEffect")
+	bool GetStatusEffectVisualsByTag(FGameplayTag EffectTag, FSuspenseCoreStatusEffectVisualRow& OutVisuals) const;
+
+	/**
+	 * Get all items that can cure a specific effect
+	 *
+	 * @param EffectTag Effect type tag to cure
+	 * @return Array of ItemIDs that can cure this effect
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|StatusEffect")
+	TArray<FName> GetCureItemsForEffect(FGameplayTag EffectTag) const;
+
+	/**
+	 * Check if specific item can cure an effect
+	 *
+	 * @param ItemID Item to check
+	 * @param EffectTag Effect to cure
+	 * @return true if item can cure the effect
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|StatusEffect")
+	bool CanItemCureEffect(FName ItemID, FGameplayTag EffectTag) const;
+
+	/** Check if visual data system is ready (v2.0) */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|StatusEffect")
+	bool IsStatusEffectVisualsReady() const { return bStatusEffectVisualsReady; }
+
+	//========================================================================
 	// Magazine System Access (Tarkov-Style)
 	//========================================================================
 
@@ -668,6 +718,24 @@ protected:
 	bool BuildStatusEffectAttributesCache(UDataTable* DataTable);
 
 	//========================================================================
+	// Status Effect Visuals Initialization (v2.0 Simplified Structure)
+	//========================================================================
+
+	/**
+	 * Initialize status effect visuals system (v2.0)
+	 * Loads StatusEffectVisualsDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeStatusEffectVisualsSystem();
+
+	/**
+	 * Build status effect visuals cache from DataTable (v2.0)
+	 * @param DataTable Status effect visuals DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildStatusEffectVisualsCache(UDataTable* DataTable);
+
+	//========================================================================
 	// Magazine System Initialization (Tarkov-Style)
 	//========================================================================
 
@@ -824,9 +892,33 @@ private:
 	UPROPERTY()
 	TMap<FGameplayTag, FName> StatusEffectTagToIDMap;
 
-	/** Loaded status effect attributes DataTable reference */
+	/** Loaded status effect attributes DataTable reference (old) */
 	UPROPERTY()
 	TObjectPtr<UDataTable> LoadedStatusEffectAttributesDataTable;
+
+	//========================================================================
+	// Status Effect Visual Data Cache (v2.0 Simplified Structure)
+	//========================================================================
+
+	/**
+	 * Status effect visual data cache (v2.0)
+	 * NEW simplified structure with only UI/visual fields
+	 * Gameplay data (duration, damage) comes from GameplayEffect assets
+	 * @see FSuspenseCoreStatusEffectVisualRow
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreStatusEffectVisualRow> StatusEffectVisualsCache;
+
+	/**
+	 * Visual effect type tag to EffectID lookup map (v2.0)
+	 * Enables fast lookup by GameplayTag
+	 */
+	UPROPERTY()
+	TMap<FGameplayTag, FName> StatusEffectVisualTagToIDMap;
+
+	/** Loaded status effect visuals DataTable reference (v2.0) */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedStatusEffectVisualsDataTable;
 
 	//========================================================================
 	// Magazine System Cached Data (Tarkov-Style)
@@ -872,8 +964,11 @@ private:
 	/** Attachment attributes system ready flag */
 	bool bAttachmentAttributesSystemReady = false;
 
-	/** Status effect attributes system ready flag */
+	/** Status effect attributes system ready flag (old) */
 	bool bStatusEffectSystemReady = false;
+
+	/** Status effect visuals system ready flag (v2.0) */
+	bool bStatusEffectVisualsReady = false;
 
 	/** Magazine system ready flag */
 	bool bMagazineSystemReady = false;

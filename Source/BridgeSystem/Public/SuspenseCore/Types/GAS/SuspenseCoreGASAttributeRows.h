@@ -1194,9 +1194,196 @@ enum class ESuspenseCoreStackBehavior : uint8
 
 
 /**
+ * FSuspenseCoreStatusEffectVisualRow
+ *
+ * SIMPLIFIED DataTable row structure for status effect VISUAL data only.
+ * Gameplay data (duration, damage, stacking) is managed by GameplayEffect assets.
+ *
+ * This structure follows the GDD v2.0 architecture:
+ * - GameplayEffect Assets → Gameplay logic (duration, damage, stacking)
+ * - DataTable (this) → Visual/UI data only (icon, VFX, audio, cure items)
+ *
+ * JSON SOURCE: Content/Data/StatusEffects/SuspenseCoreStatusEffectVisuals.json
+ * TARGET DATATABLE: DT_StatusEffectVisuals
+ *
+ * @see Documentation/GameDesign/StatusEffect_System_GDD.md
+ * @see USuspenseCoreDoTService
+ * @see UW_DebuffIcon, UW_DebuffContainer
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreStatusEffectVisualRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	//========================================================================
+	// Identity & GAS Link
+	//========================================================================
+
+	/** Unique effect identifier (RowName in DataTable) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FName EffectID;
+
+	/** Effect type tag - MUST match tag granted by GameplayEffect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity",
+		meta = (Categories = "State"))
+	FGameplayTag EffectTypeTag;
+
+	/** Reference to GameplayEffect asset */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	TSoftClassPtr<class UGameplayEffect> GameplayEffectClass;
+
+	//========================================================================
+	// UI Display
+	//========================================================================
+
+	/** Localized display name */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	FText DisplayName;
+
+	/** Short description for tooltip */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	FText Description;
+
+	/** Buff, Debuff, or Neutral */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	ESuspenseCoreStatusEffectCategory Category = ESuspenseCoreStatusEffectCategory::Debuff;
+
+	/** Sort priority (higher = shown first) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI",
+		meta = (ClampMin = "0", ClampMax = "100"))
+	int32 DisplayPriority = 50;
+
+	//========================================================================
+	// Visual - Icon
+	//========================================================================
+
+	/** Icon texture for UI */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
+	TSoftObjectPtr<UTexture2D> Icon;
+
+	/** Icon tint (normal state) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
+	FLinearColor IconTint = FLinearColor::White;
+
+	/** Icon tint (critical/urgent state) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
+	FLinearColor CriticalIconTint = FLinearColor(1.0f, 0.3f, 0.3f, 1.0f);
+
+	//========================================================================
+	// Visual - VFX
+	//========================================================================
+
+	/** Niagara effect on character */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+	TSoftObjectPtr<class UNiagaraSystem> CharacterVFX;
+
+	/** VFX attachment socket */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+	FName VFXAttachSocket = NAME_None;
+
+	//========================================================================
+	// Audio
+	//========================================================================
+
+	/** Sound on effect application */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> ApplicationSound;
+
+	/** Sound on effect removal/cure */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TSoftObjectPtr<class USoundBase> RemovalSound;
+
+	//========================================================================
+	// Cure System
+	//========================================================================
+
+	/** Item IDs that can cure this effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure")
+	TArray<FName> CureItemIDs;
+
+	/** Can be cured by basic bandage */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure")
+	bool bCuredByBandage = false;
+
+	/** Can be cured by medkit */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure")
+	bool bCuredByMedkit = false;
+
+	/** Requires surgical kit */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cure")
+	bool bRequiresSurgery = false;
+
+	//========================================================================
+	// Animation Flags
+	//========================================================================
+
+	/** Prevents sprinting */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	bool bPreventsSprinting = false;
+
+	/** Prevents ADS */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	bool bPreventsADS = false;
+
+	/** Causes limping animation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	bool bCausesLimp = false;
+
+	//========================================================================
+	// Helper Methods
+	//========================================================================
+
+	/** Check if row has valid data */
+	bool IsValid() const
+	{
+		return !EffectID.IsNone() && EffectTypeTag.IsValid();
+	}
+
+	/** Check if this is a debuff */
+	bool IsDebuff() const
+	{
+		return Category == ESuspenseCoreStatusEffectCategory::Debuff;
+	}
+
+	/** Check if this is a buff */
+	bool IsBuff() const
+	{
+		return Category == ESuspenseCoreStatusEffectCategory::Buff;
+	}
+
+	/** Check if this effect has visual icon */
+	bool HasIcon() const
+	{
+		return !Icon.IsNull();
+	}
+
+	/** Check if this effect has character VFX */
+	bool HasCharacterVFX() const
+	{
+		return !CharacterVFX.IsNull();
+	}
+
+	/** Check if any item can cure this effect */
+	bool CanBeCured() const
+	{
+		return CureItemIDs.Num() > 0 || bCuredByBandage || bCuredByMedkit;
+	}
+
+	/** Check if specific item can cure this effect */
+	bool CanBeCuredByItem(FName ItemID) const
+	{
+		return CureItemIDs.Contains(ItemID);
+	}
+};
+
+
+/**
  * FSuspenseCoreStatusEffectModifier
  *
  * Single attribute modifier applied by a status effect
+ *
+ * @deprecated Use GameplayEffect Modifiers instead.
+ * This struct is kept for backward compatibility with old FSuspenseCoreStatusEffectAttributeRow.
  */
 USTRUCT(BlueprintType)
 struct BRIDGESYSTEM_API FSuspenseCoreStatusEffectModifier
@@ -1222,39 +1409,26 @@ struct BRIDGESYSTEM_API FSuspenseCoreStatusEffectModifier
 /**
  * FSuspenseCoreStatusEffectAttributeRow
  *
- * DataTable row structure for ALL status effects (buffs and debuffs).
- * This is the SINGLE SOURCE OF TRUTH for status effect data.
+ * @deprecated This struct is deprecated. Use FSuspenseCoreStatusEffectVisualRow instead.
  *
- * JSON SOURCE: Content/Data/StatusEffects/SuspenseCoreStatusEffects.json
- * TARGET DATATABLE: DT_StatusEffects
+ * The new architecture separates gameplay data (GameplayEffect assets) from
+ * visual data (FSuspenseCoreStatusEffectVisualRow). Duration, damage, stacking
+ * policies should be configured in GameplayEffect Blueprint assets.
  *
- * USAGE:
+ * @see FSuspenseCoreStatusEffectVisualRow - New simplified structure for visuals
+ * @see Documentation/GameDesign/StatusEffect_System_GDD.md - Architecture documentation
+ *
+ * MIGRATION GUIDE:
  * ═══════════════════════════════════════════════════════════════════════════
- * 1. Import JSON into DataTable via Editor (File → Import)
- * 2. Configure StatusEffectAttributesDataTable in Project Settings → SuspenseCore
- * 3. DataManager caches rows on Initialize()
- * 4. DoTService/EffectSystem queries DataManager->GetStatusEffectData()
- * 5. UI widgets (W_DebuffIcon) get visual data from this SSOT
+ * OLD: FSuspenseCoreStatusEffectAttributeRow (43+ fields)
+ *   - Contains Duration, DamagePerTick, StackBehavior, etc.
  *
- * SUPPORTED EFFECT TYPES:
- * ═══════════════════════════════════════════════════════════════════════════
- * DEBUFFS:
- * - Bleeding (Light/Heavy) - DoT, infinite duration until healed
- * - Burning - DoT with duration
- * - Poisoned - DoT with attribute debuffs
- * - Stunned - Disables movement/actions
- * - Slowed - Movement speed reduction
- * - Suppressed - Aim penalty from enemy fire
+ * NEW: FSuspenseCoreStatusEffectVisualRow (18 fields) + GameplayEffect Assets
+ *   - Visual data only: Icon, VFX, Audio, CureItems
+ *   - Gameplay data moved to GE Blueprint assets
  *
- * BUFFS:
- * - Regenerating - HoT (healing over time)
- * - Painkiller - Ignores pain effects
- * - Adrenaline - Temporary stat boost
- * - Fortified - Damage resistance
- *
- * @see USuspenseCoreDoTService
- * @see UW_DebuffIcon, UW_DebuffContainer
- * @see Documentation/Plans/StatusEffect_SSOT_System.md
+ * JSON SOURCE (OLD): Content/Data/StatusEffects/SuspenseCoreStatusEffects.json
+ * JSON SOURCE (NEW): Content/Data/StatusEffects/SuspenseCoreStatusEffectVisuals.json
  */
 USTRUCT(BlueprintType)
 struct BRIDGESYSTEM_API FSuspenseCoreStatusEffectAttributeRow : public FTableRowBase

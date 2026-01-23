@@ -528,12 +528,17 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageShrapnel);      // Effect.Damage.Shrapnel
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBurn);          // Effect.Damage.Burn
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageWithHitInfo);   // Effect.Damage.WithHitInfo
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBleed);         // Effect.Damage.Bleed (base bleeding)
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBleedLight);    // Effect.Damage.Bleed.Light
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageBleedHeavy);    // Effect.Damage.Bleed.Heavy
 
 		// Grenade effect tags (Effect.Grenade.*)
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbang);         // Effect.Grenade.Flashbang
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeFlashbangPartial);  // Effect.Grenade.Flashbang.Partial
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeIncendiary);        // Effect.Grenade.Incendiary
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeIncendiaryZone);    // Effect.Grenade.Incendiary.Zone
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeIncendiaryArmorBypass); // Effect.Grenade.Incendiary.ArmorBypass
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrenadeShrapnel);          // Effect.Grenade.Shrapnel
 
 		//--------------------------------------------------------------
 		// DoT Effect Tags (Effect.DoT.*)

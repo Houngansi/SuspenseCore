@@ -292,7 +292,11 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Regenerating, "State.Health.Regenerating");
 			UE_DEFINE_GAMEPLAY_TAG(Poisoned, "State.Health.Poisoned");
 			UE_DEFINE_GAMEPLAY_TAG(Fracture, "State.Health.Fracture");
+			UE_DEFINE_GAMEPLAY_TAG(FractureLeg, "State.Health.Fracture.Leg");
+			UE_DEFINE_GAMEPLAY_TAG(FractureArm, "State.Health.Fracture.Arm");
 			UE_DEFINE_GAMEPLAY_TAG(Painkiller, "State.Health.Painkiller");
+			UE_DEFINE_GAMEPLAY_TAG(Dehydrated, "State.Health.Dehydrated");
+			UE_DEFINE_GAMEPLAY_TAG(Exhausted, "State.Health.Exhausted");
 		}
 
 		//--------------------------------------------------------------
@@ -304,6 +308,11 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Suppressed, "State.Combat.Suppressed");
 			UE_DEFINE_GAMEPLAY_TAG(Adrenaline, "State.Combat.Adrenaline");
 			UE_DEFINE_GAMEPLAY_TAG(Fortified, "State.Combat.Fortified");
+			UE_DEFINE_GAMEPLAY_TAG(Stunned, "State.Combat.Stunned");
+			UE_DEFINE_GAMEPLAY_TAG(NoADS, "State.Combat.NoADS");
+			UE_DEFINE_GAMEPLAY_TAG(Painkiller, "State.Combat.Painkiller");
+			UE_DEFINE_GAMEPLAY_TAG(PainImmune, "State.Combat.PainImmune");
+			UE_DEFINE_GAMEPLAY_TAG(DamageResist, "State.Combat.DamageResist");
 		}
 
 		//--------------------------------------------------------------
@@ -313,6 +322,17 @@ namespace SuspenseCoreTags
 		{
 			UE_DEFINE_GAMEPLAY_TAG(Slowed, "State.Movement.Slowed");
 			UE_DEFINE_GAMEPLAY_TAG(Disabled, "State.Movement.Disabled");
+			UE_DEFINE_GAMEPLAY_TAG(Limp, "State.Movement.Limp");
+			UE_DEFINE_GAMEPLAY_TAG(NoSprint, "State.Movement.NoSprint");
+			UE_DEFINE_GAMEPLAY_TAG(Haste, "State.Movement.Haste");
+		}
+
+		//--------------------------------------------------------------
+		// Action Status States
+		//--------------------------------------------------------------
+		namespace Action
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Disabled, "State.Action.Disabled");
 		}
 
 		//--------------------------------------------------------------
@@ -510,6 +530,24 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(SpeedMultiplier, "Data.Cost.SpeedMultiplier");
 		}
 
+		// Effect tags for SetByCaller (GameplayEffects duration/magnitude)
+		namespace Effect
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Duration, "Data.Effect.Duration");
+		}
+
+		// Damage data tags for SetByCaller
+		namespace Damage
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Poison, "Data.Damage.Poison");
+		}
+
+		// Heal data tags for SetByCaller
+		namespace Heal
+		{
+			UE_DEFINE_GAMEPLAY_TAG(PerTick, "Data.Heal.PerTick");
+		}
+
 		// Grenade effect data tags
 		namespace Grenade
 		{
@@ -550,10 +588,27 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(DamageExplosion, "Effect.Damage.Explosion");
 		UE_DEFINE_GAMEPLAY_TAG(DamageShrapnel, "Effect.Damage.Shrapnel");
 		UE_DEFINE_GAMEPLAY_TAG(DamageBurn, "Effect.Damage.Burn");
+		UE_DEFINE_GAMEPLAY_TAG(DamagePoison, "Effect.Damage.Poison");
 		UE_DEFINE_GAMEPLAY_TAG(DamageWithHitInfo, "Effect.Damage.WithHitInfo");
 		UE_DEFINE_GAMEPLAY_TAG(DamageBleed, "Effect.Damage.Bleed");
 		UE_DEFINE_GAMEPLAY_TAG(DamageBleedLight, "Effect.Damage.Bleed.Light");
 		UE_DEFINE_GAMEPLAY_TAG(DamageBleedHeavy, "Effect.Damage.Bleed.Heavy");
+
+		// Base effect type tags
+		UE_DEFINE_GAMEPLAY_TAG(Debuff, "Effect.Debuff");
+		UE_DEFINE_GAMEPLAY_TAG(Buff, "Effect.Buff");
+		UE_DEFINE_GAMEPLAY_TAG(HoT, "Effect.HoT");
+
+		//--------------------------------------------------------------
+		// Debuff Effect Tags (Effect.Debuff.*)
+		//--------------------------------------------------------------
+		namespace Debuff
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Stun, "Effect.Debuff.Stun");
+			UE_DEFINE_GAMEPLAY_TAG(Suppression, "Effect.Debuff.Suppression");
+			UE_DEFINE_GAMEPLAY_TAG(Fracture, "Effect.Debuff.Fracture");
+			UE_DEFINE_GAMEPLAY_TAG(Survival, "Effect.Debuff.Survival");
+		}
 
 		// Grenade effect tags
 		UE_DEFINE_GAMEPLAY_TAG(GrenadeFlashbang, "Effect.Grenade.Flashbang");
@@ -599,6 +654,10 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Painkiller, "Effect.Buff.Painkiller");
 			UE_DEFINE_GAMEPLAY_TAG(Adrenaline, "Effect.Buff.Adrenaline");
 			UE_DEFINE_GAMEPLAY_TAG(Fortified, "Effect.Buff.Fortified");
+			UE_DEFINE_GAMEPLAY_TAG(Heal, "Effect.Buff.Heal");
+			UE_DEFINE_GAMEPLAY_TAG(Combat, "Effect.Buff.Combat");
+			UE_DEFINE_GAMEPLAY_TAG(Defense, "Effect.Buff.Defense");
+			UE_DEFINE_GAMEPLAY_TAG(Movement, "Effect.Buff.Movement");
 		}
 	}
 

@@ -283,4 +283,7 @@ private:
 
 	/** Async load handle for icon texture */
 	TSharedPtr<FStreamableHandle> IconLoadHandle;
+
+	/** Cached icon path for async loading callback */
+	TSoftObjectPtr<UTexture2D> CachedIconPath;
 };

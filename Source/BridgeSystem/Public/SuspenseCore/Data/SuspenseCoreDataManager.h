@@ -14,6 +14,8 @@
 #include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 // Include for magazine types (Tarkov-style)
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
+// Include for DoT UI types (SSOT for debuff widgets)
+#include "SuspenseCore/Types/UI/SuspenseCoreDoTUITypes.h"
 #include "SuspenseCoreDataManager.generated.h"
 
 
@@ -472,6 +474,48 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|Magazine")
 	bool IsMagazineSystemReady() const { return bMagazineSystemReady; }
 
+	//========================================================================
+	// DoT UI Data Access (SSOT for Debuff Widgets)
+	// @see Documentation/Plans/DebuffWidget_System_Plan.md
+	//========================================================================
+
+	/**
+	 * Get DoT UI display data by DoT type tag
+	 * Uses DoTUIDataTable configured in Settings
+	 *
+	 * @param DoTType DoT type tag (e.g., State.Health.Bleeding.Light)
+	 * @param OutUIData Output DoT UI data structure
+	 * @return true if UI data found
+	 *
+	 * @see FSuspenseCoreDoTUIData
+	 * @see W_DebuffIcon, W_DebuffContainer
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|DoT")
+	bool GetDoTUIData(FGameplayTag DoTType, FSuspenseCoreDoTUIData& OutUIData) const;
+
+	/**
+	 * Check if DoT UI data exists for given type
+	 * @param DoTType DoT type tag
+	 * @return true if UI data exists in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|DoT")
+	bool HasDoTUIData(FGameplayTag DoTType) const;
+
+	/**
+	 * Get all cached DoT UI types
+	 * @return Array of all DoT type tags with UI data
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|DoT")
+	TArray<FGameplayTag> GetAllDoTUITypes() const;
+
+	/** Get count of cached DoT UI entries */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|DoT")
+	int32 GetCachedDoTUICount() const { return DoTUICache.DataMap.Num(); }
+
+	/** Check if DoT UI system is initialized */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|DoT")
+	bool IsDoTUISystemReady() const { return bDoTUISystemReady; }
+
 protected:
 	//========================================================================
 	// Initialization Helpers
@@ -588,6 +632,24 @@ protected:
 	 * @return true if cache built successfully
 	 */
 	bool BuildMagazineCache(UDataTable* DataTable);
+
+	//========================================================================
+	// DoT UI System Initialization (SSOT for Debuff Widgets)
+	//========================================================================
+
+	/**
+	 * Initialize DoT UI system
+	 * Loads DoTUIDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeDoTUISystem();
+
+	/**
+	 * Build DoT UI cache from DataTable
+	 * @param DataTable DoT UI DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildDoTUICache(UDataTable* DataTable);
 
 	//========================================================================
 	// EventBus Broadcasting
@@ -724,6 +786,23 @@ private:
 	TObjectPtr<UDataTable> LoadedMagazineDataTable;
 
 	//========================================================================
+	// DoT UI Cached Data (SSOT for Debuff Widgets)
+	//========================================================================
+
+	/**
+	 * DoT UI data cache from DoTUIDataTable
+	 * Key: DoT type tag (State.Health.Bleeding.Light, etc.)
+	 * @see FSuspenseCoreDoTUIData
+	 * @see FSuspenseCoreDoTUICache
+	 */
+	UPROPERTY()
+	FSuspenseCoreDoTUICache DoTUICache;
+
+	/** Loaded DoT UI DataTable reference */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedDoTUIDataTable;
+
+	//========================================================================
 	// Status Flags
 	//========================================================================
 
@@ -753,4 +832,7 @@ private:
 
 	/** Magazine system ready flag */
 	bool bMagazineSystemReady = false;
+
+	/** DoT UI system ready flag */
+	bool bDoTUISystemReady = false;
 };

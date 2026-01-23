@@ -238,6 +238,26 @@ public:
 	bool bUseTarkovMagazineSystem = true;
 
 	//========================================================================
+	// DoT UI System (SSOT for Debuff Widgets)
+	// @see Documentation/Plans/DebuffWidget_System_Plan.md
+	//========================================================================
+
+	/**
+	 * DataTable for DoT (Damage over Time) UI display data
+	 * Contains icon textures, colors, and display settings for debuff widgets.
+	 * Row Structure: FSuspenseCoreDoTUIData
+	 *
+	 * OPTIONAL: If not configured, W_DebuffIcon will use Blueprint TMap fallback
+	 *
+	 * @see FSuspenseCoreDoTUIData
+	 * @see W_DebuffIcon, W_DebuffContainer
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "DoT UI System",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "DoT UI DataTable. Row Structure: FSuspenseCoreDoTUIData. Optional - widgets can use Blueprint TMap fallback."))
+	TSoftObjectPtr<UDataTable> DoTUIDataTable;
+
+	//========================================================================
 	// Character System Configuration
 	//========================================================================
 

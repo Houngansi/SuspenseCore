@@ -190,6 +190,13 @@ void USuspenseCoreDataManager::Initialize(FSubsystemCollectionBase& Collection)
 		UE_LOG(LogSuspenseCoreData, Log, TEXT("Tarkov Magazine System disabled - using simple ammo counter"));
 	}
 
+	// DoT UI System (SSOT for debuff widgets)
+	bDoTUISystemReady = InitializeDoTUISystem();
+	if (bDoTUISystemReady)
+	{
+		UE_LOG(LogSuspenseCoreData, Log, TEXT("DoT UI System: READY (%d entries cached)"), DoTUICache.DataMap.Num());
+	}
+
 	//========================================================================
 	// Validation (if enabled)
 	//========================================================================
@@ -1713,4 +1720,120 @@ bool USuspenseCoreDataManager::CreateMagazineInstance(FName MagazineID, int32 In
 	}
 
 	return true;
+}
+
+//==================================================================
+// DoT UI System (SSOT for Debuff Widgets)
+//==================================================================
+
+bool USuspenseCoreDataManager::InitializeDoTUISystem()
+{
+	// Get settings
+	const USuspenseCoreSettings* Settings = GetDefault<USuspenseCoreSettings>();
+	if (!Settings)
+	{
+		UE_LOG(LogSuspenseCoreData, Error, TEXT("InitializeDoTUISystem: Settings not available!"));
+		return false;
+	}
+
+	// Check if DoT UI DataTable is configured
+	if (Settings->DoTUIDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Log, TEXT("InitializeDoTUISystem: No DoT UI DataTable configured in Settings (optional)"));
+		bDoTUISystemReady = true;  // Not an error - just optional
+		return true;
+	}
+
+	// Load DataTable
+	UDataTable* DataTable = Settings->DoTUIDataTable.LoadSynchronous();
+	if (!DataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Error,
+			TEXT("InitializeDoTUISystem: Failed to load DoT UI DataTable: %s"),
+			*Settings->DoTUIDataTable.ToString());
+		return false;
+	}
+
+	LoadedDoTUIDataTable = DataTable;
+
+	// Build cache
+	if (!BuildDoTUICache(DataTable))
+	{
+		UE_LOG(LogSuspenseCoreData, Error, TEXT("InitializeDoTUISystem: Failed to build cache!"));
+		return false;
+	}
+
+	bDoTUISystemReady = true;
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("DoT UI system initialized: %d entries cached"),
+		DoTUICache.DataMap.Num());
+
+	return true;
+}
+
+bool USuspenseCoreDataManager::BuildDoTUICache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	DoTUICache.DataMap.Empty();
+
+	// Verify row structure
+	const UScriptStruct* RowStruct = DataTable->GetRowStruct();
+	if (!RowStruct || !RowStruct->IsChildOf(FSuspenseCoreDoTUIData::StaticStruct()))
+	{
+		UE_LOG(LogSuspenseCoreData, Error,
+			TEXT("DoTUIDataTable has invalid row structure. Expected FSuspenseCoreDoTUIData"));
+		return false;
+	}
+
+	// Cache all rows
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	for (const FName& RowName : RowNames)
+	{
+		const FSuspenseCoreDoTUIData* RowData = DataTable->FindRow<FSuspenseCoreDoTUIData>(RowName, TEXT("BuildDoTUICache"));
+		if (RowData && RowData->DoTType.IsValid())
+		{
+			DoTUICache.DataMap.Add(RowData->DoTType, *RowData);
+
+			UE_LOG(LogSuspenseCoreData, Verbose, TEXT("Cached DoT UI data: %s (%s)"),
+				*RowData->DoTType.ToString(), *RowData->DisplayName.ToString());
+		}
+	}
+
+	DoTUICache.bIsLoaded = true;
+
+	return DoTUICache.DataMap.Num() > 0 || RowNames.Num() == 0;
+}
+
+bool USuspenseCoreDataManager::GetDoTUIData(FGameplayTag DoTType, FSuspenseCoreDoTUIData& OutUIData) const
+{
+	if (!DoTType.IsValid())
+	{
+		return false;
+	}
+
+	// Use FindWithFallback which tries exact match then parent tag
+	const FSuspenseCoreDoTUIData* Found = DoTUICache.FindWithFallback(DoTType);
+	if (Found)
+	{
+		OutUIData = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetDoTUIData: '%s' not found in cache"), *DoTType.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::HasDoTUIData(FGameplayTag DoTType) const
+{
+	return DoTUICache.FindWithFallback(DoTType) != nullptr;
+}
+
+TArray<FGameplayTag> USuspenseCoreDataManager::GetAllDoTUITypes() const
+{
+	TArray<FGameplayTag> Keys;
+	DoTUICache.DataMap.GetKeys(Keys);
+	return Keys;
 }

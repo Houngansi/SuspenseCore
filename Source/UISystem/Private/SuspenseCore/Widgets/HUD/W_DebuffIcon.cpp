@@ -9,6 +9,8 @@
 // - Animation support via Blueprint
 
 #include "SuspenseCore/Widgets/HUD/W_DebuffIcon.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreDoTUITypes.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/ProgressBar.h"
@@ -327,53 +329,72 @@ void UW_DebuffIcon::LoadIconForType()
 		IconLoadHandle->CancelHandle();
 	}
 
-	// Find icon for this DoT type
-	const TSoftObjectPtr<UTexture2D>* IconPtr = DebuffIcons.Find(DoTType);
+	TSoftObjectPtr<UTexture2D> IconToLoad;
 
-	if (!IconPtr || IconPtr->IsNull())
+	// SSOT Strategy 1: Try DataManager (centralized DataTable)
+	if (USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this))
 	{
-		// Try parent tag (e.g., State.Health.Bleeding if State.Health.Bleeding.Light not found)
-		FGameplayTag ParentTag = DoTType.RequestDirectParent();
-		IconPtr = DebuffIcons.Find(ParentTag);
-
-		if (!IconPtr || IconPtr->IsNull())
+		FSuspenseCoreDoTUIData UIData;
+		if (DataManager->GetDoTUIData(DoTType, UIData))
 		{
-			UE_LOG(LogDebuffIcon, Warning, TEXT("No icon found for DoT type: %s"), *DoTType.ToString());
-			return;
+			IconToLoad = UIData.Icon;
+
+			// Also apply colors from SSOT
+			NormalTintColor = UIData.NormalColor;
+			CriticalTintColor = UIData.CriticalColor;
+
+			UE_LOG(LogDebuffIcon, Verbose, TEXT("Using SSOT icon for DoT type: %s"), *DoTType.ToString());
 		}
 	}
 
-	// Check if already loaded
-	if (IconPtr->IsValid())
+	// Fallback Strategy 2: Use Blueprint-configured TMap (EditDefaultsOnly)
+	if (IconToLoad.IsNull())
 	{
-		DebuffImage->SetBrushFromTexture(IconPtr->Get());
+		const TSoftObjectPtr<UTexture2D>* IconPtr = DebuffIcons.Find(DoTType);
+
+		if (!IconPtr || IconPtr->IsNull())
+		{
+			// Try parent tag (e.g., State.Health.Bleeding if State.Health.Bleeding.Light not found)
+			FGameplayTag ParentTag = DoTType.RequestDirectParent();
+			IconPtr = DebuffIcons.Find(ParentTag);
+		}
+
+		if (IconPtr && !IconPtr->IsNull())
+		{
+			IconToLoad = *IconPtr;
+		}
+	}
+
+	// No icon found anywhere
+	if (IconToLoad.IsNull())
+	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("No icon found for DoT type: %s (checked SSOT and Blueprint TMap)"), *DoTType.ToString());
 		return;
 	}
 
-	// Async load
+	// Check if already loaded
+	if (IconToLoad.IsValid())
+	{
+		DebuffImage->SetBrushFromTexture(IconToLoad.Get());
+		return;
+	}
+
+	// Async load - store path for OnIconLoaded callback
+	CachedIconPath = IconToLoad;
+
 	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
 	IconLoadHandle = StreamableManager.RequestAsyncLoad(
-		IconPtr->ToSoftObjectPath(),
+		IconToLoad.ToSoftObjectPath(),
 		FStreamableDelegate::CreateUObject(this, &UW_DebuffIcon::OnIconLoaded)
 	);
 }
 
 void UW_DebuffIcon::OnIconLoaded()
 {
-	// Find the icon again and set it
-	const TSoftObjectPtr<UTexture2D>* IconPtr = DebuffIcons.Find(DoTType);
-
-	if (!IconPtr)
+	// Use cached path from LoadIconForType
+	if (CachedIconPath.IsValid() && DebuffImage)
 	{
-		// Try parent tag
-		FGameplayTag ParentTag = DoTType.RequestDirectParent();
-		IconPtr = DebuffIcons.Find(ParentTag);
-	}
-
-	if (IconPtr && IconPtr->IsValid() && DebuffImage)
-	{
-		DebuffImage->SetBrushFromTexture(IconPtr->Get());
-
+		DebuffImage->SetBrushFromTexture(CachedIconPath.Get());
 		UE_LOG(LogDebuffIcon, Verbose, TEXT("Icon loaded for DoT type: %s"), *DoTType.ToString());
 	}
 }

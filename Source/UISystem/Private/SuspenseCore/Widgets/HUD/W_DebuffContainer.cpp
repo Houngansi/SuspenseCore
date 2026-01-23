@@ -552,8 +552,14 @@ bool UW_DebuffContainer::IsEventForTarget(const FSuspenseCoreEventData& EventDat
 		return false;
 	}
 
-	// Check if event's affected actor matches our target
-	AActor* AffectedActor = EventData.GetObject<AActor>(FName(TEXT("AffectedActor")));
+	// Check EventData.Source first (primary field used by DoTService)
+	AActor* AffectedActor = Cast<AActor>(EventData.Source.Get());
+
+	// Fallback: Check ObjectPayload for "AffectedActor" field
+	if (!AffectedActor)
+	{
+		AffectedActor = EventData.GetObject<AActor>(FName(TEXT("AffectedActor")));
+	}
 
 	// Also try "Target" field as fallback
 	if (!AffectedActor)

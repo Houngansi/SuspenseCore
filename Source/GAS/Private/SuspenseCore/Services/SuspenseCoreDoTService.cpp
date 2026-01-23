@@ -75,10 +75,16 @@ FSuspenseCoreEventData FSuspenseCoreDoTEventPayload::ToEventData() const
 	Data.Source = AffectedActor.Get();
 	Data.Timestamp = FPlatformTime::Seconds();
 
+	// Add DoTType to both Tags container (for HasTag checks) and StringPayload (for string lookups)
+	if (DoTType.IsValid())
+	{
+		Data.Tags.AddTag(DoTType);
+	}
 	Data.StringPayload.Add(TEXT("DoTType"), DoTType.ToString());
 	Data.FloatPayload.Add(TEXT("DamagePerTick"), DoTData.DamagePerTick);
 	Data.FloatPayload.Add(TEXT("TickInterval"), DoTData.TickInterval);
 	Data.FloatPayload.Add(TEXT("RemainingDuration"), DoTData.RemainingDuration);
+	Data.FloatPayload.Add(TEXT("Duration"), DoTData.RemainingDuration);  // Alias for UI widgets
 	Data.FloatPayload.Add(TEXT("DamageDealt"), DamageDealt);
 	Data.IntPayload.Add(TEXT("StackCount"), DoTData.StackCount);
 

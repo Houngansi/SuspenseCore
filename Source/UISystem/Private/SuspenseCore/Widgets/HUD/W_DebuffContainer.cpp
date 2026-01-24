@@ -463,8 +463,18 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 		UHorizontalBoxSlot* IconSlot = DebuffBox->AddChildToHorizontalBox(NewIcon);
 		if (IconSlot)
 		{
+			// Critical: Set slot to Auto size so child SizeBox determines the size
+			IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			IconSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Center);
+			IconSlot->SetVerticalAlignment(EVerticalAlignment::VAlign_Center);
 			IconSlot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f));
+
+			// Force layout update
+			DebuffBox->InvalidateLayoutAndVolatility();
+
 			UE_LOG(LogDebuffContainer, Warning, TEXT("  Icon added to DebuffBox successfully, Children count: %d"), DebuffBox->GetChildrenCount());
+			UE_LOG(LogDebuffContainer, Warning, TEXT("  Icon visibility: %d, DebuffBox visibility: %d"),
+				(int32)NewIcon->GetVisibility(), (int32)DebuffBox->GetVisibility());
 		}
 		else
 		{

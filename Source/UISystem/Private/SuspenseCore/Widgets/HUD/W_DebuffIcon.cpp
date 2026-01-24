@@ -100,6 +100,13 @@ void UW_DebuffIcon::SetDebuffData(FGameplayTag InDoTType, float InDuration, int3
 	UE_LOG(LogDebuffIcon, Log, TEXT("SetDebuffData: Type=%s, Duration=%.1f, Stacks=%d"),
 		*DoTType.ToString(), TotalDuration, StackCount);
 
+	// Debug: Check if bound widgets are valid
+	UE_LOG(LogDebuffIcon, Warning, TEXT("  DebuffImage: %s, TimerText: %s, StackText: %s, DurationBar: %s"),
+		DebuffImage ? TEXT("Valid") : TEXT("NULL"),
+		TimerText ? TEXT("Valid") : TEXT("NULL"),
+		StackText ? TEXT("Valid") : TEXT("NULL"),
+		DurationBar ? TEXT("Valid") : TEXT("NULL"));
+
 	// Update all visuals
 	UpdateVisuals();
 	UpdateTimer(RemainingDuration);
@@ -107,6 +114,7 @@ void UW_DebuffIcon::SetDebuffData(FGameplayTag InDoTType, float InDuration, int3
 
 	// Show widget
 	SetVisibility(ESlateVisibility::HitTestInvisible);
+	UE_LOG(LogDebuffIcon, Warning, TEXT("  Visibility set to HitTestInvisible"));
 
 	// Play fade in animation
 	if (FadeInAnimation)
@@ -349,6 +357,13 @@ void UW_DebuffIcon::UpdateVisuals()
 	if (DebuffImage)
 	{
 		DebuffImage->SetColorAndOpacity(NormalTintColor);
+		// Ensure image is visible
+		DebuffImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+		UE_LOG(LogDebuffIcon, Warning, TEXT("  UpdateVisuals: DebuffImage visibility set, tint applied"));
+	}
+	else
+	{
+		UE_LOG(LogDebuffIcon, Error, TEXT("  UpdateVisuals: DebuffImage is NULL!"));
 	}
 }
 

@@ -405,7 +405,8 @@ void ASuspenseCoreGrenadeProjectile::InitializeFromSSOT(const FSuspenseCoreThrow
     }
 
     // Copy additional DoT config from SSOT
-    BleedDamagePerTick = Attributes.BleedDamagePerTick;
+    BleedDamagePerTickLight = Attributes.BleedDamagePerTickLight;
+    BleedDamagePerTickHeavy = Attributes.BleedDamagePerTickHeavy;
     BleedTickInterval = Attributes.BleedTickInterval;
     ArmorThresholdForBleeding = Attributes.ArmorThresholdForBleeding;
     FragmentHitsForHeavyBleed = Attributes.FragmentHitsForHeavyBleed;
@@ -1042,9 +1043,12 @@ void ASuspenseCoreGrenadeProjectile::ApplyBleedingEffect(
 
     if (SpecHandle.IsValid())
     {
+        // Select damage based on severity
+        float DamagePerTick = bIsHeavy ? BleedDamagePerTickHeavy : BleedDamagePerTickLight;
+
         // Set damage per tick via SetByCaller
         SpecHandle.Data->SetSetByCallerMagnitude(
-            SuspenseCoreTags::Data::DoT::Bleed, BleedDamagePerTick);
+            SuspenseCoreTags::Data::DoT::Bleed, DamagePerTick);
 
         // Apply effect
         FActiveGameplayEffectHandle ActiveHandle = TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
@@ -1060,7 +1064,7 @@ void ASuspenseCoreGrenadeProjectile::ApplyBleedingEffect(
             NotifyDoTServiceOfApplication(
                 TargetActor,
                 DoTType,
-                BleedDamagePerTick,
+                DamagePerTick,
                 BleedTickInterval,
                 -1.0f  // Infinite duration (bleeding persists until healed)
             );
@@ -1069,7 +1073,7 @@ void ASuspenseCoreGrenadeProjectile::ApplyBleedingEffect(
                 bIsHeavy ? TEXT("HEAVY") : TEXT("light"),
                 *TargetActor->GetName(),
                 FragmentHits,
-                BleedDamagePerTick / BleedTickInterval);
+                DamagePerTick / BleedTickInterval);
         }
     }
 }

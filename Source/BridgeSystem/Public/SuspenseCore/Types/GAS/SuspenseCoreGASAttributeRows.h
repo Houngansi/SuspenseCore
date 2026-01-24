@@ -864,10 +864,17 @@ struct BRIDGESYSTEM_API FSuspenseCoreThrowableAttributeRow : public FTableRowBas
 		meta = (ToolTip = "Heavy bleeding effect (requires medkit/surgery)"))
 	TSoftClassPtr<class UGameplayEffect> BleedingHeavyEffectClass;
 
-	/** Damage per tick for bleeding effect */
+	/** Damage per tick for LIGHT bleeding (shallow wounds)
+	 *  Default: 0.5 HP/sec - manageable, can survive for a while */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
-		meta = (ClampMin = "0", ClampMax = "20", ToolTip = "Bleed damage per tick"))
-	float BleedDamagePerTick = 5.0f;
+		meta = (ClampMin = "0", ClampMax = "5", ToolTip = "Light bleed damage per tick (0.5 recommended)"))
+	float BleedDamagePerTickLight = 0.5f;
+
+	/** Damage per tick for HEAVY bleeding (deep shrapnel wounds)
+	 *  Default: 1.5 HP/sec - dangerous, requires urgent attention */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",
+		meta = (ClampMin = "0", ClampMax = "10", ToolTip = "Heavy bleed damage per tick (1.5 recommended)"))
+	float BleedDamagePerTickHeavy = 1.5f;
 
 	/** Tick interval for bleeding (seconds) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DoT",

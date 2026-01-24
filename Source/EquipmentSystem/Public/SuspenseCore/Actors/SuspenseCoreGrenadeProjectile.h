@@ -177,9 +177,17 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT")
     TSubclassOf<UGameplayEffect> BleedingHeavyEffectClass;
 
-    /** Damage per tick for bleeding effect */
+    /** Damage per tick for LIGHT bleeding (shallow wounds)
+     *  Default: 0.5 HP/sec - manageable, can survive for a while
+     *  Documented recommendation: 0.3 HP/sec */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.0"))
-    float BleedDamagePerTick = 5.0f;
+    float BleedDamagePerTickLight = 0.5f;
+
+    /** Damage per tick for HEAVY bleeding (deep shrapnel wounds)
+     *  Default: 1.5 HP/sec - dangerous, requires urgent attention
+     *  Documented recommendation: 1.2 HP/sec */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.0"))
+    float BleedDamagePerTickHeavy = 1.5f;
 
     /** Tick interval for bleeding (seconds) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grenade|DoT", meta = (ClampMin = "0.1"))

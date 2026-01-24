@@ -164,15 +164,22 @@ void USuspenseCoreDataManager::Initialize(FSubsystemCollectionBase& Collection)
 			UE_LOG(LogSuspenseCoreData, Log, TEXT("Throwable Attributes System: READY (%d rows cached)"), ThrowableAttributesCache.Num());
 		}
 
-		// Status Effect Attributes (Buffs/Debuffs SSOT)
+		// Status Effect Attributes (Buffs/Debuffs SSOT) - Optional legacy system
 		bStatusEffectSystemReady = InitializeStatusEffectAttributesSystem();
 		if (bStatusEffectSystemReady)
 		{
-			UE_LOG(LogSuspenseCoreData, Log, TEXT("Status Effect System: READY (%d effects cached)"), StatusEffectAttributesCache.Num());
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Status Effect Attributes: READY (%d effects cached)"), StatusEffectAttributesCache.Num());
+		}
+
+		// Status Effect Visuals (UI Icons/Colors) - Required for debuff widget display
+		bool bVisualsReady = InitializeStatusEffectVisualsSystem();
+		if (bVisualsReady && bStatusEffectVisualsReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Status Effect Visuals: READY (%d visuals cached)"), StatusEffectVisualsCache.Num());
 		}
 		else
 		{
-			UE_LOG(LogSuspenseCoreData, Warning, TEXT("Status Effect System initialization failed (may be optional)"));
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("Status Effect Visuals not initialized - debuff icons will not display"));
 		}
 	}
 	else

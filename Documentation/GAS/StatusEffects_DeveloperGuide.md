@@ -1,9 +1,15 @@
 # Status Effects System - Developer Guide
 
-**Version:** 1.0
+**Version:** 2.0
 **Date:** 2026-01-24
 **Author:** Claude Code
-**Status:** PRODUCTION
+**Status:** ✅ PRODUCTION (Ready for Medkit System Integration)
+
+> **Related Documents:**
+> - [DoT_System_ImplementationPlan.md](../Plans/DoT_System_ImplementationPlan.md) - Implementation roadmap (COMPLETE)
+> - [DebuffWidget_System_Plan.md](../Plans/DebuffWidget_System_Plan.md) - UI widget implementation
+> - [StatusEffect_System_GDD.md](../GameDesign/StatusEffect_System_GDD.md) - Game design document
+> - [HealingSystem_DesignProposal.md](./HealingSystem_DesignProposal.md) - Healing/Medkit system proposal
 
 ---
 
@@ -655,4 +661,51 @@ LogDebuffIcon=VeryVerbose
 
 ---
 
-**Document End**
+## Next Steps: Medkit System Implementation
+
+The Status Effects system is **PRODUCTION READY**. The following features can now be implemented:
+
+### Ready to Implement
+
+1. **Bandage Item** - Cures Light Bleeding
+   ```cpp
+   // Item: Bandage
+   // Effect: Removes State.Health.Bleeding.Light
+   CureBleedingEffect(ASC, /*bHeavyOnly=*/false);
+   ```
+
+2. **Medkit Item** - Cures Heavy Bleeding + Heals HP
+   ```cpp
+   // Item: Medkit (IFAK, AFAK, Salewa)
+   // Effect: Removes State.Health.Bleeding.Heavy + Heal over time
+   CureBleedingEffect(ASC, /*bHeavyOnly=*/true);
+   ApplyHealOverTime(ASC, HealAmount, Duration);
+   ```
+
+3. **Surgical Kit** - Removes all bleeding stacks
+   ```cpp
+   // Item: Surgical Kit (CMS, Surv12)
+   // Effect: Removes ALL bleeding (Light + Heavy, all stacks)
+   FGameplayTagContainer AllBleedingTags;
+   AllBleedingTags.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
+   AllBleedingTags.AddTag(SuspenseCoreTags::State::Health::BleedingHeavy);
+   ASC->RemoveActiveEffectsWithTags(AllBleedingTags);
+   ```
+
+### Integration Points
+
+| System | Integration |
+|--------|-------------|
+| Inventory | Query `DataManager->GetCureItemsForEffect(Tag)` to show cure icons |
+| QuickSlots | Bind bandage/medkit to slots 5-8 for fast access |
+| Animation | Play use animation before effect removal |
+| Audio | Play healing sound via GameplayCue |
+
+### See Also
+
+- **[ItemUseSystem_Pipeline.md](../Plans/ItemUseSystem_Pipeline.md)** - Item usage ability pipeline
+- **[HealingSystem_DesignProposal.md](./HealingSystem_DesignProposal.md)** - Full healing system design
+
+---
+
+**Document End - Version 2.0 (Final)**

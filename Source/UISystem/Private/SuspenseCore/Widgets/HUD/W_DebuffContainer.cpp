@@ -347,8 +347,7 @@ void UW_DebuffContainer::SetupEventSubscriptions()
 		return;
 	}
 
-	UE_LOG(LogDebuffContainer, Warning, TEXT("  EventBus: Valid"));
-	UE_LOG(LogDebuffContainer, Warning, TEXT("  Subscribing to: %s"), *SuspenseCoreTags::Event::DoT::Applied.Get().ToString());
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  EventBus: Valid, subscribing to DoT events..."));
 
 	// Subscribe to DoT events using native tags
 	// @see SuspenseCoreTags::Event::DoT namespace in SuspenseCoreGameplayTags.h

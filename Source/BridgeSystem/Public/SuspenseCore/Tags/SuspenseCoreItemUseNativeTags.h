@@ -67,6 +67,9 @@ namespace SuspenseCoreItemUseTags
 
 		/** Item use failed (validation, handler error) */
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_ItemUse_Event_Failed);
+
+		/** Item depleted (all uses consumed, item removed from slot) */
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_ItemUse_Event_ItemDepleted);
 	}
 
 	//==================================================================

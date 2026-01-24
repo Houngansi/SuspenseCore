@@ -7,6 +7,7 @@
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
+#include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Handlers/ItemUse/SuspenseCoreAmmoToMagazineHandler.h"
 #include "SuspenseCore/Handlers/ItemUse/SuspenseCoreMagazineSwapHandler.h"
@@ -535,6 +536,12 @@ FSuspenseCoreItemUseResponse USuspenseCoreItemUseServiceImpl::CompleteOperation(
 	Response.HandlerTag = Operation->HandlerTag;
 	Response.Progress = 1.0f;
 
+	// Consume item use from QuickSlot if applicable
+	if (Response.IsSuccess() && Operation->Request.Context == ESuspenseCoreItemUseContext::QuickSlot)
+	{
+		ConsumeQuickSlotUse(Operation->Request, Operation->OwnerActor.Get());
+	}
+
 	// Publish completed event
 	PublishEvent(SuspenseCoreItemUseTags::Event::TAG_ItemUse_Event_Completed,
 		Operation->Request, Response, Operation->OwnerActor.Get());
@@ -821,4 +828,51 @@ void USuspenseCoreItemUseServiceImpl::AutoRegisterHandlers()
 	}
 
 	ITEMUSE_LOG(Log, TEXT("AutoRegisterHandlers: Registered %d handlers"), Handlers.Num());
+}
+
+//==================================================================
+// Item Consumption
+//==================================================================
+
+void USuspenseCoreItemUseServiceImpl::ConsumeQuickSlotUse(
+	const FSuspenseCoreItemUseRequest& Request,
+	AActor* OwnerActor)
+{
+	if (!OwnerActor || Request.QuickSlotIndex < 0)
+	{
+		return;
+	}
+
+	// Find QuickSlotComponent on actor
+	USuspenseCoreQuickSlotComponent* QuickSlotComp = OwnerActor->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
+	if (!QuickSlotComp)
+	{
+		ITEMUSE_LOG(Verbose, TEXT("ConsumeQuickSlotUse: No QuickSlotComponent found on actor"));
+		return;
+	}
+
+	// Get the item ID before consuming (for event)
+	TArray<FSuspenseCoreQuickSlot> AllSlots = QuickSlotComp->GetAllQuickSlots();
+	FName ItemID = NAME_None;
+	if (AllSlots.IsValidIndex(Request.QuickSlotIndex))
+	{
+		ItemID = AllSlots[Request.QuickSlotIndex].AssignedItemID;
+	}
+
+	// Consume the use - this handles both multi-use and single-use items
+	bool bHasUsesRemaining = QuickSlotComp->ConsumeSlotUse(Request.QuickSlotIndex);
+
+	ITEMUSE_LOG(Log, TEXT("ConsumeQuickSlotUse: Slot %d - uses remaining: %s"),
+		Request.QuickSlotIndex, bHasUsesRemaining ? TEXT("YES") : TEXT("NO (depleted)"));
+
+	// Publish item depleted event if no uses remain
+	if (!bHasUsesRemaining && EventBus.IsValid())
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.Source = OwnerActor;
+		EventData.Timestamp = FPlatformTime::Seconds();
+		EventData.StringPayload.Add(TEXT("ItemID"), ItemID.ToString());
+		EventData.IntPayload.Add(TEXT("SlotIndex"), Request.QuickSlotIndex);
+		EventBus->Publish(SuspenseCoreItemUseTags::Event::TAG_ItemUse_Event_ItemDepleted, EventData);
+	}
 }

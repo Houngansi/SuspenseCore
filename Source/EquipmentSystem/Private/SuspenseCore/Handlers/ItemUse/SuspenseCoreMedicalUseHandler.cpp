@@ -559,8 +559,12 @@ bool USuspenseCoreMedicalUseHandler::ApplyHealOverTime(AActor* Actor, float Heal
 
 int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCanCureLightBleed, bool bCanCureHeavyBleed) const
 {
+	HANDLER_LOG(Log, TEXT("CureBleedingEffect: Starting (LightBleed=%d, HeavyBleed=%d)"),
+		bCanCureLightBleed, bCanCureHeavyBleed);
+
 	if (!Actor)
 	{
+		HANDLER_LOG(Warning, TEXT("CureBleedingEffect: Actor is null"));
 		return 0;
 	}
 
@@ -576,16 +580,26 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 	// Remove light bleeding effects
 	if (bCanCureLightBleed)
 	{
+		// Try with native tag first
 		FGameplayTagContainer LightBleedTags;
 		LightBleedTags.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
 
+		HANDLER_LOG(Verbose, TEXT("CureBleedingEffect: Looking for light bleed tag: %s"),
+			*SuspenseCoreTags::State::Health::BleedingLight.ToString());
+
 		int32 Removed = ASC->RemoveActiveEffectsWithGrantedTags(LightBleedTags);
+
+		// Also try with the exact tag string used in bleeding effect
+		if (Removed == 0)
+		{
+			FGameplayTagContainer AlternateTags;
+			AlternateTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Health.Bleeding.Light"), false));
+			Removed = ASC->RemoveActiveEffectsWithGrantedTags(AlternateTags);
+		}
+
 		TotalRemoved += Removed;
 
-		if (Removed > 0)
-		{
-			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Removed %d light bleed effect(s)"), Removed);
-		}
+		HANDLER_LOG(Log, TEXT("CureBleedingEffect: Light bleed - removed %d effect(s)"), Removed);
 	}
 
 	// Remove heavy bleeding effects
@@ -594,13 +608,22 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 		FGameplayTagContainer HeavyBleedTags;
 		HeavyBleedTags.AddTag(SuspenseCoreTags::State::Health::BleedingHeavy);
 
+		HANDLER_LOG(Verbose, TEXT("CureBleedingEffect: Looking for heavy bleed tag: %s"),
+			*SuspenseCoreTags::State::Health::BleedingHeavy.ToString());
+
 		int32 Removed = ASC->RemoveActiveEffectsWithGrantedTags(HeavyBleedTags);
+
+		// Also try with the exact tag string used in bleeding effect
+		if (Removed == 0)
+		{
+			FGameplayTagContainer AlternateTags;
+			AlternateTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Health.Bleeding.Heavy"), false));
+			Removed = ASC->RemoveActiveEffectsWithGrantedTags(AlternateTags);
+		}
+
 		TotalRemoved += Removed;
 
-		if (Removed > 0)
-		{
-			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Removed %d heavy bleed effect(s)"), Removed);
-		}
+		HANDLER_LOG(Log, TEXT("CureBleedingEffect: Heavy bleed - removed %d effect(s)"), Removed);
 	}
 
 	// Publish bleeding cured event

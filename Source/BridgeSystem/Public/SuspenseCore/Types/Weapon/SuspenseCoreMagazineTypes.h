@@ -540,6 +540,18 @@ struct BRIDGESYSTEM_API FSuspenseCoreQuickSlot
     float CooldownRemaining = 0.0f;
 
     //==================================================================
+    // Consumable Use Tracking
+    //==================================================================
+
+    /** Current uses remaining (for consumables with multiple uses like IFAK) */
+    UPROPERTY(BlueprintReadOnly, Category = "QuickSlot|Consumable")
+    int32 CurrentUses = 0;
+
+    /** Maximum uses for this consumable (from ConsumableAttributes SSOT) */
+    UPROPERTY(BlueprintReadOnly, Category = "QuickSlot|Consumable")
+    int32 MaxUses = 0;
+
+    //==================================================================
     // Methods
     //==================================================================
 
@@ -549,6 +561,12 @@ struct BRIDGESYSTEM_API FSuspenseCoreQuickSlot
     /** Check if slot is ready to use */
     bool IsReady() const { return HasItem() && bIsAvailable && CooldownRemaining <= 0.0f; }
 
+    /** Check if consumable has uses remaining */
+    bool HasUsesRemaining() const { return MaxUses <= 0 || CurrentUses > 0; }
+
+    /** Get uses remaining (returns -1 if not a multi-use consumable) */
+    int32 GetUsesRemaining() const { return MaxUses > 0 ? CurrentUses : -1; }
+
     /** Clear the slot */
     void Clear()
     {
@@ -556,6 +574,8 @@ struct BRIDGESYSTEM_API FSuspenseCoreQuickSlot
         AssignedItemID = NAME_None;
         bIsAvailable = false;
         CooldownRemaining = 0.0f;
+        CurrentUses = 0;
+        MaxUses = 0;
     }
 
     /** Assign item to slot */
@@ -564,6 +584,24 @@ struct BRIDGESYSTEM_API FSuspenseCoreQuickSlot
         AssignedItemInstanceID = InstanceID;
         AssignedItemID = ItemID;
         bIsAvailable = true;
+    }
+
+    /** Initialize consumable with uses from SSOT */
+    void InitializeConsumableUses(int32 InMaxUses)
+    {
+        MaxUses = InMaxUses;
+        CurrentUses = InMaxUses;
+    }
+
+    /** Consume one use, returns true if uses remain */
+    bool ConsumeUse()
+    {
+        if (MaxUses > 0 && CurrentUses > 0)
+        {
+            CurrentUses--;
+            return CurrentUses > 0;
+        }
+        return true; // Non-consumable or infinite uses
     }
 };
 

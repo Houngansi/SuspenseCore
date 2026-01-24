@@ -45,9 +45,9 @@ UGE_HealOverTime::UGE_HealOverTime(const FObjectInitializer& ObjectInitializer)
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 
 	// Grant regenerating state tag while active
-	FInheritedTagContainer GrantedTags;
-	GrantedTags.AddTag(SuspenseCoreMedicalTags::State::TAG_State_Medical_Regenerating);
-	InheritableOwnedTagsContainer.AppendTags(GrantedTags);
+	// IMPORTANT: Use State.Health.Regenerating to integrate with W_DebuffContainer
+	// This matches the tag in SuspenseCoreStatusEffectVisuals.json
+	InheritableOwnedTagsContainer.AddTag(SuspenseCoreTags::State::Health::Regenerating);
 
 	// Effect asset tag for identification
 	InheritableOwnedTagsContainer.AddTag(SuspenseCoreMedicalTags::Effect::TAG_Effect_Medical_HealOverTime);

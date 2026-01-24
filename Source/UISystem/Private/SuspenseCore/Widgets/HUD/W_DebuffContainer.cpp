@@ -41,6 +41,11 @@ void UW_DebuffContainer::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	UE_LOG(LogDebuffContainer, Warning, TEXT("=== W_DebuffContainer::NativeConstruct START ==="));
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  DebuffIconClass: %s"), DebuffIconClass ? *DebuffIconClass->GetName() : TEXT("NULL"));
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  DebuffBox: %s"), DebuffBox ? TEXT("Valid") : TEXT("NULL"));
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  bAutoTargetLocalPlayer: %d"), bAutoTargetLocalPlayer);
+
 	// Initialize widget pool
 	InitializePool();
 
@@ -52,8 +57,16 @@ void UW_DebuffContainer::NativeConstruct()
 			if (APawn* Pawn = PC->GetPawn())
 			{
 				TargetActor = Pawn;
-				UE_LOG(LogDebuffContainer, Log, TEXT("Auto-targeted local player pawn: %s"), *Pawn->GetName());
+				UE_LOG(LogDebuffContainer, Warning, TEXT("  Auto-targeted local player pawn: %s"), *Pawn->GetName());
 			}
+			else
+			{
+				UE_LOG(LogDebuffContainer, Error, TEXT("  GetOwningPlayer()->GetPawn() returned NULL!"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogDebuffContainer, Error, TEXT("  GetOwningPlayer() returned NULL!"));
 		}
 	}
 
@@ -63,7 +76,7 @@ void UW_DebuffContainer::NativeConstruct()
 	// Initial sync from DoTService (in case we missed events during load)
 	RefreshFromDoTService();
 
-	UE_LOG(LogDebuffContainer, Log, TEXT("NativeConstruct complete. Pool size: %d, Target: %s"),
+	UE_LOG(LogDebuffContainer, Warning, TEXT("=== W_DebuffContainer::NativeConstruct END === Pool:%d Target:%s"),
 		IconPool.Num(),
 		TargetActor.IsValid() ? *TargetActor->GetName() : TEXT("None"));
 }
@@ -180,11 +193,18 @@ void UW_DebuffContainer::SetTargetActor(AActor* NewTarget)
 
 void UW_DebuffContainer::OnDoTApplied(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	UE_LOG(LogDebuffContainer, Warning, TEXT("=== OnDoTApplied RECEIVED === EventTag: %s"), *EventTag.ToString());
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  Source: %s"), EventData.Source.IsValid() ? *EventData.Source->GetName() : TEXT("NULL"));
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  TargetActor: %s"), TargetActor.IsValid() ? *TargetActor->GetName() : TEXT("NULL"));
+
 	// Check if event is for our target
 	if (!IsEventForTarget(EventData))
 	{
+		UE_LOG(LogDebuffContainer, Warning, TEXT("  REJECTED: Event not for our target"));
 		return;
 	}
+
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  ACCEPTED: Event is for our target"));
 
 	// Extract DoT data from event
 	FGameplayTag DoTType;
@@ -318,12 +338,17 @@ void UW_DebuffContainer::OnDoTTick(FGameplayTag EventTag, const FSuspenseCoreEve
 
 void UW_DebuffContainer::SetupEventSubscriptions()
 {
+	UE_LOG(LogDebuffContainer, Warning, TEXT("=== SetupEventSubscriptions START ==="));
+
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
-		UE_LOG(LogDebuffContainer, Warning, TEXT("SetupEventSubscriptions: No EventBus available!"));
+		UE_LOG(LogDebuffContainer, Error, TEXT("  FAILED: No EventBus available!"));
 		return;
 	}
+
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  EventBus: Valid"));
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  Subscribing to: %s"), *SuspenseCoreTags::Event::DoT::Applied.ToString());
 
 	// Subscribe to DoT events using native tags
 	// @see SuspenseCoreTags::Event::DoT namespace in SuspenseCoreGameplayTags.h
@@ -334,6 +359,8 @@ void UW_DebuffContainer::SetupEventSubscriptions()
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &UW_DebuffContainer::OnDoTApplied),
 		ESuspenseCoreEventPriority::Normal
 	);
+
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  DoTAppliedHandle valid: %d"), DoTAppliedHandle.IsValid());
 
 	DoTRemovedHandle = EventBus->SubscribeNative(
 		SuspenseCoreTags::Event::DoT::Removed,

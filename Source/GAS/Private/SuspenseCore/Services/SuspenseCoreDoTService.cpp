@@ -75,7 +75,7 @@ FSuspenseCoreEventData FSuspenseCoreDoTEventPayload::ToEventData() const
 	Data.Source = AffectedActor.Get();
 	Data.Timestamp = FPlatformTime::Seconds();
 
-	// Add DoTType to both Tags container (for HasTag checks) and StringPayload (for string lookups)
+	// Add DoTType to Tags container for HasTag checks
 	if (DoTType.IsValid())
 	{
 		Data.Tags.AddTag(DoTType);
@@ -84,7 +84,7 @@ FSuspenseCoreEventData FSuspenseCoreDoTEventPayload::ToEventData() const
 	Data.FloatPayload.Add(TEXT("DamagePerTick"), DoTData.DamagePerTick);
 	Data.FloatPayload.Add(TEXT("TickInterval"), DoTData.TickInterval);
 	Data.FloatPayload.Add(TEXT("RemainingDuration"), DoTData.RemainingDuration);
-	Data.FloatPayload.Add(TEXT("Duration"), DoTData.RemainingDuration);  // Alias for UI widgets
+	Data.FloatPayload.Add(TEXT("Duration"), DoTData.RemainingDuration);
 	Data.FloatPayload.Add(TEXT("DamageDealt"), DamageDealt);
 	Data.IntPayload.Add(TEXT("StackCount"), DoTData.StackCount);
 
@@ -699,6 +699,11 @@ FSuspenseCoreActiveDoT USuspenseCoreDoTService::BuildDoTDataFromEffect(
 
 void USuspenseCoreDoTService::PublishDoTEvent(FGameplayTag EventTag, const FSuspenseCoreDoTEventPayload& Payload)
 {
+	UE_LOG(LogDoTService, Warning, TEXT("=== PublishDoTEvent === Tag: %s, Actor: %s, DoTType: %s"),
+		*EventTag.ToString(),
+		Payload.AffectedActor.IsValid() ? *Payload.AffectedActor->GetName() : TEXT("NULL"),
+		*Payload.DoTType.ToString());
+
 	if (!EventBus.IsValid())
 	{
 		InitializeEventBus();
@@ -706,8 +711,12 @@ void USuspenseCoreDoTService::PublishDoTEvent(FGameplayTag EventTag, const FSusp
 
 	if (EventBus.IsValid())
 	{
-		// Use async publish for performance (non-blocking)
+		UE_LOG(LogDoTService, Warning, TEXT("  Publishing via EventBus..."));
 		EventBus->PublishAsync(EventTag, Payload.ToEventData());
+	}
+	else
+	{
+		UE_LOG(LogDoTService, Error, TEXT("  FAILED: EventBus not valid!"));
 	}
 }
 

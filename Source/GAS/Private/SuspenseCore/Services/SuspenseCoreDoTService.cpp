@@ -602,6 +602,7 @@ bool USuspenseCoreDoTService::IsDoTEffect(const FGameplayEffectSpec& Spec) const
 	}
 
 	// Check if effect grants DoT-related tags
+	// Also includes HoT (Heal over Time) effects for UI display
 	const FGameplayTagContainer& GrantedTags = Spec.Def->GetAssetTags();
 
 	return GrantedTags.HasTag(DoTRootTag) ||
@@ -609,7 +610,10 @@ bool USuspenseCoreDoTService::IsDoTEffect(const FGameplayEffectSpec& Spec) const
 		   GrantedTags.HasTag(BurningRootTag) ||
 		   GrantedTags.HasTag(SuspenseCoreTags::State::Health::BleedingLight) ||
 		   GrantedTags.HasTag(SuspenseCoreTags::State::Health::BleedingHeavy) ||
-		   GrantedTags.HasTag(SuspenseCoreTags::Effect::DoT::Burn);
+		   GrantedTags.HasTag(SuspenseCoreTags::Effect::DoT::Burn) ||
+		   // HoT effects (Medical healing)
+		   GrantedTags.HasTag(SuspenseCoreTags::State::Health::Regenerating) ||
+		   GrantedTags.HasTag(SuspenseCoreTags::State::Health::Painkiller);
 }
 
 bool USuspenseCoreDoTService::IsDoTEffect(const FActiveGameplayEffect& Effect) const
@@ -626,7 +630,7 @@ FGameplayTag USuspenseCoreDoTService::GetDoTTypeFromEffect(const FGameplayEffect
 
 	const FGameplayTagContainer& GrantedTags = Spec.Def->GetAssetTags();
 
-	// Check specific tags first
+	// Check specific tags first - DoT/Debuffs
 	if (GrantedTags.HasTag(SuspenseCoreTags::State::Health::BleedingHeavy))
 	{
 		return SuspenseCoreTags::State::Health::BleedingHeavy;
@@ -646,6 +650,16 @@ FGameplayTag USuspenseCoreDoTService::GetDoTTypeFromEffect(const FGameplayEffect
 	if (GrantedTags.HasTag(BurningRootTag))
 	{
 		return BurningRootTag;
+	}
+
+	// HoT/Buffs (Medical healing effects)
+	if (GrantedTags.HasTag(SuspenseCoreTags::State::Health::Regenerating))
+	{
+		return SuspenseCoreTags::State::Health::Regenerating;
+	}
+	if (GrantedTags.HasTag(SuspenseCoreTags::State::Health::Painkiller))
+	{
+		return SuspenseCoreTags::State::Health::Painkiller;
 	}
 
 	// Fallback to root DoT tag

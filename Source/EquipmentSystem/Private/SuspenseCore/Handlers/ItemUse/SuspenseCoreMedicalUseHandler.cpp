@@ -397,12 +397,19 @@ float USuspenseCoreMedicalUseHandler::GetMedicalDuration(ESuspenseCoreMedicalTyp
 
 float USuspenseCoreMedicalUseHandler::GetHealAmount(FName ItemID) const
 {
-	// Get heal amount from item data
-	// Note: FSuspenseCoreUnifiedItemData doesn't have a direct HealAmount field
-	// For medical items, we use the ConsumeEffects to apply healing via GAS
-	// Here we provide default values based on item name patterns
+	// TODO: SSOT Integration
+	// When DataManager.GetConsumableAttributes() is implemented, replace this with:
+	// ═══════════════════════════════════════════════════════════════════════════
+	// FSuspenseCoreConsumableAttributeRow ConsumableData;
+	// if (DataManager.IsValid() && DataManager->GetConsumableAttributes(ItemID, ConsumableData))
+	// {
+	//     return ConsumableData.HealAmount;
+	// }
+	// ═══════════════════════════════════════════════════════════════════════════
+	// @see Content/Data/ItemDatabase/SuspenseCoreConsumableAttributes.json
+	// JSON values: Medical_IFAK=150, Medical_Salewa=400, Medical_Grizzly=1800
 
-	// Default heal amounts by item name pattern
+	// TEMPORARY: Hardcoded heal amounts until SSOT integration
 	FString ItemName = ItemID.ToString();
 	if (ItemName.Contains(TEXT("Surgical")) || ItemName.Contains(TEXT("Surgery")))
 	{
@@ -672,7 +679,27 @@ void USuspenseCoreMedicalUseHandler::GetMedicalCapabilities(
 	OutHoTAmount = 0.0f;
 	OutHoTDuration = 0.0f;
 
-	// Get medical type from item name
+	// TODO: SSOT Integration
+	// When DataManager.GetConsumableAttributes() is implemented, replace this with:
+	// ═══════════════════════════════════════════════════════════════════════════
+	// FSuspenseCoreConsumableAttributeRow ConsumableData;
+	// if (DataManager.IsValid() && DataManager->GetConsumableAttributes(ItemID, ConsumableData))
+	// {
+	//     OutCanCureLightBleed = ConsumableData.bCanHealLightBleed;
+	//     OutCanCureHeavyBleed = ConsumableData.bCanHealHeavyBleed;
+	//     OutCanCureFracture = ConsumableData.bCanHealFracture;
+	//     // HoT from HealRate: HoTDuration = HealAmount / HealRate
+	//     if (ConsumableData.HealRate > 0.0f)
+	//     {
+	//         OutHoTAmount = ConsumableData.HealRate;
+	//         OutHoTDuration = ConsumableData.HealAmount / ConsumableData.HealRate;
+	//     }
+	//     return;
+	// }
+	// ═══════════════════════════════════════════════════════════════════════════
+	// @see Content/Data/ItemDatabase/SuspenseCoreConsumableAttributes.json
+
+	// TEMPORARY: Hardcoded capabilities until SSOT integration
 	FString ItemName = ItemID.ToString();
 
 	// Bandage: Cures light bleed only

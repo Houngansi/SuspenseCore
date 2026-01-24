@@ -6,6 +6,7 @@
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "SuspenseCore/Tags/SuspenseCoreMedicalNativeTags.h"
 #include "GameplayEffect.h"
+#include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGE_InstantHeal, Log, All);
 
@@ -24,16 +25,25 @@ UGE_InstantHeal::UGE_InstantHeal(const FObjectInitializer& ObjectInitializer)
 		HealMod.ModifierOp = EGameplayModOp::Additive;
 
 		// SetByCaller magnitude - caller provides heal amount
-		FSetByCallerFloat SetByCaller;
-		SetByCaller.DataTag = SuspenseCoreMedicalTags::Data::TAG_Data_Medical_InstantHeal;
-		HealMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
+		FSetByCallerFloat HealSetByCaller;
+		HealSetByCaller.DataTag = SuspenseCoreMedicalTags::Data::TAG_Data_Medical_InstantHeal;
+		HealMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(HealSetByCaller);
 
 		Modifiers.Add(HealMod);
 	}
 
-	// Effect asset tag for identification
-	InheritableOwnedTagsContainer.AddTag(
-		FGameplayTag::RequestGameplayTag(FName("Effect.Medical.InstantHeal")));
+	// Effect asset tag for identification using UAssetTagsGameplayEffectComponent
+	UAssetTagsGameplayEffectComponent* AssetTagsComponent =
+		ObjectInitializer.CreateDefaultSubobject<UAssetTagsGameplayEffectComponent>(
+			this, TEXT("InstantHealAssetTags"));
+
+	if (AssetTagsComponent)
+	{
+		FInheritedTagContainer AssetTagContainer;
+		AssetTagContainer.Added.AddTag(SuspenseCoreMedicalTags::Effect::TAG_Effect_Medical_InstantHeal);
+		AssetTagsComponent->SetAndApplyAssetTagChanges(AssetTagContainer);
+		GEComponents.Add(AssetTagsComponent);
+	}
 
 	UE_LOG(LogGE_InstantHeal, Log, TEXT("GE_InstantHeal: Configured with SetByCaller healing"));
 }

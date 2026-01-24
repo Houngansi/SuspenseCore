@@ -596,6 +596,18 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 
 		TotalRemoved += Removed;
 
+		// Publish DoT.Removed event for UI update
+		if (Removed > 0 && EventBus.IsValid())
+		{
+			FSuspenseCoreEventData DoTEventData;
+			DoTEventData.Source = Actor;
+			DoTEventData.Timestamp = FPlatformTime::Seconds();
+			DoTEventData.Tags.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
+			DoTEventData.StringPayload.Add(TEXT("DoTType"), TEXT("State.Health.Bleeding.Light"));
+			EventBus->Publish(SuspenseCoreTags::Event::DoT::Removed, DoTEventData);
+			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Published DoT.Removed for Light bleed"));
+		}
+
 		HANDLER_LOG(Log, TEXT("CureBleedingEffect: Light bleed - removed %d effect(s)"), Removed);
 	}
 
@@ -617,6 +629,18 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 		}
 
 		TotalRemoved += Removed;
+
+		// Publish DoT.Removed event for UI update
+		if (Removed > 0 && EventBus.IsValid())
+		{
+			FSuspenseCoreEventData DoTEventData;
+			DoTEventData.Source = Actor;
+			DoTEventData.Timestamp = FPlatformTime::Seconds();
+			DoTEventData.Tags.AddTag(SuspenseCoreTags::State::Health::BleedingHeavy);
+			DoTEventData.StringPayload.Add(TEXT("DoTType"), TEXT("State.Health.Bleeding.Heavy"));
+			EventBus->Publish(SuspenseCoreTags::Event::DoT::Removed, DoTEventData);
+			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Published DoT.Removed for Heavy bleed"));
+		}
 
 		HANDLER_LOG(Log, TEXT("CureBleedingEffect: Heavy bleed - removed %d effect(s)"), Removed);
 	}

@@ -8,6 +8,8 @@
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectComponents/TargetTagRequirementsGameplayEffectComponent.h"
+#include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
+#include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/RemoveOtherGameplayEffectComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGE_HealOverTime, Log, All);
@@ -18,9 +20,12 @@ UGE_HealOverTime::UGE_HealOverTime(const FObjectInitializer& ObjectInitializer)
 	// Duration-based effect with SetByCaller duration
 	DurationPolicy = EGameplayEffectDurationType::HasDuration;
 
-	// SetByCaller duration
-	DurationMagnitude = FGameplayEffectModifierMagnitude(
-		FSetByCallerFloat{SuspenseCoreMedicalTags::Data::TAG_Data_Medical_HoTDuration});
+	// SetByCaller duration - use assignment style for FNativeGameplayTag compatibility
+	{
+		FSetByCallerFloat DurationSetByCaller;
+		DurationSetByCaller.DataTag = SuspenseCoreMedicalTags::Data::TAG_Data_Medical_HoTDuration;
+		DurationMagnitude = FGameplayEffectModifierMagnitude(DurationSetByCaller);
+	}
 
 	// Tick every 1 second
 	Period = 1.0f;
@@ -32,35 +37,58 @@ UGE_HealOverTime::UGE_HealOverTime(const FObjectInitializer& ObjectInitializer)
 		HealMod.ModifierOp = EGameplayModOp::Additive;
 
 		// SetByCaller magnitude - heal per tick
-		FSetByCallerFloat SetByCaller;
-		SetByCaller.DataTag = SuspenseCoreMedicalTags::Data::TAG_Data_Medical_HealPerTick;
-		HealMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
+		FSetByCallerFloat HealSetByCaller;
+		HealSetByCaller.DataTag = SuspenseCoreMedicalTags::Data::TAG_Data_Medical_HealPerTick;
+		HealMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(HealSetByCaller);
 
 		Modifiers.Add(HealMod);
 	}
 
-	// Stacking: Don't stack, refresh on reapply
+	// Stacking configuration
 	StackingType = EGameplayEffectStackingType::AggregateBySource;
 	StackLimitCount = 1;
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 
-	// Grant regenerating state tag while active
+	// Grant regenerating state tag while active using UTargetTagsGameplayEffectComponent
 	// IMPORTANT: Use State.Health.Regenerating to integrate with W_DebuffContainer
 	// This matches the tag in SuspenseCoreStatusEffectVisuals.json
-	InheritableOwnedTagsContainer.AddTag(SuspenseCoreTags::State::Health::Regenerating);
+	UTargetTagsGameplayEffectComponent* TargetTagsComponent =
+		ObjectInitializer.CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(
+			this, TEXT("HoTTargetTags"));
 
-	// Effect asset tag for identification
-	InheritableOwnedTagsContainer.AddTag(SuspenseCoreMedicalTags::Effect::TAG_Effect_Medical_HealOverTime);
+	if (TargetTagsComponent)
+	{
+		FInheritedTagContainer TagContainer;
+		TagContainer.Added.AddTag(SuspenseCoreTags::State::Health::Regenerating);
+		TargetTagsComponent->SetAndApplyTargetTagChanges(TagContainer);
+		GEComponents.Add(TargetTagsComponent);
+	}
+
+	// Effect asset tag for identification using UAssetTagsGameplayEffectComponent
+	UAssetTagsGameplayEffectComponent* AssetTagsComponent =
+		ObjectInitializer.CreateDefaultSubobject<UAssetTagsGameplayEffectComponent>(
+			this, TEXT("HoTAssetTags"));
+
+	if (AssetTagsComponent)
+	{
+		FInheritedTagContainer AssetTagContainer;
+		AssetTagContainer.Added.AddTag(SuspenseCoreMedicalTags::Effect::TAG_Effect_Medical_HealOverTime);
+		AssetTagsComponent->SetAndApplyAssetTagChanges(AssetTagContainer);
+		GEComponents.Add(AssetTagsComponent);
+	}
 
 	// Create cancel-on-damage component
 	// HoT is cancelled when taking damage (Tarkov-style)
-	auto* CancelComponent = ObjectInitializer.CreateDefaultSubobject<UTargetTagRequirementsGameplayEffectComponent>(
-		this, TEXT("HoTCancelOnDamage"));
+	UTargetTagRequirementsGameplayEffectComponent* CancelComponent =
+		ObjectInitializer.CreateDefaultSubobject<UTargetTagRequirementsGameplayEffectComponent>(
+			this, TEXT("HoTCancelOnDamage"));
 
-	// Effect is removed when State.Damaged tag is present
-	CancelComponent->RemovalTagRequirements.RequireTags.AddTag(SuspenseCoreTags::State::Damaged);
-
-	GEComponents.Add(CancelComponent);
+	if (CancelComponent)
+	{
+		// Effect is removed when State.Damaged tag is present
+		CancelComponent->RemovalTagRequirements.RequireTags.AddTag(SuspenseCoreTags::State::Damaged);
+		GEComponents.Add(CancelComponent);
+	}
 
 	UE_LOG(LogGE_HealOverTime, Log, TEXT("GE_HealOverTime: Configured with SetByCaller HoT, cancels on damage"));
 }

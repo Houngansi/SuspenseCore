@@ -21,7 +21,7 @@
 // REMOVAL:
 // - Bandage removes GE_BleedingEffect_Light
 // - Medkit/Surgery removes both Light and Heavy
-// - Use RemoveActiveGameplayEffectBySourceEffect() or tag-based removal
+// - Use ASC->RemoveActiveEffectsWithGrantedTags() with State.Health.Bleeding.Light/Heavy
 
 #pragma once
 
@@ -39,8 +39,8 @@
  * - DurationPolicy: Infinite
  * - Period: 1.0s (damage tick interval)
  * - Damage Tag: Data.Damage.Bleed (SetByCaller, 1-2 HP/tick)
- * - Granted Tag: State.Health.Bleeding.Light
- * - Asset Tag: Effect.Damage.Bleed.Light
+ * - Granted Tag: State.Health.Bleeding.Light (via UTargetTagsGameplayEffectComponent)
+ * - Asset Tag: Effect.Damage.Bleed.Light (via UAssetTagsGameplayEffectComponent)
  *
  * REQUIREMENTS FOR APPLICATION:
  * - Target Armor == 0 (checked by GrenadeProjectile before applying)
@@ -55,10 +55,11 @@
  * - Bandage (Item.Consumable.Bandage)
  * - Medkit (Item.Consumable.Medkit)
  * - Surgery Kit (Item.Consumable.Surgery)
+ * - Use ASC->RemoveActiveEffectsWithGrantedTags() with State.Health.Bleeding.Light
  *
  * TYPICAL VALUES (Tarkov-style):
  * - Damage per tick: 1-2 HP
- * - Stack limit: 1 (reapplication refreshes)
+ * - Stack limit: 5
  * - Total potential damage: Unlimited until healed
  *
  * @see ASuspenseCoreGrenadeProjectile
@@ -71,7 +72,7 @@ class GAS_API UGE_BleedingEffect_Light : public UGameplayEffect
 	GENERATED_BODY()
 
 public:
-	UGE_BleedingEffect_Light();
+	UGE_BleedingEffect_Light(const FObjectInitializer& ObjectInitializer);
 };
 
 /**
@@ -84,8 +85,8 @@ public:
  * - DurationPolicy: Infinite
  * - Period: 1.0s (damage tick interval)
  * - Damage Tag: Data.Damage.Bleed (SetByCaller, 3-5 HP/tick)
- * - Granted Tag: State.Health.Bleeding.Heavy
- * - Asset Tag: Effect.Damage.Bleed.Heavy
+ * - Granted Tag: State.Health.Bleeding.Heavy (via UTargetTagsGameplayEffectComponent)
+ * - Asset Tag: Effect.Damage.Bleed.Heavy (via UAssetTagsGameplayEffectComponent)
  *
  * REQUIREMENTS FOR APPLICATION:
  * - Target Armor == 0
@@ -100,10 +101,11 @@ public:
  * - Tourniquet (temporary - 180s)
  * - Medkit (Item.Consumable.Medkit with bCanHealHeavyBleed)
  * - Surgery Kit (Item.Consumable.Surgery)
+ * - Use ASC->RemoveActiveEffectsWithGrantedTags() with State.Health.Bleeding.Heavy
  *
  * TYPICAL VALUES:
  * - Damage per tick: 3-5 HP
- * - Stack limit: 1
+ * - Stack limit: 5
  * - CRITICAL: Can kill if not treated
  *
  * @see ASuspenseCoreGrenadeProjectile
@@ -115,5 +117,5 @@ class GAS_API UGE_BleedingEffect_Heavy : public UGameplayEffect
 	GENERATED_BODY()
 
 public:
-	UGE_BleedingEffect_Heavy();
+	UGE_BleedingEffect_Heavy(const FObjectInitializer& ObjectInitializer);
 };

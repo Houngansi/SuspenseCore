@@ -6,12 +6,16 @@
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
+#include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogGE_BleedingEffect, Log, All);
 
 //========================================================================
 // UGE_BleedingEffect_Light
 //========================================================================
 
-UGE_BleedingEffect_Light::UGE_BleedingEffect_Light()
+UGE_BleedingEffect_Light::UGE_BleedingEffect_Light(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	// ═══════════════════════════════════════════════════════════════════
 	// DURATION: Infinite until healed
@@ -54,39 +58,50 @@ UGE_BleedingEffect_Light::UGE_BleedingEffect_Light()
 
 	// ═══════════════════════════════════════════════════════════════════
 	// GRANTED TAGS: State.Health.Bleeding.Light
-	// UI and medical system check this tag to show bleed indicator
-	// Medical items remove effects with this tag
+	// Using UTargetTagsGameplayEffectComponent for proper ASC registration
+	// This allows RemoveActiveEffectsWithGrantedTags() to find this effect
 	// ═══════════════════════════════════════════════════════════════════
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	InheritableOwnedTagsContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Health.Bleeding.Light")));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	UTargetTagsGameplayEffectComponent* TargetTagsComponent =
+		ObjectInitializer.CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(
+			this, TEXT("LightBleedTargetTags"));
+
+	if (TargetTagsComponent)
+	{
+		FInheritedTagContainer TagContainer;
+		TagContainer.Added.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
+		TargetTagsComponent->SetAndApplyTargetTagChanges(TagContainer);
+		GEComponents.Add(TargetTagsComponent);
+	}
 
 	// ═══════════════════════════════════════════════════════════════════
 	// ASSET TAGS: For identification and GameplayCue
+	// Using UAssetTagsGameplayEffectComponent
 	// ═══════════════════════════════════════════════════════════════════
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed")));
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed.Light")));
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.DoT")));
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Grenade.Shrapnel")));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	UAssetTagsGameplayEffectComponent* AssetTagsComponent =
+		ObjectInitializer.CreateDefaultSubobject<UAssetTagsGameplayEffectComponent>(
+			this, TEXT("LightBleedAssetTags"));
 
-	// ═══════════════════════════════════════════════════════════════════
-	// REMOVAL TAGS: Medical items with these tags can remove this effect
-	// ═══════════════════════════════════════════════════════════════════
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	RemoveGameplayEffectsWithTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Health.Bleeding.Light")));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (AssetTagsComponent)
+	{
+		FInheritedTagContainer AssetTagContainer;
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed")));
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed.Light")));
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.DoT")));
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Grenade.Shrapnel")));
+		AssetTagsComponent->SetAndApplyAssetTagChanges(AssetTagContainer);
+		GEComponents.Add(AssetTagsComponent);
+	}
 
-	UE_LOG(LogTemp, Log, TEXT("GE_BleedingEffect_Light: Configured - Infinite duration, 1s period, SetByCaller damage"));
+	UE_LOG(LogGE_BleedingEffect, Log, TEXT("GE_BleedingEffect_Light: Configured - Infinite duration, 1s period, SetByCaller damage, grants State.Health.Bleeding.Light"));
 }
 
 //========================================================================
 // UGE_BleedingEffect_Heavy
 //========================================================================
 
-UGE_BleedingEffect_Heavy::UGE_BleedingEffect_Heavy()
+UGE_BleedingEffect_Heavy::UGE_BleedingEffect_Heavy(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	// ═══════════════════════════════════════════════════════════════════
 	// DURATION: Infinite until healed
@@ -126,30 +141,40 @@ UGE_BleedingEffect_Heavy::UGE_BleedingEffect_Heavy()
 
 	// ═══════════════════════════════════════════════════════════════════
 	// GRANTED TAGS: State.Health.Bleeding.Heavy
-	// More severe indicator, different treatment required
+	// Using UTargetTagsGameplayEffectComponent for proper ASC registration
+	// This allows RemoveActiveEffectsWithGrantedTags() to find this effect
 	// ═══════════════════════════════════════════════════════════════════
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	InheritableOwnedTagsContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Health.Bleeding.Heavy")));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	UTargetTagsGameplayEffectComponent* TargetTagsComponent =
+		ObjectInitializer.CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(
+			this, TEXT("HeavyBleedTargetTags"));
+
+	if (TargetTagsComponent)
+	{
+		FInheritedTagContainer TagContainer;
+		TagContainer.Added.AddTag(SuspenseCoreTags::State::Health::BleedingHeavy);
+		TargetTagsComponent->SetAndApplyTargetTagChanges(TagContainer);
+		GEComponents.Add(TargetTagsComponent);
+	}
 
 	// ═══════════════════════════════════════════════════════════════════
-	// ASSET TAGS
+	// ASSET TAGS: For identification and GameplayCue
+	// Using UAssetTagsGameplayEffectComponent
 	// ═══════════════════════════════════════════════════════════════════
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed")));
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed.Heavy")));
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.DoT")));
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Grenade.Shrapnel")));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	UAssetTagsGameplayEffectComponent* AssetTagsComponent =
+		ObjectInitializer.CreateDefaultSubobject<UAssetTagsGameplayEffectComponent>(
+			this, TEXT("HeavyBleedAssetTags"));
 
-	// ═══════════════════════════════════════════════════════════════════
-	// REMOVAL TAGS: Only surgery/medkit can remove heavy bleed
-	// Bandages are NOT sufficient
-	// ═══════════════════════════════════════════════════════════════════
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	RemoveGameplayEffectsWithTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Health.Bleeding.Heavy")));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (AssetTagsComponent)
+	{
+		FInheritedTagContainer AssetTagContainer;
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed")));
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed.Heavy")));
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.DoT")));
+		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Grenade.Shrapnel")));
+		AssetTagsComponent->SetAndApplyAssetTagChanges(AssetTagContainer);
+		GEComponents.Add(AssetTagsComponent);
+	}
 
-	UE_LOG(LogTemp, Log, TEXT("GE_BleedingEffect_Heavy: Configured - Infinite duration, 1s period, SetByCaller damage"));
+	UE_LOG(LogGE_BleedingEffect, Log, TEXT("GE_BleedingEffect_Heavy: Configured - Infinite duration, 1s period, SetByCaller damage, grants State.Health.Bleeding.Heavy"));
 }

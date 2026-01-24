@@ -11,12 +11,16 @@
 // 2. ItemUseService routes to this handler
 // 3. Handler calculates duration from item data
 // 4. GAS ability applies InProgress effect and waits
-// 5. OnOperationComplete() applies healing/effects
+// 5. OnOperationComplete() applies healing/effects via GAS
 //
 // ARCHITECTURE:
 // - Duration-based (configurable per item type)
 // - Cancellable (damage interrupts)
 // - Uses ItemData for heal amount and duration
+// - Applies healing via GE_InstantHeal and GE_HealOverTime
+// - Cures status effects (bleeding, fractures) based on item capabilities
+//
+// @see GE_InstantHeal, GE_HealOverTime, StatusEffects_DeveloperGuide.md
 
 #pragma once
 
@@ -24,12 +28,14 @@
 #include "UObject/NoExportTypes.h"
 #include "SuspenseCore/Interfaces/ItemUse/ISuspenseCoreItemUseHandler.h"
 #include "SuspenseCore/Tags/SuspenseCoreItemUseNativeTags.h"
+#include "GameplayTagContainer.h"
 #include "SuspenseCoreMedicalUseHandler.generated.h"
 
 // Forward declarations
 class USuspenseCoreDataManager;
 class USuspenseCoreEventBus;
 class UAbilitySystemComponent;
+class UGameplayEffect;
 
 /**
  * Medical item type for duration/effect calculation
@@ -156,13 +162,64 @@ protected:
 	float GetHealAmount(FName ItemID) const;
 
 	/**
-	 * Apply healing effect to actor
+	 * Apply healing effect to actor via GAS
+	 * Uses GE_InstantHeal GameplayEffect for immediate healing.
 	 *
 	 * @param Actor Actor to heal
 	 * @param HealAmount Amount to heal
 	 * @return true if healing was applied
 	 */
 	bool ApplyHealing(AActor* Actor, float HealAmount) const;
+
+	/**
+	 * Apply heal over time effect to actor
+	 * Uses GE_HealOverTime GameplayEffect for sustained healing.
+	 * HoT is interrupted by taking damage (Tarkov-style).
+	 *
+	 * @param Actor Actor to heal
+	 * @param HealPerTick HP per tick (1s intervals)
+	 * @param Duration Total HoT duration in seconds
+	 * @return true if HoT was applied
+	 */
+	bool ApplyHealOverTime(AActor* Actor, float HealPerTick, float Duration) const;
+
+	/**
+	 * Cure bleeding effects based on medical item capabilities.
+	 * Removes active bleeding effects matching the item's cure tags.
+	 *
+	 * @param Actor Actor to cure
+	 * @param bCanCureLightBleed Can cure light bleeding
+	 * @param bCanCureHeavyBleed Can cure heavy bleeding
+	 * @return Number of bleeding effects removed
+	 */
+	int32 CureBleedingEffect(AActor* Actor, bool bCanCureLightBleed, bool bCanCureHeavyBleed) const;
+
+	/**
+	 * Cure fracture effects
+	 *
+	 * @param Actor Actor to cure
+	 * @return Number of fracture effects removed
+	 */
+	int32 CureFractureEffect(AActor* Actor) const;
+
+	/**
+	 * Get medical capabilities from item data
+	 * Returns what conditions the medical item can cure.
+	 *
+	 * @param ItemID Item to check
+	 * @param OutCanCureLightBleed Output: can cure light bleed
+	 * @param OutCanCureHeavyBleed Output: can cure heavy bleed
+	 * @param OutCanCureFracture Output: can cure fractures
+	 * @param OutHoTAmount Output: heal over time amount (0 if no HoT)
+	 * @param OutHoTDuration Output: HoT duration in seconds
+	 */
+	void GetMedicalCapabilities(
+		FName ItemID,
+		bool& OutCanCureLightBleed,
+		bool& OutCanCureHeavyBleed,
+		bool& OutCanCureFracture,
+		float& OutHoTAmount,
+		float& OutHoTDuration) const;
 
 	/**
 	 * Publish medical use event
@@ -208,4 +265,36 @@ private:
 	/** Default cooldown after use (seconds) */
 	UPROPERTY(EditDefaultsOnly, Category = "Handler|Config")
 	float DefaultCooldown = 1.0f;
+
+	//==================================================================
+	// GameplayEffect Classes
+	//==================================================================
+
+	/** Instant heal effect class */
+	UPROPERTY(EditDefaultsOnly, Category = "Handler|Effects")
+	TSubclassOf<UGameplayEffect> InstantHealEffectClass;
+
+	/** Heal over time effect class */
+	UPROPERTY(EditDefaultsOnly, Category = "Handler|Effects")
+	TSubclassOf<UGameplayEffect> HealOverTimeEffectClass;
+
+	//==================================================================
+	// HoT Configuration per Medical Type
+	//==================================================================
+
+	/** HoT heal per tick for Medkit */
+	UPROPERTY(EditDefaultsOnly, Category = "Handler|HoT")
+	float MedkitHoTPerTick = 5.0f;
+
+	/** HoT duration for Medkit */
+	UPROPERTY(EditDefaultsOnly, Category = "Handler|HoT")
+	float MedkitHoTDuration = 10.0f;
+
+	/** HoT heal per tick for Surgical Kit */
+	UPROPERTY(EditDefaultsOnly, Category = "Handler|HoT")
+	float SurgicalHoTPerTick = 10.0f;
+
+	/** HoT duration for Surgical Kit */
+	UPROPERTY(EditDefaultsOnly, Category = "Handler|HoT")
+	float SurgicalHoTDuration = 15.0f;
 };

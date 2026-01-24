@@ -508,14 +508,18 @@ bool UW_DebuffIcon::LoadIconFromSSOT()
 		return false;
 	}
 
+	UE_LOG(LogDebuffIcon, Warning, TEXT("  Icon path: %s"), *SSOTIconPath.ToString());
+
 	// Check if already loaded
 	if (SSOTIconPath.IsValid())
 	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("  Icon already loaded, setting brush directly"));
 		DebuffImage->SetBrushFromTexture(SSOTIconPath.Get());
 		return true;
 	}
 
 	// Async load SSOT icon
+	UE_LOG(LogDebuffIcon, Warning, TEXT("  Starting async load for icon..."));
 	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
 	IconLoadHandle = StreamableManager.RequestAsyncLoad(
 		SSOTIconPath.ToSoftObjectPath(),
@@ -527,17 +531,34 @@ bool UW_DebuffIcon::LoadIconFromSSOT()
 
 void UW_DebuffIcon::OnIconLoaded()
 {
+	UE_LOG(LogDebuffIcon, Warning, TEXT("OnIconLoaded called for: %s"), *DoTType.ToString());
+
 	if (!DebuffImage)
 	{
+		UE_LOG(LogDebuffIcon, Error, TEXT("  DebuffImage is NULL! Cannot set texture"));
 		return;
 	}
 
 	// Check if we loaded SSOT icon
 	if (bUseSSOTData && SSOTIconPath.IsValid())
 	{
-		DebuffImage->SetBrushFromTexture(SSOTIconPath.Get());
-		UE_LOG(LogDebuffIcon, Verbose, TEXT("SSOT icon loaded for effect: %s"), *CachedEffectID.ToString());
+		UTexture2D* LoadedTexture = SSOTIconPath.Get();
+		if (LoadedTexture)
+		{
+			DebuffImage->SetBrushFromTexture(LoadedTexture);
+			UE_LOG(LogDebuffIcon, Warning, TEXT("  SSOT icon SET for effect: %s (Texture: %s)"),
+				*CachedEffectID.ToString(), *LoadedTexture->GetName());
+		}
+		else
+		{
+			UE_LOG(LogDebuffIcon, Error, TEXT("  SSOTIconPath.Get() returned NULL for: %s"), *CachedEffectID.ToString());
+		}
 		return;
+	}
+	else
+	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("  SSOT path not valid after async load: bUseSSOT=%d, PathValid=%d"),
+			bUseSSOTData, SSOTIconPath.IsValid());
 	}
 
 	// Find the icon again and set it from local map

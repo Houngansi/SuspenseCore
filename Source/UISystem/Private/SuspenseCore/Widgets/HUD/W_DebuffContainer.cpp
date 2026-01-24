@@ -464,7 +464,16 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 		if (IconSlot)
 		{
 			IconSlot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f));
+			UE_LOG(LogDebuffContainer, Warning, TEXT("  Icon added to DebuffBox successfully, Children count: %d"), DebuffBox->GetChildrenCount());
 		}
+		else
+		{
+			UE_LOG(LogDebuffContainer, Error, TEXT("  Failed to get slot from DebuffBox!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogDebuffContainer, Error, TEXT("  DebuffBox is NULL! Cannot add icon to UI hierarchy!"));
 	}
 
 	// Track in active map

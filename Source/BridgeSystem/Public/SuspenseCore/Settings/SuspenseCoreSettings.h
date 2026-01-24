@@ -223,6 +223,25 @@ public:
 				ToolTip = "Status effects DataTable. Row Structure: FSuspenseCoreStatusEffectAttributeRow"))
 	TSoftObjectPtr<UDataTable> StatusEffectAttributesDataTable;
 
+	/**
+	 * DataTable containing status effect VISUAL definitions
+	 * Row Structure: FSuspenseCoreStatusEffectVisualRow
+	 *
+	 * JSON SOURCE: Content/Data/StatusEffects/SuspenseCoreStatusEffectVisuals.json
+	 * Contains icons, colors, VFX references for UI display.
+	 *
+	 * SEPARATE TABLE from attributes because:
+	 * - Attributes = gameplay mechanics (damage, duration, stacks)
+	 * - Visuals = UI presentation (icons, colors, VFX)
+	 *
+	 * @see W_DebuffIcon, W_DebuffContainer
+	 * @see FSuspenseCoreStatusEffectVisualRow
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Status effect visuals DataTable. Row Structure: FSuspenseCoreStatusEffectVisualRow"))
+	TSoftObjectPtr<UDataTable> StatusEffectVisualsDataTable;
+
 	/** Use SSOT DataTable attributes instead of legacy fields */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
 		meta = (ToolTip = "Enable new SSOT attribute system. Disable for legacy fallback."))

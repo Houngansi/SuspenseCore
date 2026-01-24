@@ -1955,19 +1955,29 @@ bool USuspenseCoreDataManager::InitializeStatusEffectVisualsSystem()
 		return false;
 	}
 
-	// Try to load StatusEffectVisualsDataTable
-	// First check if there's a dedicated visuals table in settings
-	// For now, we'll try to use the same table but with new structure
+	// Load StatusEffectVisualsDataTable from Settings
 	UDataTable* VisualsDataTable = nullptr;
 
-	// TODO: Add StatusEffectVisualsDataTable to USuspenseCoreSettings
-	// For now, we'll attempt to load the JSON-based visuals
-	// This can be updated once the Settings class is extended
+	if (Settings->StatusEffectVisualsDataTable.IsValid())
+	{
+		VisualsDataTable = Settings->StatusEffectVisualsDataTable.LoadSynchronous();
+		if (VisualsDataTable)
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("  Loaded StatusEffectVisualsDataTable: %s"), *VisualsDataTable->GetName());
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to load StatusEffectVisualsDataTable (LoadSynchronous returned null)"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("  StatusEffectVisualsDataTable not configured in Project Settings -> Game -> SuspenseCore"));
+	}
 
 	if (!VisualsDataTable)
 	{
-		UE_LOG(LogSuspenseCoreData, Warning, TEXT("  StatusEffectVisualsDataTable not configured - v2.0 visual system will use fallback"));
-		// Return true but mark as ready for future initialization
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("  StatusEffectVisualsDataTable not available - debuff icons will not display"));
 		bStatusEffectVisualsReady = false;
 		return true;
 	}

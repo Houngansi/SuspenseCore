@@ -44,11 +44,11 @@ UGE_BleedingEffect_Light::UGE_BleedingEffect_Light()
 	Modifiers.Add(DamageModifier);
 
 	// ═══════════════════════════════════════════════════════════════════
-	// STACKING: Only one light bleed at a time
-	// Reapplication refreshes - doesn't stack damage
+	// STACKING: Tarkov-style - multiple bleeds stack and multiply damage
+	// 3 light bleeds = 3x damage per tick
 	// ═══════════════════════════════════════════════════════════════════
 	StackingType = EGameplayEffectStackingType::AggregateByTarget;
-	StackLimitCount = 1;
+	StackLimitCount = 5;  // Max 5 stacks of light bleeding
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackPeriodResetPolicy = EGameplayEffectStackingPeriodPolicy::ResetOnSuccessfulApplication;
 
@@ -116,10 +116,11 @@ UGE_BleedingEffect_Heavy::UGE_BleedingEffect_Heavy()
 	Modifiers.Add(DamageModifier);
 
 	// ═══════════════════════════════════════════════════════════════════
-	// STACKING: Only one heavy bleed at a time
+	// STACKING: Tarkov-style - multiple heavy bleeds stack and multiply damage
+	// 3 heavy bleeds = 3x damage per tick (very dangerous!)
 	// ═══════════════════════════════════════════════════════════════════
 	StackingType = EGameplayEffectStackingType::AggregateByTarget;
-	StackLimitCount = 1;
+	StackLimitCount = 5;  // Max 5 stacks of heavy bleeding
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackPeriodResetPolicy = EGameplayEffectStackingPeriodPolicy::ResetOnSuccessfulApplication;
 

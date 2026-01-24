@@ -405,6 +405,50 @@ public:
 	bool IsAttachmentAttributesSystemReady() const { return bAttachmentAttributesSystemReady; }
 
 	//========================================================================
+	// Consumable Attributes Access (Medical Items SSOT)
+	// @see Content/Data/ItemDatabase/SuspenseCoreConsumableAttributes.json
+	//========================================================================
+
+	/**
+	 * Get consumable attributes by ConsumableID or RowName
+	 * Uses ConsumableAttributesDataTable configured in Settings
+	 *
+	 * @param AttributeKey ConsumableID or explicit row name (e.g., "Medical_IFAK")
+	 * @param OutAttributes Output consumable attributes structure
+	 * @return true if attributes found
+	 *
+	 * @see FSuspenseCoreConsumableAttributeRow
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|GAS")
+	bool GetConsumableAttributes(FName AttributeKey, FSuspenseCoreConsumableAttributeRow& OutAttributes) const;
+
+	/**
+	 * Check if consumable attributes exist for given key
+	 * @param AttributeKey ConsumableID or row name
+	 * @return true if attributes exist in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool HasConsumableAttributes(FName AttributeKey) const;
+
+	/**
+	 * Get all cached consumable attribute keys
+	 * @return Array of all consumable attribute keys
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	TArray<FName> GetAllConsumableAttributeKeys() const;
+
+	/**
+	 * Get count of cached consumable attributes
+	 * @return Number of consumable attribute rows in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	int32 GetCachedConsumableAttributesCount() const { return ConsumableAttributesCache.Num(); }
+
+	/** Check if consumable attributes system is initialized */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool IsConsumableAttributesSystemReady() const { return bConsumableAttributesSystemReady; }
+
+	//========================================================================
 	// Status Effect Attributes Access (SSOT for Buffs/Debuffs)
 	// @see Documentation/Plans/StatusEffect_SSOT_System.md
 	//========================================================================
@@ -699,6 +743,24 @@ protected:
 	bool BuildAttachmentAttributesCache(UDataTable* DataTable);
 
 	//========================================================================
+	// Consumable Attributes Initialization (Medical Items SSOT)
+	//========================================================================
+
+	/**
+	 * Initialize consumable attributes system
+	 * Loads ConsumableAttributesDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeConsumableAttributesSystem();
+
+	/**
+	 * Build consumable attributes cache from DataTable
+	 * @param DataTable Consumable attributes DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildConsumableAttributesCache(UDataTable* DataTable);
+
+	//========================================================================
 	// Status Effect Attributes Initialization (SSOT for Buffs/Debuffs)
 	//========================================================================
 
@@ -872,6 +934,23 @@ private:
 	TObjectPtr<UDataTable> LoadedAttachmentAttributesDataTable;
 
 	//========================================================================
+	// Consumable Attributes Cached Data (Medical Items SSOT)
+	//========================================================================
+
+	/**
+	 * Consumable attributes cache from ConsumableAttributesDataTable
+	 * Key: ConsumableID (e.g., "Medical_IFAK", "Medical_Bandage")
+	 * Contains heal amount, use time, cure capabilities
+	 * @see FSuspenseCoreConsumableAttributeRow
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreConsumableAttributeRow> ConsumableAttributesCache;
+
+	/** Loaded consumable attributes DataTable reference */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedConsumableAttributesDataTable;
+
+	//========================================================================
 	// Status Effect Attributes Cached Data (SSOT for Buffs/Debuffs)
 	//========================================================================
 
@@ -963,6 +1042,9 @@ private:
 
 	/** Attachment attributes system ready flag */
 	bool bAttachmentAttributesSystemReady = false;
+
+	/** Consumable attributes system ready flag */
+	bool bConsumableAttributesSystemReady = false;
 
 	/** Status effect attributes system ready flag (old) */
 	bool bStatusEffectSystemReady = false;

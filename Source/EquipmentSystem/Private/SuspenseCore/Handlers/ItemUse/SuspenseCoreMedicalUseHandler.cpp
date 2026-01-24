@@ -580,12 +580,9 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 	// Remove light bleeding effects
 	if (bCanCureLightBleed)
 	{
-		// Try with native tag first
+		// Try with native tag first (State.Health.Bleeding.Light)
 		FGameplayTagContainer LightBleedTags;
 		LightBleedTags.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
-
-		HANDLER_LOG(Verbose, TEXT("CureBleedingEffect: Looking for light bleed tag: %s"),
-			*SuspenseCoreTags::State::Health::BleedingLight.Get().ToString());
 
 		int32 Removed = ASC->RemoveActiveEffectsWithGrantedTags(LightBleedTags);
 
@@ -605,11 +602,9 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 	// Remove heavy bleeding effects
 	if (bCanCureHeavyBleed)
 	{
+		// Try with native tag first (State.Health.Bleeding.Heavy)
 		FGameplayTagContainer HeavyBleedTags;
 		HeavyBleedTags.AddTag(SuspenseCoreTags::State::Health::BleedingHeavy);
-
-		HANDLER_LOG(Verbose, TEXT("CureBleedingEffect: Looking for heavy bleed tag: %s"),
-			*SuspenseCoreTags::State::Health::BleedingHeavy.Get().ToString());
 
 		int32 Removed = ASC->RemoveActiveEffectsWithGrantedTags(HeavyBleedTags);
 

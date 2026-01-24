@@ -397,46 +397,42 @@ float USuspenseCoreMedicalUseHandler::GetMedicalDuration(ESuspenseCoreMedicalTyp
 
 float USuspenseCoreMedicalUseHandler::GetHealAmount(FName ItemID) const
 {
-	// TODO: SSOT Integration
-	// When DataManager.GetConsumableAttributes() is implemented, replace this with:
-	// ═══════════════════════════════════════════════════════════════════════════
-	// FSuspenseCoreConsumableAttributeRow ConsumableData;
-	// if (DataManager.IsValid() && DataManager->GetConsumableAttributes(ItemID, ConsumableData))
-	// {
-	//     return ConsumableData.HealAmount;
-	// }
-	// ═══════════════════════════════════════════════════════════════════════════
+	// SSOT Integration - Read from ConsumableAttributesDataTable
 	// @see Content/Data/ItemDatabase/SuspenseCoreConsumableAttributes.json
-	// JSON values: Medical_IFAK=150, Medical_Salewa=400, Medical_Grizzly=1800
-
-	// TEMPORARY: Hardcoded heal amounts until SSOT integration
-	FString ItemName = ItemID.ToString();
-	if (ItemName.Contains(TEXT("Surgical")) || ItemName.Contains(TEXT("Surgery")))
+	FSuspenseCoreConsumableAttributeRow ConsumableData;
+	if (DataManager.IsValid() && DataManager->GetConsumableAttributes(ItemID, ConsumableData))
 	{
-		return 200.0f;
+		HANDLER_LOG(Verbose, TEXT("GetHealAmount (SSOT): %s = %.0f HP"), *ItemID.ToString(), ConsumableData.HealAmount);
+		return ConsumableData.HealAmount;
 	}
-	if (ItemName.Contains(TEXT("Medkit")) || ItemName.Contains(TEXT("AFAK")))
+
+	// FALLBACK: Hardcoded heal amounts if SSOT not available
+	HANDLER_LOG(Warning, TEXT("GetHealAmount: SSOT lookup failed for %s, using fallback"), *ItemID.ToString());
+
+	FString ItemName = ItemID.ToString();
+	if (ItemName.Contains(TEXT("Grizzly")))
 	{
-		return 100.0f;
+		return 1800.0f;
+	}
+	if (ItemName.Contains(TEXT("Salewa")))
+	{
+		return 400.0f;
+	}
+	if (ItemName.Contains(TEXT("CarMedkit")))
+	{
+		return 220.0f;
 	}
 	if (ItemName.Contains(TEXT("IFAK")))
 	{
-		return 50.0f;
+		return 150.0f;
 	}
-	if (ItemName.Contains(TEXT("Splint")))
+	if (ItemName.Contains(TEXT("Bandage")) || ItemName.Contains(TEXT("Splint")) ||
+		ItemName.Contains(TEXT("Morphine")) || ItemName.Contains(TEXT("Painkiller")))
 	{
-		return 0.0f; // Splints don't heal, they fix fractures
-	}
-	if (ItemName.Contains(TEXT("Bandage")))
-	{
-		return 25.0f;
-	}
-	if (ItemName.Contains(TEXT("Painkiller")) || ItemName.Contains(TEXT("Stimulant")))
-	{
-		return 0.0f; // Painkillers/stimulants don't heal directly
+		return 0.0f; // These don't heal HP
 	}
 
-	return 25.0f; // Default
+	return 0.0f;
 }
 
 bool USuspenseCoreMedicalUseHandler::ApplyHealing(AActor* Actor, float HealAmount) const
@@ -679,51 +675,55 @@ void USuspenseCoreMedicalUseHandler::GetMedicalCapabilities(
 	OutHoTAmount = 0.0f;
 	OutHoTDuration = 0.0f;
 
-	// TODO: SSOT Integration
-	// When DataManager.GetConsumableAttributes() is implemented, replace this with:
-	// ═══════════════════════════════════════════════════════════════════════════
-	// FSuspenseCoreConsumableAttributeRow ConsumableData;
-	// if (DataManager.IsValid() && DataManager->GetConsumableAttributes(ItemID, ConsumableData))
-	// {
-	//     OutCanCureLightBleed = ConsumableData.bCanHealLightBleed;
-	//     OutCanCureHeavyBleed = ConsumableData.bCanHealHeavyBleed;
-	//     OutCanCureFracture = ConsumableData.bCanHealFracture;
-	//     // HoT from HealRate: HoTDuration = HealAmount / HealRate
-	//     if (ConsumableData.HealRate > 0.0f)
-	//     {
-	//         OutHoTAmount = ConsumableData.HealRate;
-	//         OutHoTDuration = ConsumableData.HealAmount / ConsumableData.HealRate;
-	//     }
-	//     return;
-	// }
-	// ═══════════════════════════════════════════════════════════════════════════
+	// SSOT Integration - Read from ConsumableAttributesDataTable
 	// @see Content/Data/ItemDatabase/SuspenseCoreConsumableAttributes.json
+	FSuspenseCoreConsumableAttributeRow ConsumableData;
+	if (DataManager.IsValid() && DataManager->GetConsumableAttributes(ItemID, ConsumableData))
+	{
+		OutCanCureLightBleed = ConsumableData.bCanHealLightBleed;
+		OutCanCureHeavyBleed = ConsumableData.bCanHealHeavyBleed;
+		OutCanCureFracture = ConsumableData.bCanHealFracture;
 
-	// TEMPORARY: Hardcoded capabilities until SSOT integration
+		// HoT calculation: HealRate is HP per second
+		// For post-use HoT, calculate duration from total heal / rate
+		if (ConsumableData.HealRate > 0.0f && ConsumableData.HealAmount > 0.0f)
+		{
+			OutHoTAmount = ConsumableData.HealRate;
+			OutHoTDuration = ConsumableData.HealAmount / ConsumableData.HealRate;
+		}
+
+		HANDLER_LOG(Log, TEXT("GetMedicalCapabilities (SSOT): %s -> LightBleed=%d, HeavyBleed=%d, Fracture=%d, HoT=%.1f/%.1fs"),
+			*ItemID.ToString(),
+			OutCanCureLightBleed,
+			OutCanCureHeavyBleed,
+			OutCanCureFracture,
+			OutHoTAmount,
+			OutHoTDuration);
+		return;
+	}
+
+	// FALLBACK: Hardcoded capabilities if SSOT not available
+	HANDLER_LOG(Warning, TEXT("GetMedicalCapabilities: SSOT lookup failed for %s, using fallback"), *ItemID.ToString());
+
 	FString ItemName = ItemID.ToString();
 
-	// Bandage: Cures light bleed only
 	if (ItemName.Contains(TEXT("Bandage")))
 	{
 		OutCanCureLightBleed = true;
 	}
-	// Medkit/IFAK/AFAK: Cures all bleeding, has HoT
-	else if (ItemName.Contains(TEXT("Medkit")) ||
-			 ItemName.Contains(TEXT("IFAK")) ||
-			 ItemName.Contains(TEXT("AFAK")))
+	else if (ItemName.Contains(TEXT("Medkit")) || ItemName.Contains(TEXT("IFAK")) ||
+			 ItemName.Contains(TEXT("AFAK")) || ItemName.Contains(TEXT("Salewa")))
 	{
 		OutCanCureLightBleed = true;
 		OutCanCureHeavyBleed = true;
 		OutHoTAmount = MedkitHoTPerTick;
 		OutHoTDuration = MedkitHoTDuration;
 	}
-	// Splint: Cures fractures only
 	else if (ItemName.Contains(TEXT("Splint")))
 	{
 		OutCanCureFracture = true;
 	}
-	// Surgical Kit: Cures everything, has strongest HoT
-	else if (ItemName.Contains(TEXT("Surgical")) || ItemName.Contains(TEXT("Surgery")))
+	else if (ItemName.Contains(TEXT("Grizzly")) || ItemName.Contains(TEXT("Surgical")))
 	{
 		OutCanCureLightBleed = true;
 		OutCanCureHeavyBleed = true;
@@ -731,17 +731,6 @@ void USuspenseCoreMedicalUseHandler::GetMedicalCapabilities(
 		OutHoTAmount = SurgicalHoTPerTick;
 		OutHoTDuration = SurgicalHoTDuration;
 	}
-
-	// Could also check DataManager for item-specific capabilities
-	// defined in data tables with cure tags
-
-	HANDLER_LOG(Verbose, TEXT("GetMedicalCapabilities: %s -> LightBleed=%d, HeavyBleed=%d, Fracture=%d, HoT=%.1f/%.1fs"),
-		*ItemName,
-		OutCanCureLightBleed,
-		OutCanCureHeavyBleed,
-		OutCanCureFracture,
-		OutHoTAmount,
-		OutHoTDuration);
 }
 
 void USuspenseCoreMedicalUseHandler::PublishMedicalEvent(

@@ -164,6 +164,13 @@ void USuspenseCoreDataManager::Initialize(FSubsystemCollectionBase& Collection)
 			UE_LOG(LogSuspenseCoreData, Log, TEXT("Throwable Attributes System: READY (%d rows cached)"), ThrowableAttributesCache.Num());
 		}
 
+		// Consumable Attributes (Medical Items SSOT)
+		bConsumableAttributesSystemReady = InitializeConsumableAttributesSystem();
+		if (bConsumableAttributesSystemReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Consumable Attributes System: READY (%d rows cached)"), ConsumableAttributesCache.Num());
+		}
+
 		// Status Effect Attributes (Buffs/Debuffs SSOT) - Optional legacy system
 		bStatusEffectSystemReady = InitializeStatusEffectAttributesSystem();
 		if (bStatusEffectSystemReady)
@@ -1432,6 +1439,79 @@ bool USuspenseCoreDataManager::BuildAttachmentAttributesCache(UDataTable* DataTa
 }
 
 //========================================================================
+// Consumable Attributes Initialization (Medical Items SSOT)
+//========================================================================
+
+bool USuspenseCoreDataManager::InitializeConsumableAttributesSystem()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	if (Settings->ConsumableAttributesDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("ConsumableAttributesDataTable not configured (optional)"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Loading ConsumableAttributesDataTable: %s"),
+		*Settings->ConsumableAttributesDataTable.ToString());
+
+	LoadedConsumableAttributesDataTable = Settings->ConsumableAttributesDataTable.LoadSynchronous();
+
+	if (!LoadedConsumableAttributesDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to load ConsumableAttributesDataTable"));
+		return false;
+	}
+
+	return BuildConsumableAttributesCache(LoadedConsumableAttributesDataTable);
+}
+
+bool USuspenseCoreDataManager::BuildConsumableAttributesCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	ConsumableAttributesCache.Empty();
+
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Building consumable attributes cache from %d rows..."), RowNames.Num());
+
+	int32 LoadedCount = 0;
+
+	for (const FName& RowName : RowNames)
+	{
+		FSuspenseCoreConsumableAttributeRow* RowData = DataTable->FindRow<FSuspenseCoreConsumableAttributeRow>(RowName, TEXT(""));
+		if (!RowData)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read consumable attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Use ConsumableID if set, otherwise use row name as key
+		FName CacheKey = RowData->ConsumableID.IsNone() ? RowName : RowData->ConsumableID;
+
+		ConsumableAttributesCache.Add(CacheKey, *RowData);
+		LoadedCount++;
+
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached consumable attrs: %s (Heal=%.0f, UseTime=%.1f, LightBleed=%d, HeavyBleed=%d)"),
+			*CacheKey.ToString(),
+			RowData->HealAmount,
+			RowData->UseTime,
+			RowData->bCanHealLightBleed,
+			RowData->bCanHealHeavyBleed);
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Consumable attributes cache built: %d entries"), LoadedCount);
+	return LoadedCount > 0;
+}
+
+//========================================================================
 // GAS Attributes Access (SSOT)
 //========================================================================
 
@@ -1543,6 +1623,40 @@ bool USuspenseCoreDataManager::HasAmmoAttributes(FName AttributeKey) const
 bool USuspenseCoreDataManager::HasAttachmentAttributes(FName AttributeKey) const
 {
 	return AttachmentAttributesCache.Contains(AttributeKey);
+}
+
+//========================================================================
+// Consumable Attributes Access (Medical Items SSOT)
+//========================================================================
+
+bool USuspenseCoreDataManager::GetConsumableAttributes(FName AttributeKey, FSuspenseCoreConsumableAttributeRow& OutAttributes) const
+{
+	if (AttributeKey.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreConsumableAttributeRow* Found = ConsumableAttributesCache.Find(AttributeKey);
+	if (Found)
+	{
+		OutAttributes = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetConsumableAttributes: '%s' not found in cache"), *AttributeKey.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::HasConsumableAttributes(FName AttributeKey) const
+{
+	return ConsumableAttributesCache.Contains(AttributeKey);
+}
+
+TArray<FName> USuspenseCoreDataManager::GetAllConsumableAttributeKeys() const
+{
+	TArray<FName> Keys;
+	ConsumableAttributesCache.GetKeys(Keys);
+	return Keys;
 }
 
 TArray<FName> USuspenseCoreDataManager::GetAllWeaponAttributeKeys() const

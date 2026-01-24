@@ -7,8 +7,13 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Effects/Medical/GE_InstantHeal.h"
+#include "SuspenseCore/Effects/Medical/GE_HealOverTime.h"
+#include "SuspenseCore/Tags/SuspenseCoreMedicalNativeTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "GameplayEffect.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMedicalUseHandler, Log, All);
 
@@ -21,6 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogMedicalUseHandler, Log, All);
 
 USuspenseCoreMedicalUseHandler::USuspenseCoreMedicalUseHandler()
 {
+	// Duration configuration
 	BandageDuration = 3.0f;
 	MedkitDuration = 5.0f;
 	PainkillerDuration = 2.0f;
@@ -28,6 +34,16 @@ USuspenseCoreMedicalUseHandler::USuspenseCoreMedicalUseHandler()
 	SplintDuration = 8.0f;
 	SurgicalDuration = 15.0f;
 	DefaultCooldown = 1.0f;
+
+	// HoT configuration
+	MedkitHoTPerTick = 5.0f;
+	MedkitHoTDuration = 10.0f;
+	SurgicalHoTPerTick = 10.0f;
+	SurgicalHoTDuration = 15.0f;
+
+	// Default effect classes (can be overridden in Blueprint/CDO)
+	InstantHealEffectClass = UGE_InstantHeal::StaticClass();
+	HealOverTimeEffectClass = UGE_HealOverTime::StaticClass();
 }
 
 void USuspenseCoreMedicalUseHandler::Initialize(
@@ -242,17 +258,69 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::OnOperationComplete
 	Response.HandlerTag = GetHandlerTag();
 	Response.Progress = 1.0f;
 
-	// Get heal amount from item data
-	float HealAmount = GetHealAmount(Request.SourceItem.ItemID);
+	// Get medical capabilities for this item
+	bool bCanCureLightBleed = false;
+	bool bCanCureHeavyBleed = false;
+	bool bCanCureFracture = false;
+	float HoTAmount = 0.0f;
+	float HoTDuration = 0.0f;
 
-	// Apply healing
-	if (OwnerActor && HealAmount > 0.0f)
+	GetMedicalCapabilities(
+		Request.SourceItem.ItemID,
+		bCanCureLightBleed,
+		bCanCureHeavyBleed,
+		bCanCureFracture,
+		HoTAmount,
+		HoTDuration);
+
+	// Get instant heal amount from item data
+	float InstantHealAmount = GetHealAmount(Request.SourceItem.ItemID);
+
+	if (OwnerActor)
 	{
-		bool bHealed = ApplyHealing(OwnerActor, HealAmount);
-		if (bHealed)
+		// 1. Apply instant healing
+		if (InstantHealAmount > 0.0f)
 		{
-			Response.Metadata.Add(TEXT("HealAmount"), FString::SanitizeFloat(HealAmount));
-			HANDLER_LOG(Log, TEXT("Applied %.1f healing"), HealAmount);
+			bool bHealed = ApplyHealing(OwnerActor, InstantHealAmount);
+			if (bHealed)
+			{
+				Response.Metadata.Add(TEXT("InstantHeal"), FString::SanitizeFloat(InstantHealAmount));
+				HANDLER_LOG(Log, TEXT("Applied %.1f instant healing"), InstantHealAmount);
+			}
+		}
+
+		// 2. Apply HoT if applicable (Medkits, Surgical Kits)
+		if (HoTAmount > 0.0f && HoTDuration > 0.0f)
+		{
+			bool bHoTApplied = ApplyHealOverTime(OwnerActor, HoTAmount, HoTDuration);
+			if (bHoTApplied)
+			{
+				Response.Metadata.Add(TEXT("HoTPerTick"), FString::SanitizeFloat(HoTAmount));
+				Response.Metadata.Add(TEXT("HoTDuration"), FString::SanitizeFloat(HoTDuration));
+				HANDLER_LOG(Log, TEXT("Applied HoT: %.1f/tick for %.1fs"), HoTAmount, HoTDuration);
+			}
+		}
+
+		// 3. Cure bleeding effects
+		if (bCanCureLightBleed || bCanCureHeavyBleed)
+		{
+			int32 BleedsCured = CureBleedingEffect(OwnerActor, bCanCureLightBleed, bCanCureHeavyBleed);
+			if (BleedsCured > 0)
+			{
+				Response.Metadata.Add(TEXT("BleedingCured"), FString::FromInt(BleedsCured));
+				HANDLER_LOG(Log, TEXT("Cured %d bleeding effect(s)"), BleedsCured);
+			}
+		}
+
+		// 4. Cure fractures (Splints, Surgical Kits)
+		if (bCanCureFracture)
+		{
+			int32 FracturesCured = CureFractureEffect(OwnerActor);
+			if (FracturesCured > 0)
+			{
+				Response.Metadata.Add(TEXT("FracturesCured"), FString::FromInt(FracturesCured));
+				HANDLER_LOG(Log, TEXT("Cured %d fracture(s)"), FracturesCured);
+			}
 		}
 	}
 
@@ -366,7 +434,7 @@ float USuspenseCoreMedicalUseHandler::GetHealAmount(FName ItemID) const
 
 bool USuspenseCoreMedicalUseHandler::ApplyHealing(AActor* Actor, float HealAmount) const
 {
-	if (!Actor)
+	if (!Actor || HealAmount <= 0.0f)
 	{
 		return false;
 	}
@@ -379,19 +447,274 @@ bool USuspenseCoreMedicalUseHandler::ApplyHealing(AActor* Actor, float HealAmoun
 		return false;
 	}
 
-	// Apply healing via GameplayEffect or direct attribute modification
-	// For now, we'll use a simple approach - find Health attribute and modify
+	// Apply healing via GE_InstantHeal GameplayEffect
+	if (!InstantHealEffectClass)
+	{
+		HANDLER_LOG(Warning, TEXT("ApplyHealing: InstantHealEffectClass not set"));
+		return false;
+	}
 
-	// Note: In a real implementation, you'd apply a GameplayEffect that modifies Health
-	// This is simplified for the handler implementation
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddSourceObject(Actor);
 
-	HANDLER_LOG(Log, TEXT("ApplyHealing: Would apply %.1f healing to %s"),
-		HealAmount, *Actor->GetName());
+	FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+		InstantHealEffectClass,
+		1.0f,
+		Context);
 
-	// The actual healing would be done via GameplayEffect in the ability
-	// The handler just calculates and returns the amount
+	if (!SpecHandle.IsValid())
+	{
+		HANDLER_LOG(Warning, TEXT("ApplyHealing: Failed to create effect spec"));
+		return false;
+	}
 
-	return true;
+	// Set heal amount via SetByCaller
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		SuspenseCoreMedicalTags::Data::TAG_Data_Medical_InstantHeal,
+		HealAmount);
+
+	FActiveGameplayEffectHandle ActiveHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+
+	if (ActiveHandle.IsValid())
+	{
+		HANDLER_LOG(Log, TEXT("ApplyHealing: Applied %.1f instant healing to %s"),
+			HealAmount, *Actor->GetName());
+		return true;
+	}
+
+	HANDLER_LOG(Warning, TEXT("ApplyHealing: Failed to apply effect"));
+	return false;
+}
+
+bool USuspenseCoreMedicalUseHandler::ApplyHealOverTime(AActor* Actor, float HealPerTick, float Duration) const
+{
+	if (!Actor || HealPerTick <= 0.0f || Duration <= 0.0f)
+	{
+		return false;
+	}
+
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Actor);
+	if (!ASC)
+	{
+		HANDLER_LOG(Warning, TEXT("ApplyHealOverTime: No ASC found on actor"));
+		return false;
+	}
+
+	if (!HealOverTimeEffectClass)
+	{
+		HANDLER_LOG(Warning, TEXT("ApplyHealOverTime: HealOverTimeEffectClass not set"));
+		return false;
+	}
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddSourceObject(Actor);
+
+	FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+		HealOverTimeEffectClass,
+		1.0f,
+		Context);
+
+	if (!SpecHandle.IsValid())
+	{
+		HANDLER_LOG(Warning, TEXT("ApplyHealOverTime: Failed to create effect spec"));
+		return false;
+	}
+
+	// Set HoT parameters via SetByCaller
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		SuspenseCoreMedicalTags::Data::TAG_Data_Medical_HealPerTick,
+		HealPerTick);
+
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		SuspenseCoreMedicalTags::Data::TAG_Data_Medical_HoTDuration,
+		Duration);
+
+	FActiveGameplayEffectHandle ActiveHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+
+	if (ActiveHandle.IsValid())
+	{
+		HANDLER_LOG(Log, TEXT("ApplyHealOverTime: Applied %.1f/tick for %.1fs to %s"),
+			HealPerTick, Duration, *Actor->GetName());
+
+		// Publish HoT started event
+		if (EventBus.IsValid())
+		{
+			FSuspenseCoreEventData EventData;
+			EventData.Source = Actor;
+			EventData.Timestamp = FPlatformTime::Seconds();
+			EventData.FloatPayload.Add(TEXT("HealPerTick"), HealPerTick);
+			EventData.FloatPayload.Add(TEXT("Duration"), Duration);
+			EventBus->Publish(SuspenseCoreMedicalTags::Event::TAG_Event_Medical_HoTStarted, EventData);
+		}
+
+		return true;
+	}
+
+	HANDLER_LOG(Warning, TEXT("ApplyHealOverTime: Failed to apply effect"));
+	return false;
+}
+
+int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCanCureLightBleed, bool bCanCureHeavyBleed) const
+{
+	if (!Actor)
+	{
+		return 0;
+	}
+
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Actor);
+	if (!ASC)
+	{
+		HANDLER_LOG(Warning, TEXT("CureBleedingEffect: No ASC found on actor"));
+		return 0;
+	}
+
+	int32 TotalRemoved = 0;
+
+	// Remove light bleeding effects
+	if (bCanCureLightBleed)
+	{
+		FGameplayTagContainer LightBleedTags;
+		LightBleedTags.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
+
+		int32 Removed = ASC->RemoveActiveEffectsWithGrantedTags(LightBleedTags);
+		TotalRemoved += Removed;
+
+		if (Removed > 0)
+		{
+			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Removed %d light bleed effect(s)"), Removed);
+		}
+	}
+
+	// Remove heavy bleeding effects
+	if (bCanCureHeavyBleed)
+	{
+		FGameplayTagContainer HeavyBleedTags;
+		HeavyBleedTags.AddTag(SuspenseCoreTags::State::Health::BleedingHeavy);
+
+		int32 Removed = ASC->RemoveActiveEffectsWithGrantedTags(HeavyBleedTags);
+		TotalRemoved += Removed;
+
+		if (Removed > 0)
+		{
+			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Removed %d heavy bleed effect(s)"), Removed);
+		}
+	}
+
+	// Publish bleeding cured event
+	if (TotalRemoved > 0 && EventBus.IsValid())
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.Source = Actor;
+		EventData.Timestamp = FPlatformTime::Seconds();
+		EventData.IntPayload.Add(TEXT("BleedingsCured"), TotalRemoved);
+		EventData.BoolPayload.Add(TEXT("LightBleed"), bCanCureLightBleed);
+		EventData.BoolPayload.Add(TEXT("HeavyBleed"), bCanCureHeavyBleed);
+		EventBus->Publish(SuspenseCoreMedicalTags::Event::TAG_Event_Medical_BleedingCured, EventData);
+	}
+
+	return TotalRemoved;
+}
+
+int32 USuspenseCoreMedicalUseHandler::CureFractureEffect(AActor* Actor) const
+{
+	if (!Actor)
+	{
+		return 0;
+	}
+
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Actor);
+	if (!ASC)
+	{
+		HANDLER_LOG(Warning, TEXT("CureFractureEffect: No ASC found on actor"));
+		return 0;
+	}
+
+	int32 TotalRemoved = 0;
+
+	// Remove all fracture effects
+	FGameplayTagContainer FractureTags;
+	FractureTags.AddTag(SuspenseCoreTags::State::Health::Fracture);
+	FractureTags.AddTag(SuspenseCoreTags::State::Health::FractureLeg);
+	FractureTags.AddTag(SuspenseCoreTags::State::Health::FractureArm);
+
+	TotalRemoved = ASC->RemoveActiveEffectsWithGrantedTags(FractureTags);
+
+	if (TotalRemoved > 0)
+	{
+		HANDLER_LOG(Log, TEXT("CureFractureEffect: Removed %d fracture effect(s)"), TotalRemoved);
+
+		// Publish status cured event
+		if (EventBus.IsValid())
+		{
+			FSuspenseCoreEventData EventData;
+			EventData.Source = Actor;
+			EventData.Timestamp = FPlatformTime::Seconds();
+			EventData.IntPayload.Add(TEXT("FracturesCured"), TotalRemoved);
+			EventBus->Publish(SuspenseCoreMedicalTags::Event::TAG_Event_Medical_StatusCured, EventData);
+		}
+	}
+
+	return TotalRemoved;
+}
+
+void USuspenseCoreMedicalUseHandler::GetMedicalCapabilities(
+	FName ItemID,
+	bool& OutCanCureLightBleed,
+	bool& OutCanCureHeavyBleed,
+	bool& OutCanCureFracture,
+	float& OutHoTAmount,
+	float& OutHoTDuration) const
+{
+	// Reset outputs
+	OutCanCureLightBleed = false;
+	OutCanCureHeavyBleed = false;
+	OutCanCureFracture = false;
+	OutHoTAmount = 0.0f;
+	OutHoTDuration = 0.0f;
+
+	// Get medical type from item name
+	FString ItemName = ItemID.ToString();
+
+	// Bandage: Cures light bleed only
+	if (ItemName.Contains(TEXT("Bandage")))
+	{
+		OutCanCureLightBleed = true;
+	}
+	// Medkit/IFAK/AFAK: Cures all bleeding, has HoT
+	else if (ItemName.Contains(TEXT("Medkit")) ||
+			 ItemName.Contains(TEXT("IFAK")) ||
+			 ItemName.Contains(TEXT("AFAK")))
+	{
+		OutCanCureLightBleed = true;
+		OutCanCureHeavyBleed = true;
+		OutHoTAmount = MedkitHoTPerTick;
+		OutHoTDuration = MedkitHoTDuration;
+	}
+	// Splint: Cures fractures only
+	else if (ItemName.Contains(TEXT("Splint")))
+	{
+		OutCanCureFracture = true;
+	}
+	// Surgical Kit: Cures everything, has strongest HoT
+	else if (ItemName.Contains(TEXT("Surgical")) || ItemName.Contains(TEXT("Surgery")))
+	{
+		OutCanCureLightBleed = true;
+		OutCanCureHeavyBleed = true;
+		OutCanCureFracture = true;
+		OutHoTAmount = SurgicalHoTPerTick;
+		OutHoTDuration = SurgicalHoTDuration;
+	}
+
+	// Could also check DataManager for item-specific capabilities
+	// defined in data tables with cure tags
+
+	HANDLER_LOG(Verbose, TEXT("GetMedicalCapabilities: %s -> LightBleed=%d, HeavyBleed=%d, Fracture=%d, HoT=%.1f/%.1fs"),
+		*ItemName,
+		OutCanCureLightBleed,
+		OutCanCureHeavyBleed,
+		OutCanCureFracture,
+		OutHoTAmount,
+		OutHoTDuration);
 }
 
 void USuspenseCoreMedicalUseHandler::PublishMedicalEvent(

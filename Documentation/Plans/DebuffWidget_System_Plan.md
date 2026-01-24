@@ -1,16 +1,16 @@
-# Debuff Widget System - Implementation Plan
+# Debuff Widget System - Implementation Guide
 
-> **Version:** 1.0
-> **Date:** 2026-01-22
+> **Version:** 2.0
+> **Date:** 2026-01-24
 > **Author:** Claude Code
-> **Status:** PLANNING
-> **Related:** DoT_System_ImplementationPlan.md
+> **Status:** ✅ IMPLEMENTED
+> **Related:** DoT_System_ImplementationPlan.md, StatusEffect_SSOT_System.md
 
 ---
 
 ## Overview
 
-План внедрения процедурной системы виджетов для отображения дебафов (кровотечение, горение, и др.) в Master HUD. Система следует паттернам AAA игр: EventBus подписка, object pooling, data-driven UI.
+Процедурная система виджетов для отображения дебафов (кровотечение, горение, и др.) в Master HUD. Система следует паттернам AAA игр: EventBus подписка, object pooling, SSOT data-driven UI.
 
 ---
 
@@ -18,13 +18,13 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         MASTER HUD WIDGET                                │
+│                         WBP_MasterHUD                                    │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │                    W_DebuffContainer                                │ │
+│  │              DebuffContainerWidget (W_DebuffContainer)              │ │
 │  │  ┌───────────────────────────────────────────────────────────────┐ │ │
-│  │  │                  UHorizontalBox                                │ │ │
+│  │  │                  DebuffBox (UHorizontalBox)                    │ │ │
 │  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐             │ │ │
 │  │  │  │W_Debuff │ │W_Debuff │ │W_Debuff │ │ (Pool)  │  ← Dynamic  │ │ │
 │  │  │  │Icon #1  │ │Icon #2  │ │Icon #3  │ │ Hidden  │    loading  │ │ │
@@ -34,7 +34,7 @@
 │  │  └───────────────────────────────────────────────────────────────┘ │ │
 │  └────────────────────────────────────────────────────────────────────┘ │
 │                                                                          │
-│  [Health Bar]  [Stamina Bar]  [Ammo Counter]  [Crosshair]               │
+│  [VitalsWidget]  [AmmoCounterWidget]  [QuickSlotsWidget]  [Crosshair]   │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -46,661 +46,348 @@
 ```
 ┌──────────────────┐    ┌─────────────────┐    ┌────────────────────┐
 │ GrenadeProjectile │───►│   DoTService    │───►│     EventBus       │
-│ ApplyDoTEffects() │    │ RegisterApplied │    │ Publish(DoT.Event) │
+│ ApplyDoTEffects() │    │ PublishDoTEvent │    │ Publish(DoT.Event) │
 └──────────────────┘    └─────────────────┘    └─────────┬──────────┘
                                                          │
-                                                         ▼
+                        ┌────────────────────────────────┘
+                        ▼
 ┌──────────────────┐    ┌─────────────────┐    ┌────────────────────┐
-│   W_DebuffIcon   │◄───│W_DebuffContainer│◄───│   EventBus Sub     │
-│ UpdateDisplay()  │    │OnDoTApplied()   │    │ OnDoTApplied/Removed│
-└──────────────────┘    └─────────────────┘    └────────────────────┘
+│DataManager(SSOT) │◄───│W_DebuffContainer│◄───│   EventBus Sub     │
+│GetVisualsByTag() │    │OnDoTApplied()   │    │ OnDoTApplied/Removed│
+└────────┬─────────┘    └────────┬────────┘    └────────────────────┘
+         │                       │
+         ▼                       ▼
+┌──────────────────┐    ┌─────────────────┐
+│ DT_StatusEffects │    │   W_DebuffIcon  │
+│ (Visuals SSOT)   │    │ SetDebuffData() │
+└──────────────────┘    └─────────────────┘
 ```
 
 ---
 
-## Phase 4.1: W_DebuffIcon Widget
+## SSOT Integration
 
-### 4.1.1 Class Definition (C++)
+### StatusEffectVisualsDataTable
 
-**File:** `Source/UI/Public/SuspenseCore/Widgets/HUD/W_DebuffIcon.h`
+Визуальные данные дебафов загружаются из DataTable через DataManager.
 
-```cpp
-#pragma once
-
-#include "CoreMinimal.h"
-#include "SuspenseCore/Widgets/SuspenseCoreUserWidget.h"
-#include "GameplayTagContainer.h"
-#include "W_DebuffIcon.generated.h"
-
-class UImage;
-class UTextBlock;
-class UProgressBar;
-class UWidgetAnimation;
-
-/**
- * Individual debuff icon widget
- *
- * FEATURES:
- * - Displays debuff icon with appropriate visual
- * - Shows timer text (∞ for infinite, seconds for timed)
- * - Optional duration progress bar
- * - Pulse animation when critical
- * - Stack count display
- *
- * USAGE:
- * Created dynamically by W_DebuffContainer
- * Not intended for direct placement in HUD
- */
-UCLASS()
-class UI_API UW_DebuffIcon : public USuspenseCoreUserWidget
-{
-    GENERATED_BODY()
-
-public:
-    // ═══════════════════════════════════════════════════════════════
-    // UI COMPONENTS
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Debuff icon image */
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UImage> DebuffImage;
-
-    /** Timer text (∞ or seconds) */
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> TimerText;
-
-    /** Duration progress bar (hidden for infinite effects) */
-    UPROPERTY(meta = (BindWidgetOptional))
-    TObjectPtr<UProgressBar> DurationBar;
-
-    /** Stack count text (hidden if StackCount <= 1) */
-    UPROPERTY(meta = (BindWidgetOptional))
-    TObjectPtr<UTextBlock> StackText;
-
-    // ═══════════════════════════════════════════════════════════════
-    // ANIMATIONS (Optional - set in Blueprint)
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Pulse animation for critical state */
-    UPROPERTY(meta = (BindWidgetAnimOptional))
-    TObjectPtr<UWidgetAnimation> PulseAnimation;
-
-    /** Fade in animation */
-    UPROPERTY(meta = (BindWidgetAnimOptional))
-    TObjectPtr<UWidgetAnimation> FadeInAnimation;
-
-    /** Fade out animation */
-    UPROPERTY(meta = (BindWidgetAnimOptional))
-    TObjectPtr<UWidgetAnimation> FadeOutAnimation;
-
-    // ═══════════════════════════════════════════════════════════════
-    // CONFIGURATION
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Icon textures mapped by debuff type */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff")
-    TMap<FGameplayTag, TSoftObjectPtr<UTexture2D>> DebuffIcons;
-
-    /** Tint color for critical state (low health + bleeding) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff")
-    FLinearColor CriticalTintColor = FLinearColor(1.0f, 0.3f, 0.3f, 1.0f);
-
-    /** Duration threshold for "critical" warning (seconds) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff")
-    float CriticalDurationThreshold = 3.0f;
-
-    // ═══════════════════════════════════════════════════════════════
-    // PUBLIC API
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Initialize debuff display
-     * @param InDoTType Type tag (State.Health.Bleeding.Light, etc.)
-     * @param InDuration Duration (-1 for infinite)
-     * @param InStackCount Number of stacks
-     */
-    UFUNCTION(BlueprintCallable, Category = "Debuff")
-    void SetDebuffData(FGameplayTag InDoTType, float InDuration, int32 InStackCount = 1);
-
-    /**
-     * Update timer display
-     * @param RemainingDuration Remaining seconds (-1 for infinite)
-     */
-    UFUNCTION(BlueprintCallable, Category = "Debuff")
-    void UpdateTimer(float RemainingDuration);
-
-    /**
-     * Update stack count
-     * @param NewStackCount New stack count
-     */
-    UFUNCTION(BlueprintCallable, Category = "Debuff")
-    void UpdateStackCount(int32 NewStackCount);
-
-    /**
-     * Play removal animation and notify when complete
-     */
-    UFUNCTION(BlueprintCallable, Category = "Debuff")
-    void PlayRemovalAnimation();
-
-    /**
-     * Get debuff type tag
-     */
-    UFUNCTION(BlueprintPure, Category = "Debuff")
-    FGameplayTag GetDebuffType() const { return DoTType; }
-
-    /**
-     * Check if this is an infinite duration debuff
-     */
-    UFUNCTION(BlueprintPure, Category = "Debuff")
-    bool IsInfinite() const { return TotalDuration < 0.0f; }
-
-    // ═══════════════════════════════════════════════════════════════
-    // DELEGATES
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Called when removal animation completes (for pooling) */
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRemovalComplete, UW_DebuffIcon*, Icon);
-    UPROPERTY(BlueprintAssignable, Category = "Debuff")
-    FOnRemovalComplete OnRemovalComplete;
-
-protected:
-    virtual void NativeConstruct() override;
-    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-
-    /**
-     * Update visual state (icon, colors)
-     */
-    void UpdateVisuals();
-
-    /**
-     * Format duration for display
-     * @param Duration Seconds (-1 for infinite)
-     * @return Formatted string ("∞" or "5s")
-     */
-    FText FormatDuration(float Duration) const;
-
-    /**
-     * Load icon texture for debuff type
-     */
-    void LoadIcon();
-
-private:
-    /** Current debuff type */
-    UPROPERTY()
-    FGameplayTag DoTType;
-
-    /** Total duration (-1 = infinite) */
-    float TotalDuration = -1.0f;
-
-    /** Current remaining duration */
-    float RemainingDuration = -1.0f;
-
-    /** Current stack count */
-    int32 StackCount = 1;
-
-    /** Is in critical state */
-    bool bIsCritical = false;
-
-    /** Async load handle for icon */
-    TSharedPtr<FStreamableHandle> IconLoadHandle;
-};
+**Настройка в Project Settings → Game → SuspenseCore:**
+```
+StatusEffectVisualsDataTable: DT_StatusEffects
 ```
 
-### 4.1.2 Implementation (C++)
+**Row Structure:** `FSuspenseCoreStatusEffectVisualRow`
 
-**File:** `Source/UI/Private/SuspenseCore/Widgets/HUD/W_DebuffIcon.cpp`
+| Field | Type | Description |
+|-------|------|-------------|
+| EffectID | FName | Уникальный ID эффекта |
+| EffectTypeTag | FGameplayTag | Тег типа (State.Health.Bleeding.Heavy) |
+| DisplayName | FText | Локализованное имя |
+| Category | Enum | Debuff / Buff / Neutral |
+| Icon | TSoftObjectPtr<UTexture2D> | Иконка для UI |
+| IconTint | FLinearColor | Цвет иконки (нормальное состояние) |
+| CriticalIconTint | FLinearColor | Цвет иконки (критическое состояние) |
 
-```cpp
-// Implementation notes - key methods:
-
-void UW_DebuffIcon::SetDebuffData(FGameplayTag InDoTType, float InDuration, int32 InStackCount)
+**Пример DataTable row:**
+```json
 {
-    DoTType = InDoTType;
-    TotalDuration = InDuration;
-    RemainingDuration = InDuration;
-    StackCount = InStackCount;
-
-    UpdateVisuals();
-    UpdateTimer(RemainingDuration);
-    UpdateStackCount(StackCount);
-
-    // Play fade in
-    if (FadeInAnimation)
-    {
-        PlayAnimation(FadeInAnimation);
-    }
-
-    // Hide duration bar for infinite effects
-    if (DurationBar)
-    {
-        DurationBar->SetVisibility(IsInfinite() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
-    }
+  "Name": "BleedingHeavy",
+  "EffectID": "BleedingHeavy",
+  "EffectTypeTag": "(TagName=\"State.Health.Bleeding.Heavy\")",
+  "DisplayName": "Heavy Bleeding",
+  "Category": "Debuff",
+  "Icon": "/Game/UI/Icons/StatusEffects/T_Icon_Bleeding_Heavy",
+  "IconTint": "(R=0.8, G=0.0, B=0.0, A=1.0)"
 }
-
-FText UW_DebuffIcon::FormatDuration(float Duration) const
-{
-    if (Duration < 0.0f)
-    {
-        // Infinite symbol
-        return FText::FromString(TEXT("∞"));
-    }
-
-    if (Duration >= 60.0f)
-    {
-        // Show minutes:seconds for long durations
-        int32 Minutes = FMath::FloorToInt(Duration / 60.0f);
-        int32 Seconds = FMath::FloorToInt(FMath::Fmod(Duration, 60.0f));
-        return FText::Format(NSLOCTEXT("Debuff", "MinSec", "{0}:{1:02}"), Minutes, Seconds);
-    }
-
-    // Show seconds with one decimal
-    return FText::Format(NSLOCTEXT("Debuff", "Seconds", "{0:.1f}s"), Duration);
-}
-```
-
-### 4.1.3 Blueprint Setup
-
-**Blueprint:** `WBP_DebuffIcon` (derives from W_DebuffIcon)
-
-```
-Widget Hierarchy:
-├── [Root] CanvasPanel
-│   ├── BackgroundBorder (9-slice for icon frame)
-│   │   └── DebuffImage (Image - BindWidget)
-│   ├── TimerText (TextBlock - BindWidget)
-│   ├── DurationBar (ProgressBar - BindWidgetOptional)
-│   └── StackText (TextBlock - BindWidgetOptional)
-
-Animations:
-├── PulseAnimation: Scale 1.0 → 1.15 → 1.0 (loop)
-├── FadeInAnimation: Opacity 0 → 1, Scale 0.5 → 1.0
-└── FadeOutAnimation: Opacity 1 → 0, Scale 1.0 → 0.8
 ```
 
 ---
 
-## Phase 4.2: W_DebuffContainer Widget
+## Widget Classes
 
-### 4.2.1 Class Definition (C++)
+### W_DebuffIcon
 
-**File:** `Source/UI/Public/SuspenseCore/Widgets/HUD/W_DebuffContainer.h`
+**Source:** `Source/UISystem/Public/SuspenseCore/Widgets/HUD/W_DebuffIcon.h`
 
-```cpp
-#pragma once
+Индивидуальная иконка дебафа.
 
-#include "CoreMinimal.h"
-#include "SuspenseCore/Widgets/SuspenseCoreUserWidget.h"
-#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
-#include "GameplayTagContainer.h"
-#include "W_DebuffContainer.generated.h"
+#### Bound Widgets (Blueprint)
 
-class UHorizontalBox;
-class UW_DebuffIcon;
-class USuspenseCoreEventBus;
+| Widget | Type | Meta | Description |
+|--------|------|------|-------------|
+| DebuffImage | UImage | BindWidget | Иконка дебафа |
+| TimerText | UTextBlock | BindWidget | Таймер (∞ или секунды) |
+| DurationBar | UProgressBar | BindWidgetOptional | Прогресс-бар длительности |
+| StackText | UTextBlock | BindWidgetOptional | Счётчик стаков |
 
-/**
- * Container widget for procedural debuff icon management
- *
- * FEATURES:
- * - EventBus subscription for DoT events
- * - Object pooling for icon widgets
- * - Automatic add/remove/update of debuff icons
- * - Support for multiple debuff types
- *
- * USAGE:
- * 1. Add to Master HUD Widget
- * 2. Widget auto-subscribes to EventBus on NativeConstruct
- * 3. Icons appear/disappear as DoT effects are applied/removed
- *
- * PERFORMANCE:
- * - Widget pooling prevents GC churn
- * - Batched updates via timer
- * - Lazy icon texture loading
- */
-UCLASS()
-class UI_API UW_DebuffContainer : public USuspenseCoreUserWidget
-{
-    GENERATED_BODY()
+#### Blueprint Hierarchy (WBP_DebuffIcon)
 
-public:
-    // ═══════════════════════════════════════════════════════════════
-    // UI COMPONENTS
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Container for debuff icons */
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UHorizontalBox> DebuffBox;
-
-    // ═══════════════════════════════════════════════════════════════
-    // CONFIGURATION
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Widget class for debuff icons */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff")
-    TSubclassOf<UW_DebuffIcon> DebuffIconClass;
-
-    /** Maximum number of visible debuff icons */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff", meta = (ClampMin = "1", ClampMax = "20"))
-    int32 MaxVisibleDebuffs = 10;
-
-    /** Pool size for widget recycling */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff", meta = (ClampMin = "1"))
-    int32 IconPoolSize = 15;
-
-    /** Update interval for duration timers (seconds) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Debuff", meta = (ClampMin = "0.05"))
-    float UpdateInterval = 0.1f;
-
-    // ═══════════════════════════════════════════════════════════════
-    // PUBLIC API
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Manually refresh all debuff icons from DoTService
-     * Useful for initialization or sync after disconnect
-     */
-    UFUNCTION(BlueprintCallable, Category = "Debuff")
-    void RefreshFromDoTService();
-
-    /**
-     * Clear all active debuff icons
-     */
-    UFUNCTION(BlueprintCallable, Category = "Debuff")
-    void ClearAllDebuffs();
-
-    /**
-     * Set target actor to display debuffs for (default: local player)
-     */
-    UFUNCTION(BlueprintCallable, Category = "Debuff")
-    void SetTargetActor(AActor* NewTarget);
-
-protected:
-    virtual void NativeConstruct() override;
-    virtual void NativeDestruct() override;
-    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-
-    // ═══════════════════════════════════════════════════════════════
-    // EVENTBUS HANDLERS
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Called when DoT applied event received */
-    UFUNCTION()
-    void OnDoTApplied(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-
-    /** Called when DoT removed event received */
-    UFUNCTION()
-    void OnDoTRemoved(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-
-    /** Called when DoT tick event received (for damage numbers) */
-    UFUNCTION()
-    void OnDoTTick(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-
-    // ═══════════════════════════════════════════════════════════════
-    // ICON MANAGEMENT
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Add or update debuff icon
-     * @param DoTType Debuff type tag
-     * @param Duration Duration (-1 for infinite)
-     * @param StackCount Stack count
-     */
-    void AddOrUpdateDebuff(FGameplayTag DoTType, float Duration, int32 StackCount);
-
-    /**
-     * Remove debuff icon (with animation)
-     * @param DoTType Debuff type to remove
-     */
-    void RemoveDebuff(FGameplayTag DoTType);
-
-    /**
-     * Get icon from pool or create new
-     */
-    UW_DebuffIcon* AcquireIcon();
-
-    /**
-     * Return icon to pool
-     */
-    void ReleaseIcon(UW_DebuffIcon* Icon);
-
-    /**
-     * Initialize widget pool
-     */
-    void InitializePool();
-
-    /**
-     * Subscribe to EventBus events
-     */
-    void SubscribeToEvents();
-
-    /**
-     * Unsubscribe from EventBus events
-     */
-    void UnsubscribeFromEvents();
-
-    /**
-     * Update all active icon timers
-     */
-    void UpdateTimers(float DeltaTime);
-
-    /**
-     * Check if event is for our target actor
-     */
-    bool IsEventForTarget(const FSuspenseCoreEventData& EventData) const;
-
-private:
-    /** Map of active debuffs: DoTType → Icon */
-    UPROPERTY()
-    TMap<FGameplayTag, TObjectPtr<UW_DebuffIcon>> ActiveDebuffs;
-
-    /** Pool of available icon widgets */
-    UPROPERTY()
-    TArray<TObjectPtr<UW_DebuffIcon>> IconPool;
-
-    /** EventBus subscription handles */
-    FSuspenseCoreSubscriptionHandle DoTAppliedHandle;
-    FSuspenseCoreSubscriptionHandle DoTRemovedHandle;
-    FSuspenseCoreSubscriptionHandle DoTTickHandle;
-
-    /** Target actor to display debuffs for */
-    UPROPERTY()
-    TWeakObjectPtr<AActor> TargetActor;
-
-    /** Cached EventBus reference */
-    UPROPERTY()
-    TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
-
-    /** Timer accumulator for periodic updates */
-    float UpdateTimer = 0.0f;
-};
+```
+[WBP_DebuffIcon]
+└── SizeContainer (SizeBox) ← ROOT, Min/Max: 64x64
+    └── [Overlay]
+        ├── ValidityBorder
+        ├── HighlightBorder
+        ├── DebuffImage (Image)
+        ├── [TimerText] (TextBlock)
+        ├── [StackText] (TextBlock)
+        └── DurationBar (ProgressBar)
 ```
 
-### 4.2.2 EventBus Subscription Pattern
+#### Key API
 
 ```cpp
-void UW_DebuffContainer::SubscribeToEvents()
+// Установить данные дебафа (вызывать ПОСЛЕ добавления в parent!)
+void SetDebuffData(FGameplayTag InDoTType, float InDuration, int32 InStackCount = 1);
+
+// Обновить таймер
+void UpdateTimer(float RemainingDuration);
+
+// Обновить стаки
+void UpdateStackCount(int32 NewStackCount);
+
+// Проиграть анимацию удаления
+void PlayRemovalAnimation();
+
+// Сбросить для пула
+void ResetToDefault();
+```
+
+#### SSOT Icon Loading
+
+```cpp
+bool UW_DebuffIcon::LoadIconFromSSOT()
 {
-    // Get EventBus from EventManager (project standard pattern)
-    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
-    if (!Manager)
+    USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
+    if (!DataManager || !DataManager->IsStatusEffectVisualsReady())
+        return false;
+
+    FSuspenseCoreStatusEffectVisualRow VisualData;
+    if (!DataManager->GetStatusEffectVisualsByTag(DoTType, VisualData))
+        return false;
+
+    // Cache icon path and tints from SSOT
+    SSOTIconPath = VisualData.Icon;
+    NormalTintColor = VisualData.IconTint;
+    CriticalTintColor = VisualData.CriticalIconTint;
+
+    // Async load texture
+    if (SSOTIconPath.IsValid())
     {
+        DebuffImage->SetBrushFromTexture(SSOTIconPath.Get());
+    }
+    else
+    {
+        // Async load
+        FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+        IconLoadHandle = StreamableManager.RequestAsyncLoad(
+            SSOTIconPath.ToSoftObjectPath(),
+            FStreamableDelegate::CreateUObject(this, &UW_DebuffIcon::OnIconLoaded)
+        );
+    }
+    return true;
+}
+```
+
+---
+
+### W_DebuffContainer
+
+**Source:** `Source/UISystem/Public/SuspenseCore/Widgets/HUD/W_DebuffContainer.h`
+
+Контейнер для процедурного управления иконками дебафов.
+
+#### Bound Widgets (Blueprint)
+
+| Widget | Type | Meta | Description |
+|--------|------|------|-------------|
+| DebuffBox | UHorizontalBox | BindWidget | Контейнер для иконок |
+
+#### Blueprint Hierarchy (WBP_DebuffContainer)
+
+```
+[WBP_DebuffContainer]
+└── DebuffBox (HorizontalBox) ← ROOT
+    └── [Dynamic children - W_DebuffIcon instances]
+```
+
+#### Configuration
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| DebuffIconClass | TSubclassOf | WBP_DebuffIcon | Класс иконки |
+| MaxVisibleDebuffs | int32 | 10 | Макс. видимых иконок |
+| IconPoolSize | int32 | 15 | Размер пула |
+| bAutoTargetLocalPlayer | bool | true | Автотаргет на игрока |
+
+#### Key API
+
+```cpp
+// Добавить/обновить дебаф
+void AddOrUpdateDebuff(FGameplayTag DoTType, float Duration, int32 StackCount);
+
+// Удалить дебаф (с анимацией)
+void RemoveDebuff(FGameplayTag DoTType);
+
+// Установить целевого актора
+void SetTargetActor(AActor* NewTarget);
+
+// Очистить все дебафы
+void ClearAllDebuffs();
+```
+
+---
+
+## Critical Implementation Details
+
+### ⚠️ Icon Initialization Order
+
+**ВАЖНО:** Порядок инициализации иконки критичен!
+
+```cpp
+void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration, int32 StackCount)
+{
+    UW_DebuffIcon* NewIcon = AcquireIcon();
+
+    // 1. СНАЧАЛА добавить в parent (вызовет NativeConstruct → Collapsed)
+    UHorizontalBoxSlot* IconSlot = DebuffBox->AddChildToHorizontalBox(NewIcon);
+    IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+
+    // 2. ПОТОМ установить данные (установит HitTestInvisible)
+    NewIcon->SetDebuffData(DoTType, Duration, StackCount);
+
+    // 3. Обновить layout
+    DebuffBox->InvalidateLayoutAndVolatility();
+}
+```
+
+**Причина:** `NativeConstruct()` устанавливает `Collapsed`, а `SetDebuffData()` устанавливает `HitTestInvisible`. Если вызвать `SetDebuffData` до добавления в parent, `NativeConstruct` перезапишет visibility на `Collapsed`.
+
+### HorizontalBoxSlot Configuration
+
+```cpp
+IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+IconSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Center);
+IconSlot->SetVerticalAlignment(EVerticalAlignment::VAlign_Center);
+IconSlot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f));
+```
+
+---
+
+## EventBus Integration
+
+### Subscribed Events
+
+| Event Tag | Handler | Description |
+|-----------|---------|-------------|
+| SuspenseCore.Event.DoT.Applied | OnDoTApplied | Дебаф применён |
+| SuspenseCore.Event.DoT.Removed | OnDoTRemoved | Дебаф снят |
+| SuspenseCore.Event.DoT.Tick | OnDoTTick | Тик урона (опционально) |
+
+### Event Handler Example
+
+```cpp
+void UW_DebuffContainer::OnDoTApplied(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    // Проверить что событие для нашего target актора
+    if (!IsEventForTarget(EventData))
         return;
-    }
 
-    EventBus = Manager->GetEventBus();
-    if (!EventBus.IsValid())
-    {
-        return;
-    }
+    // Извлечь данные из события
+    FGameplayTag DoTType = EventData.Tags.First();
+    float Duration = EventData.GetFloat(FName("Duration"), -1.0f);
+    int32 Stacks = EventData.GetInt32(FName("Stacks"), 1);
 
-    // Subscribe to DoT events
-    DoTAppliedHandle = EventBus->Subscribe(
-        SuspenseCoreTags::Event::DoT::Applied,
-        FOnSuspenseCoreEvent::CreateUObject(this, &UW_DebuffContainer::OnDoTApplied)
-    );
-
-    DoTRemovedHandle = EventBus->Subscribe(
-        SuspenseCoreTags::Event::DoT::Removed,
-        FOnSuspenseCoreEvent::CreateUObject(this, &UW_DebuffContainer::OnDoTRemoved)
-    );
-
-    DoTTickHandle = EventBus->Subscribe(
-        SuspenseCoreTags::Event::DoT::Tick,
-        FOnSuspenseCoreEvent::CreateUObject(this, &UW_DebuffContainer::OnDoTTick)
-    );
+    // Добавить/обновить иконку
+    AddOrUpdateDebuff(DoTType, Duration, Stacks);
 }
-```
-
-### 4.2.3 Blueprint Setup
-
-**Blueprint:** `WBP_DebuffContainer` (derives from W_DebuffContainer)
-
-```
-Widget Hierarchy:
-├── [Root] SizeBox (constrain height)
-│   └── DebuffBox (HorizontalBox - BindWidget)
-│       └── [Dynamic children added at runtime]
-
-Default Values:
-├── DebuffIconClass: WBP_DebuffIcon
-├── MaxVisibleDebuffs: 10
-├── IconPoolSize: 15
-└── UpdateInterval: 0.1
 ```
 
 ---
 
-## Phase 4.3: Master HUD Integration
+## Master HUD Integration
 
-### 4.3.1 Placement in Master HUD
+### WBP_MasterHUD Hierarchy
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ MASTER HUD (W_MasterHUD)                                        │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────────────────┐  ┌───────────────────────┐   │
-│  │ TopLeftAnchor                │  │ TopRightAnchor        │   │
-│  │ ├── W_DebuffContainer  ← NEW │  │ └── W_Minimap         │   │
-│  │ └── W_HealthStamina          │  │                       │   │
-│  └──────────────────────────────┘  └───────────────────────┘   │
-│                                                                  │
-│                    ┌─────────────┐                               │
-│                    │ W_Crosshair │                               │
-│                    └─────────────┘                               │
-│                                                                  │
-│  ┌──────────────────────────────┐  ┌───────────────────────┐   │
-│  │ BottomLeftAnchor             │  │ BottomRightAnchor     │   │
-│  │ └── W_Inventory              │  │ └── W_AmmoCounter     │   │
-│  └──────────────────────────────┘  └───────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+[WBP_MasterHUD]
+└── RootCanvas
+    ├── VitalsWidget
+    ├── AmmoCounterWidget
+    ├── QuickSlotsWidget
+    ├── ReloadProgressWidget
+    ├── CrosshairWidget
+    └── DebuffContainerWidget ← W_DebuffContainer
 ```
 
-### 4.3.2 HUD Controller Changes
+### C++ Binding (Optional)
 
 ```cpp
-// In W_MasterHUD.h
-UPROPERTY(meta = (BindWidget))
-TObjectPtr<UW_DebuffContainer> DebuffContainer;
-
-// In W_MasterHUD.cpp NativeConstruct()
-if (DebuffContainer)
-{
-    // Set target to local player
-    if (APlayerController* PC = GetOwningPlayer())
-    {
-        if (APawn* Pawn = PC->GetPawn())
-        {
-            DebuffContainer->SetTargetActor(Pawn);
-        }
-    }
-}
+// В W_MasterHUD.h
+UPROPERTY(meta = (BindWidgetOptional))
+TObjectPtr<UW_DebuffContainer> DebuffContainerWidget;
 ```
 
 ---
 
-## Phase 4.4: Icon Assets
+## Testing Checklist
 
-### 4.4.1 Required Textures
+### ✅ Completed Tests
 
-| Debuff Type | File | Description |
-|-------------|------|-------------|
-| State.Health.Bleeding.Light | `T_Debuff_BleedLight.png` | Small blood drop, red |
-| State.Health.Bleeding.Heavy | `T_Debuff_BleedHeavy.png` | Large blood drop with pulse, dark red |
-| Effect.DoT.Burn | `T_Debuff_Burning.png` | Flame icon, orange |
-| (Future) Poison | `T_Debuff_Poison.png` | Skull/vial, green |
-| (Future) Fracture | `T_Debuff_Fracture.png` | Broken bone, white |
+- [x] Icon displays when DoT applied via grenade explosion
+- [x] Icon loads texture from SSOT DataTable
+- [x] Multiple debuffs display simultaneously
+- [x] Widget pooling works (icons recycled)
+- [x] Container correctly positioned in MasterHUD
+- [x] EventBus subscription active
 
-### 4.4.2 Icon Specifications
+### Manual Test Steps
 
-- **Size:** 64x64 pixels
-- **Format:** PNG with alpha
-- **Style:** Flat/minimal, high contrast
-- **Colors:**
-  - Bleeding: `#FF3333` (light), `#CC0000` (heavy)
-  - Burning: `#FF6600`
-  - Background: Semi-transparent black
+1. Запустить PIE
+2. Бросить гранату RGD-5 рядом с персонажем
+3. После взрыва должна появиться иконка "Heavy Bleeding"
+4. Иконка должна отображать настроенную текстуру из DataTable
 
 ---
 
-## Deliverables Checklist
+## Troubleshooting
 
-### Phase 4.1: W_DebuffIcon
-- [ ] Create `W_DebuffIcon.h`
-- [ ] Create `W_DebuffIcon.cpp`
-- [ ] Create `WBP_DebuffIcon` Blueprint
-- [ ] Add animations (Pulse, FadeIn, FadeOut)
-- [ ] Test individual icon functionality
+### Иконки не появляются
 
-### Phase 4.2: W_DebuffContainer
-- [ ] Create `W_DebuffContainer.h`
-- [ ] Create `W_DebuffContainer.cpp`
-- [ ] Create `WBP_DebuffContainer` Blueprint
-- [ ] Implement EventBus subscription
-- [ ] Implement widget pooling
-- [ ] Test procedural loading
+1. **Проверить логи:**
+   ```
+   LogDebuffContainer: OnDoTApplied: Type=State.Health.Bleeding.Heavy
+   LogDebuffIcon: SetDebuffData: Type=State.Health.Bleeding.Heavy
+   ```
 
-### Phase 4.3: Master HUD Integration
-- [ ] Add DebuffContainer to `WBP_MasterHUD`
-- [ ] Configure positioning
-- [ ] Test with local player targeting
+2. **Проверить visibility:**
+   ```
+   Icon visibility: 3 (HitTestInvisible = OK)
+   Icon visibility: 1 (Collapsed = ПРОБЛЕМА!)
+   ```
 
-### Phase 4.4: Icon Assets
-- [ ] Create `T_Debuff_BleedLight.png`
-- [ ] Create `T_Debuff_BleedHeavy.png`
-- [ ] Create `T_Debuff_Burning.png`
-- [ ] Configure soft references in DebuffIconClass
+3. **Проверить DebuffBox:**
+   - Убедиться что `DebuffBox` имеет `BindWidget` мета
+   - Убедиться что WBP_DebuffContainer содержит HorizontalBox с именем "DebuffBox"
+
+### Иконка белая/placeholder
+
+Проверить `StatusEffectVisualsDataTable` в Project Settings:
+- Должен указывать на DataTable с корректными данными
+- В DataTable должны быть правильные пути к текстурам
 
 ---
 
-## Testing Plan
+## Files Reference
 
-### Unit Tests
-1. Icon displays correct texture for each debuff type
-2. Timer updates correctly (infinite shows ∞)
-3. Duration bar hides for infinite effects
-4. Stack count displays when > 1
-
-### Integration Tests
-1. Apply bleeding via grenade → icon appears
-2. Heal bleeding → icon disappears with animation
-3. Apply burning → icon appears with timer
-4. Burning expires → icon auto-removes
-5. Multiple debuffs → all show correctly
-
-### Performance Tests
-1. Widget pooling prevents allocation spikes
-2. 10+ debuffs don't impact frame rate
-3. EventBus subscription doesn't leak
-
----
-
-## Future Considerations
-
-1. **Buff System:** Same architecture can support positive effects (healing, speed boost)
-2. **Enemy Debuffs:** Target switching for viewing enemy status
-3. **Tooltip:** Hover to see detailed effect info
-4. **Sound Feedback:** Audio cue on debuff application/removal
-5. **Screen Effects:** Vignette overlay for critical debuffs
+| File | Description |
+|------|-------------|
+| `Source/UISystem/Public/SuspenseCore/Widgets/HUD/W_DebuffIcon.h` | Icon widget header |
+| `Source/UISystem/Private/SuspenseCore/Widgets/HUD/W_DebuffIcon.cpp` | Icon widget impl |
+| `Source/UISystem/Public/SuspenseCore/Widgets/HUD/W_DebuffContainer.h` | Container header |
+| `Source/UISystem/Private/SuspenseCore/Widgets/HUD/W_DebuffContainer.cpp` | Container impl |
+| `Source/BridgeSystem/Public/SuspenseCore/Settings/SuspenseCoreSettings.h` | Settings with DataTable refs |
+| `Source/BridgeSystem/Private/SuspenseCore/Data/SuspenseCoreDataManager.cpp` | SSOT loading |
 
 ---
 

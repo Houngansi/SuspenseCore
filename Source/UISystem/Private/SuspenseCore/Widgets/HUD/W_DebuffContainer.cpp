@@ -451,13 +451,10 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 		return;
 	}
 
-	// Setup icon
-	NewIcon->SetDebuffData(DoTType, Duration, StackCount);
-
 	// Bind removal complete delegate
 	NewIcon->OnRemovalComplete.AddDynamic(this, &UW_DebuffContainer::OnIconRemovalComplete);
 
-	// Add to container
+	// Add to container FIRST (this triggers NativeConstruct which sets Collapsed)
 	if (DebuffBox)
 	{
 		UHorizontalBoxSlot* IconSlot = DebuffBox->AddChildToHorizontalBox(NewIcon);
@@ -468,13 +465,6 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 			IconSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Center);
 			IconSlot->SetVerticalAlignment(EVerticalAlignment::VAlign_Center);
 			IconSlot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f));
-
-			// Force layout update
-			DebuffBox->InvalidateLayoutAndVolatility();
-
-			UE_LOG(LogDebuffContainer, Warning, TEXT("  Icon added to DebuffBox successfully, Children count: %d"), DebuffBox->GetChildrenCount());
-			UE_LOG(LogDebuffContainer, Warning, TEXT("  Icon visibility: %d, DebuffBox visibility: %d"),
-				(int32)NewIcon->GetVisibility(), (int32)DebuffBox->GetVisibility());
 		}
 		else
 		{
@@ -484,7 +474,17 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 	else
 	{
 		UE_LOG(LogDebuffContainer, Error, TEXT("  DebuffBox is NULL! Cannot add icon to UI hierarchy!"));
+		return;
 	}
+
+	// Setup icon AFTER adding to parent (NativeConstruct sets Collapsed, SetDebuffData sets Visible)
+	NewIcon->SetDebuffData(DoTType, Duration, StackCount);
+
+	// Force layout update
+	DebuffBox->InvalidateLayoutAndVolatility();
+
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  Icon added and configured. Children: %d, Icon visibility: %d"),
+		DebuffBox->GetChildrenCount(), (int32)NewIcon->GetVisibility());
 
 	// Track in active map
 	ActiveDebuffs.Add(DoTType, NewIcon);

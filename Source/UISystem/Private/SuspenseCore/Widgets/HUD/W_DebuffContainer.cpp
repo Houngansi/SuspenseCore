@@ -194,7 +194,7 @@ void UW_DebuffContainer::SetTargetActor(AActor* NewTarget)
 void UW_DebuffContainer::OnDoTApplied(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	UE_LOG(LogDebuffContainer, Warning, TEXT("=== OnDoTApplied RECEIVED === EventTag: %s"), *EventTag.ToString());
-	UE_LOG(LogDebuffContainer, Warning, TEXT("  Source: %s"), EventData.Source.IsValid() ? *EventData.Source->GetName() : TEXT("NULL"));
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  Source: %s"), EventData.Source.Get() ? *EventData.Source->GetName() : TEXT("NULL"));
 	UE_LOG(LogDebuffContainer, Warning, TEXT("  TargetActor: %s"), TargetActor.IsValid() ? *TargetActor->GetName() : TEXT("NULL"));
 
 	// Check if event is for our target
@@ -348,7 +348,7 @@ void UW_DebuffContainer::SetupEventSubscriptions()
 	}
 
 	UE_LOG(LogDebuffContainer, Warning, TEXT("  EventBus: Valid"));
-	UE_LOG(LogDebuffContainer, Warning, TEXT("  Subscribing to: %s"), *SuspenseCoreTags::Event::DoT::Applied.ToString());
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  Subscribing to: %s"), *SuspenseCoreTags::Event::DoT::Applied.Get().ToString());
 
 	// Subscribe to DoT events using native tags
 	// @see SuspenseCoreTags::Event::DoT namespace in SuspenseCoreGameplayTags.h

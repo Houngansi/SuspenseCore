@@ -470,15 +470,22 @@ bool UW_DebuffIcon::LoadIconFromSSOT()
 
 	// Query SSOT by tag if no cached data (v2.0 API)
 	USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
-	if (!DataManager || !DataManager->IsStatusEffectVisualsReady())
+	if (!DataManager)
 	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("LoadIconFromSSOT: DataManager not available for tag %s"), *DoTType.ToString());
+		return false;
+	}
+
+	if (!DataManager->IsStatusEffectVisualsReady())
+	{
+		UE_LOG(LogDebuffIcon, Warning, TEXT("LoadIconFromSSOT: StatusEffectVisuals not ready for tag %s"), *DoTType.ToString());
 		return false;
 	}
 
 	FSuspenseCoreStatusEffectVisualRow VisualData;
 	if (!DataManager->GetStatusEffectVisualsByTag(DoTType, VisualData))
 	{
-		UE_LOG(LogDebuffIcon, Verbose, TEXT("LoadIconFromSSOT: No SSOT visuals for tag %s"), *DoTType.ToString());
+		UE_LOG(LogDebuffIcon, Warning, TEXT("LoadIconFromSSOT: No SSOT visuals found for tag %s"), *DoTType.ToString());
 		return false;
 	}
 

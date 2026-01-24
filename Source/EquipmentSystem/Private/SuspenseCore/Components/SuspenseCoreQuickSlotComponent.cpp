@@ -126,6 +126,24 @@ bool USuspenseCoreQuickSlotComponent::AssignItemToSlot(int32 SlotIndex, const FG
     FGuid OldInstanceID = QuickSlots[SlotIndex].AssignedItemInstanceID;
     QuickSlots[SlotIndex].AssignItem(ItemInstanceID, ItemID);
 
+    // Initialize consumable uses from SSOT (ConsumableAttributes DataTable)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+    {
+        if (USuspenseCoreDataManager* DataManager = Provider->GetDataManager())
+        {
+            FSuspenseCoreConsumableAttributeRow ConsumableData;
+            if (DataManager->GetConsumableAttributes(ItemID, ConsumableData))
+            {
+                if (ConsumableData.MaxUses > 0)
+                {
+                    QuickSlots[SlotIndex].InitializeConsumableUses(ConsumableData.MaxUses);
+                    QUICKSLOT_LOG(Log, TEXT("Initialized consumable uses: %d/%d for %s"),
+                        QuickSlots[SlotIndex].CurrentUses, ConsumableData.MaxUses, *ItemID.ToString());
+                }
+            }
+        }
+    }
+
     NotifySlotChanged(SlotIndex, OldInstanceID, ItemInstanceID);
 
     QUICKSLOT_LOG(Log, TEXT("Assigned item %s to slot %d"), *ItemID.ToString(), SlotIndex);
@@ -237,6 +255,56 @@ void USuspenseCoreQuickSlotComponent::StartSlotCooldown(int32 SlotIndex, float C
             EventBus->Publish(SuspenseCoreEquipmentTags::QuickSlot::TAG_Equipment_Event_QuickSlot_CooldownStarted, EventData);
         }
     }
+}
+
+bool USuspenseCoreQuickSlotComponent::ConsumeSlotUse(int32 SlotIndex)
+{
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        return false;
+    }
+
+    FSuspenseCoreQuickSlot& Slot = QuickSlots[SlotIndex];
+
+    // Check if this is a tracked consumable
+    if (Slot.MaxUses <= 0)
+    {
+        // Single-use or non-tracked item - clear and return false
+        QUICKSLOT_LOG(Log, TEXT("ConsumeSlotUse: Slot %d single-use item %s depleted"),
+            SlotIndex, *Slot.AssignedItemID.ToString());
+        ClearSlotInternal(SlotIndex);
+        return false;
+    }
+
+    // Consume one use
+    bool bHasUsesRemaining = Slot.ConsumeUse();
+
+    QUICKSLOT_LOG(Log, TEXT("ConsumeSlotUse: Slot %d uses: %d/%d for %s"),
+        SlotIndex, Slot.CurrentUses, Slot.MaxUses, *Slot.AssignedItemID.ToString());
+
+    if (!bHasUsesRemaining)
+    {
+        // No uses left - clear the slot
+        QUICKSLOT_LOG(Log, TEXT("ConsumeSlotUse: Slot %d depleted, clearing item %s"),
+            SlotIndex, *Slot.AssignedItemID.ToString());
+        ClearSlotInternal(SlotIndex);
+        return false;
+    }
+
+    // Notify about updated uses (for UI)
+    OnQuickSlotChanged.Broadcast(SlotIndex, Slot.AssignedItemInstanceID, Slot.AssignedItemInstanceID);
+
+    return true;
+}
+
+int32 USuspenseCoreQuickSlotComponent::GetSlotRemainingUses(int32 SlotIndex) const
+{
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        return -1;
+    }
+
+    return QuickSlots[SlotIndex].GetUsesRemaining();
 }
 
 //==================================================================

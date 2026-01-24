@@ -153,6 +153,22 @@ public:
     UFUNCTION(BlueprintCallable, Category = "QuickSlot|Usage")
     void StartSlotCooldown(int32 SlotIndex, float CooldownDuration);
 
+    /**
+     * Consume one use from a consumable in the slot
+     * @param SlotIndex Slot index (0-3)
+     * @return true if uses remain (slot still valid), false if depleted (slot will be cleared)
+     */
+    UFUNCTION(BlueprintCallable, Category = "QuickSlot|Usage")
+    bool ConsumeSlotUse(int32 SlotIndex);
+
+    /**
+     * Get remaining uses for a consumable in the slot
+     * @param SlotIndex Slot index (0-3)
+     * @return Remaining uses (-1 if not a multi-use consumable, 0 if depleted)
+     */
+    UFUNCTION(BlueprintPure, Category = "QuickSlot|Query")
+    int32 GetSlotRemainingUses(int32 SlotIndex) const;
+
     //==================================================================
     // Queries (Component-specific, not in interface)
     //==================================================================

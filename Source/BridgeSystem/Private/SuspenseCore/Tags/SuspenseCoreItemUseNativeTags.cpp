@@ -34,6 +34,7 @@ namespace SuspenseCoreItemUseTags
 		UE_DEFINE_GAMEPLAY_TAG(TAG_ItemUse_Event_Completed, "SuspenseCore.Event.ItemUse.Completed");
 		UE_DEFINE_GAMEPLAY_TAG(TAG_ItemUse_Event_Cancelled, "SuspenseCore.Event.ItemUse.Cancelled");
 		UE_DEFINE_GAMEPLAY_TAG(TAG_ItemUse_Event_Failed, "SuspenseCore.Event.ItemUse.Failed");
+		UE_DEFINE_GAMEPLAY_TAG(TAG_ItemUse_Event_ItemDepleted, "SuspenseCore.Event.ItemUse.ItemDepleted");
 	}
 
 	//==================================================================

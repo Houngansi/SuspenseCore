@@ -329,6 +329,9 @@ protected:
 	/** Build QuickSlot request from slot data */
 	FSuspenseCoreItemUseRequest BuildQuickSlotRequest(int32 QuickSlotIndex, AActor* OwnerActor) const;
 
+	/** Consume one use from QuickSlot after successful operation */
+	void ConsumeQuickSlotUse(const FSuspenseCoreItemUseRequest& Request, AActor* OwnerActor);
+
 	/** Get current world time */
 	float GetWorldTimeSeconds() const;
 

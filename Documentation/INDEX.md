@@ -4,7 +4,7 @@
 
 > **For Devlog:** See [Completed Features](#completed-features) for ready-to-publish content.
 
-**Last Updated:** 2026-01-23
+**Last Updated:** 2026-01-24
 
 ---
 
@@ -150,61 +150,57 @@ Source/GAS/Abilities/
 
 ---
 
-### DoT System (Bleeding/Burning) - NEW
+### DoT System (Bleeding/Burning) - ✅ COMPLETE
 
 **File:** [Plans/DoT_System_ImplementationPlan.md](Plans/DoT_System_ImplementationPlan.md)
-**Status:** Phase 1-3 Complete, Phase 4-5 In Progress
+**Status:** ✅ ALL PHASES COMPLETE
 
 **Devlog Preview:**
 > Implemented Tarkov-style Damage-over-Time effects for grenades. Fragmentation grenades cause
 > bleeding wounds (only when armor = 0), while incendiary grenades cause burning that bypasses
 > armor entirely. DoTService with EventBus integration provides real-time effect tracking for UI.
+> Stacking system allows up to 5 stacks (3 bleeds = 3x damage).
 
-**Completed:**
+**All Phases Complete:**
 - [x] Phase 1: Native GameplayTags (State::Health::Bleeding, Event::DoT, etc.)
 - [x] Phase 2: DoTService (EventBus integration, query API)
 - [x] Phase 3: GrenadeProjectile DoT application
+- [x] Phase 4: Debuff Widget system (W_DebuffIcon, W_DebuffContainer)
+- [x] Phase 5: Documentation finalization
 
-**Remaining:**
-- [ ] Phase 4: Debuff Widget system (W_DebuffIcon, W_DebuffContainer)
-- [ ] Phase 5: Documentation finalization
-
-**Related:**
+**Key Files:**
+- [GAS/StatusEffects_DeveloperGuide.md](GAS/StatusEffects_DeveloperGuide.md) - **NEW** Main developer guide
 - [GAS/GrenadeDoT_DesignDocument.md](GAS/GrenadeDoT_DesignDocument.md) - Technical design
 - [Plans/DebuffWidget_System_Plan.md](Plans/DebuffWidget_System_Plan.md) - UI widget plan
 
 ---
 
-### Status Effect System v2.0 (Buff/Debuff) - IMPLEMENTED
+### Status Effect System v2.0 (Buff/Debuff) - ✅ PRODUCTION
 
 **File:** [GameDesign/StatusEffect_System_GDD.md](GameDesign/StatusEffect_System_GDD.md)
-**Status:** IMPLEMENTED (Runtime testing pending)
+**Status:** ✅ PRODUCTION (Tested and working)
 
 **Summary:**
 > Complete redesign of buff/debuff system. Separates gameplay data (GameplayEffect Assets) from
-> visual data (DataTable/JSON). Reduces JSON fields from 43+ to 18. Duration, damage, stacking
-> now managed entirely by GAS GameplayEffects.
+> visual data (DataTable/JSON). Tarkov-style stacking (3 bleeds = 3x damage). Duration, damage,
+> stacking managed entirely by GAS GameplayEffects.
 
-**Key Changes:**
+**Key Features:**
 - GameplayEffect Assets for gameplay logic (duration, damage, stacking)
 - Simplified DataTable for visuals only (icon, VFX, audio, cure items)
-- Fixed JSON format (no more parsing errors)
-- W_DebuffIcon updated to use v2.0 DataManager API
+- Tarkov-style stacking: up to 5 stacks per effect type
+- Balanced damage: Light 0.5 DPS, Heavy 1.5 DPS (per stack)
+- W_DebuffIcon with proper initialization order
 
-**Phases:**
+**All Phases Complete:**
 - [x] Phase 1: Simplify data structure (FSuspenseCoreStatusEffectVisualRow)
 - [x] Phase 2: Fix JSON format
 - [x] Phase 3: Create GameplayEffect Assets (17 C++ classes)
 - [x] Phase 4: Update DataManager (v2.0 Visual API)
 - [x] Phase 5: Update UI Widgets (W_DebuffIcon v2.0)
-- [ ] Phase 6: Integration Testing
+- [x] Phase 6: Integration Testing
 
-**Created Files:**
-```
-Content/Data/StatusEffects/SuspenseCoreStatusEffectVisuals.json
-Source/GAS/Public/SuspenseCore/Effects/StatusEffects/SuspenseCoreStatusEffects.h
-Source/GAS/Private/SuspenseCore/Effects/StatusEffects/SuspenseCoreStatusEffects.cpp
-```
+**Developer Guide:** [GAS/StatusEffects_DeveloperGuide.md](GAS/StatusEffects_DeveloperGuide.md)
 
 ---
 
@@ -229,8 +225,9 @@ Source/GAS/Private/SuspenseCore/Effects/StatusEffects/SuspenseCoreStatusEffects.
 | [GAS/WeaponAbilityArchitecture_TechnicalAnalysis.md](GAS/WeaponAbilityArchitecture_TechnicalAnalysis.md) | Technical deep-dive |
 | [GAS/WeaponSwitch_FullAudit.md](GAS/WeaponSwitch_FullAudit.md) | Weapon switching analysis |
 | [GAS/FireAbilityChecklist.md](GAS/FireAbilityChecklist.md) | Fire ability checklist |
-| [GAS/GrenadeDoT_DesignDocument.md](GAS/GrenadeDoT_DesignDocument.md) | **NEW** DoT effects (Bleeding/Burning) |
-| [GAS/HealingSystem_DesignProposal.md](GAS/HealingSystem_DesignProposal.md) | **NEW** HoT effects (Medical items) |
+| [GAS/StatusEffects_DeveloperGuide.md](GAS/StatusEffects_DeveloperGuide.md) | **NEW** Complete status effects guide |
+| [GAS/GrenadeDoT_DesignDocument.md](GAS/GrenadeDoT_DesignDocument.md) | DoT effects (Bleeding/Burning) |
+| [GAS/HealingSystem_DesignProposal.md](GAS/HealingSystem_DesignProposal.md) | HoT effects (Medical items) |
 
 ### Setup Guides
 
@@ -263,7 +260,9 @@ Source/GAS/Private/SuspenseCore/Effects/StatusEffects/SuspenseCoreStatusEffects.
 |----------|-------------|
 | [GameDesign/ExtractionPvE_DesignDocument.md](GameDesign/ExtractionPvE_DesignDocument.md) | Core game loop design |
 | [GameDesign/Narrative_Design.md](GameDesign/Narrative_Design.md) | Story and lore |
-| [GameDesign/StatusEffect_System_GDD.md](GameDesign/StatusEffect_System_GDD.md) | **NEW** Buff/Debuff system (PENDING APPROVAL) |
+| [GameDesign/StatusEffect_System_GDD.md](GameDesign/StatusEffect_System_GDD.md) | Buff/Debuff system (✅ IMPLEMENTED) |
+| [GameDesign/ConsumablesThrowables_GDD.md](GameDesign/ConsumablesThrowables_GDD.md) | Consumables and throwables design |
+| [GameDesign/LimbDamageSystem_GDD.md](GameDesign/LimbDamageSystem_GDD.md) | Limb damage system |
 
 ---
 

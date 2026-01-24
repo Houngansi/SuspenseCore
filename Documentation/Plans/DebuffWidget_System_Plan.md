@@ -1,10 +1,10 @@
 # Debuff Widget System - Implementation Guide
 
-> **Version:** 2.0
+> **Version:** 2.1
 > **Date:** 2026-01-24
 > **Author:** Claude Code
-> **Status:** ✅ IMPLEMENTED
-> **Related:** DoT_System_ImplementationPlan.md, StatusEffect_SSOT_System.md
+> **Status:** ✅ PRODUCTION
+> **Related:** DoT_System_ImplementationPlan.md, StatusEffect_SSOT_System.md, StatusEffects_DeveloperGuide.md
 
 ---
 
@@ -388,6 +388,64 @@ TObjectPtr<UW_DebuffContainer> DebuffContainerWidget;
 | `Source/UISystem/Private/SuspenseCore/Widgets/HUD/W_DebuffContainer.cpp` | Container impl |
 | `Source/BridgeSystem/Public/SuspenseCore/Settings/SuspenseCoreSettings.h` | Settings with DataTable refs |
 | `Source/BridgeSystem/Private/SuspenseCore/Data/SuspenseCoreDataManager.cpp` | SSOT loading |
+
+---
+
+## Recent Commits & Fixes (2026-01-24)
+
+### Commit History
+
+| Commit | Description | Impact |
+|--------|-------------|--------|
+| `feat(Bleeding): Enable Tarkov-style stacking (up to 5x damage)` | StackLimitCount changed from 1 to 5 | Stacks now multiply damage |
+| `balance(Bleeding): Separate Light/Heavy bleeding damage, reduce by 10x` | Split damage values, 5.0→0.5/1.5 | Better survival balance |
+| `fix(DebuffContainer): Add icon to parent BEFORE calling SetDebuffData` | Fixed widget initialization order | Icons now visible |
+| `debug(DebuffIcon): Add widget binding validation logging` | Added debug logging | Easier troubleshooting |
+
+### Stacking System (Tarkov-Style)
+
+**GameplayEffect Configuration:**
+```cpp
+// GE_BleedingEffect.cpp
+StackingType = EGameplayEffectStackingType::AggregateByTarget;
+StackLimitCount = 5;  // Max 5 stacks
+```
+
+**Damage Scaling:**
+
+| Effect | 1 Stack | 3 Stacks | 5 Stacks (Max) |
+|--------|---------|----------|----------------|
+| Light Bleeding | 0.5 DPS | 1.5 DPS | 2.5 DPS |
+| Heavy Bleeding | 1.5 DPS | 4.5 DPS | 7.5 DPS |
+
+### Critical Initialization Order
+
+```cpp
+// W_DebuffContainer.cpp - AddOrUpdateDebuff()
+
+// ✅ CORRECT ORDER:
+// 1. FIRST add to parent (triggers NativeConstruct → Collapsed)
+UHorizontalBoxSlot* IconSlot = DebuffBox->AddChildToHorizontalBox(NewIcon);
+
+// 2. THEN setup data (sets HitTestInvisible)
+NewIcon->SetDebuffData(DoTType, Duration, StackCount);
+
+// 3. Force layout update
+DebuffBox->InvalidateLayoutAndVolatility();
+```
+
+**Why this order matters:**
+- `NativeConstruct()` sets widget to `Collapsed` by default
+- `SetDebuffData()` sets widget to `HitTestInvisible` (visible)
+- If SetDebuffData called BEFORE AddChild, NativeConstruct overwrites visibility
+
+---
+
+## Related Documentation
+
+- **[StatusEffects_DeveloperGuide.md](../GAS/StatusEffects_DeveloperGuide.md)** - Full developer guide
+- **[StatusEffect_SSOT_System.md](./StatusEffect_SSOT_System.md)** - SSOT architecture
+- **[StatusEffect_System_GDD.md](../GameDesign/StatusEffect_System_GDD.md)** - Game design document
 
 ---
 

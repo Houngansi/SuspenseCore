@@ -527,6 +527,9 @@ void UW_DebuffContainer::AddOrUpdateDebuff(FGameplayTag DoTType, float Duration,
 	// Bind removal complete delegate
 	NewIcon->OnRemovalComplete.AddDynamic(this, &UW_DebuffContainer::OnIconRemovalComplete);
 
+	// Bind duration expired delegate for auto-removal of timed effects
+	NewIcon->OnDurationExpired.AddDynamic(this, &UW_DebuffContainer::OnIconDurationExpired);
+
 	// Add to container FIRST (this triggers NativeConstruct which sets Collapsed)
 	if (DebuffBox)
 	{
@@ -625,8 +628,9 @@ void UW_DebuffContainer::ReleaseIcon(UW_DebuffIcon* Icon)
 	// Reset state
 	Icon->ResetToDefault();
 
-	// Unbind delegate
+	// Unbind delegates
 	Icon->OnRemovalComplete.RemoveAll(this);
+	Icon->OnDurationExpired.RemoveAll(this);
 
 	// Return to pool
 	IconPool.Add(Icon);
@@ -716,4 +720,21 @@ void UW_DebuffContainer::OnIconRemovalComplete(UW_DebuffIcon* Icon)
 
 	// Release to pool
 	ReleaseIcon(Icon);
+}
+
+void UW_DebuffContainer::OnIconDurationExpired(UW_DebuffIcon* Icon, FGameplayTag EffectType)
+{
+	if (!Icon)
+	{
+		return;
+	}
+
+	UE_LOG(LogDebuffContainer, Log, TEXT("OnIconDurationExpired: %s timer reached 0 - auto-removing"),
+		*EffectType.ToString());
+
+	// Remove the icon using standard removal flow (with animation)
+	RemoveDebuff(EffectType);
+
+	// Blueprint event
+	OnDebuffRemoved(EffectType);
 }

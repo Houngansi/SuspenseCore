@@ -3,19 +3,23 @@
 // Copyright (c) 2025. All Rights Reserved.
 //
 // ARCHITECTURE:
-// - Container widget for procedural debuff icon management
+// - Container widget for procedural status effect icon management
 // - EventBus-driven updates (NO polling!)
 // - Object pooling for icon widgets
 // - Supports local player and spectated targets
+// - Displays BOTH debuffs (DoT) AND buffs (HoT, Regenerating, etc.)
 //
 // DATA FLOW:
 // GrenadeProjectile::ApplyDoTEffects() → DoTService → EventBus → W_DebuffContainer → W_DebuffIcon
+// MedicalHandler::ApplyHealOverTime() → EventBus → W_DebuffContainer → W_DebuffIcon
 //
 // EVENTBUS EVENTS:
-// - SuspenseCoreTags::Event::DoT::Applied  - New debuff applied
-// - SuspenseCoreTags::Event::DoT::Tick     - Damage tick occurred
-// - SuspenseCoreTags::Event::DoT::Removed  - Debuff healed/cured
-// - SuspenseCoreTags::Event::DoT::Expired  - Debuff expired naturally
+// - SuspenseCoreTags::Event::DoT::Applied   - Debuff applied
+// - SuspenseCoreTags::Event::DoT::Removed   - Debuff healed/cured
+// - SuspenseCoreTags::Event::DoT::Expired   - Debuff expired naturally
+// - SuspenseCoreTags::Event::DoT::Tick      - Damage tick occurred
+// - SuspenseCoreMedicalTags::Event::HoTStarted     - Buff (HoT) applied
+// - SuspenseCoreMedicalTags::Event::HoTInterrupted - Buff (HoT) interrupted
 //
 // @see W_DebuffIcon.h
 // @see USuspenseCoreDoTService
@@ -190,6 +194,12 @@ protected:
 	/** Called when DoT tick event received (optional - for damage numbers) */
 	void OnDoTTick(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
+	/** Called when HoT (buff) started event received */
+	void OnHoTStarted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Called when HoT (buff) interrupted/ended event received */
+	void OnHoTEnded(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
 	// ═══════════════════════════════════════════════════════════════════
 	// EVENTBUS SETUP
 	// ═══════════════════════════════════════════════════════════════════
@@ -270,11 +280,15 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UW_DebuffIcon>> IconPool;
 
-	/** EventBus subscription handles */
+	/** EventBus subscription handles - DoT (Debuffs) */
 	FSuspenseCoreSubscriptionHandle DoTAppliedHandle;
 	FSuspenseCoreSubscriptionHandle DoTRemovedHandle;
 	FSuspenseCoreSubscriptionHandle DoTExpiredHandle;
 	FSuspenseCoreSubscriptionHandle DoTTickHandle;
+
+	/** EventBus subscription handles - HoT (Buffs) */
+	FSuspenseCoreSubscriptionHandle HoTStartedHandle;
+	FSuspenseCoreSubscriptionHandle HoTEndedHandle;
 
 	/** Target actor to display debuffs for */
 	UPROPERTY()

@@ -17,6 +17,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Services/SuspenseCoreDoTService.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreMedicalNativeTags.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "GameFramework/PlayerController.h"
@@ -332,6 +333,55 @@ void UW_DebuffContainer::OnDoTTick(FGameplayTag EventTag, const FSuspenseCoreEve
 	}
 }
 
+void UW_DebuffContainer::OnHoTStarted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	UE_LOG(LogDebuffContainer, Log, TEXT("OnHoTStarted: Received buff event"));
+
+	// Check if event is for our target
+	if (!IsEventForTarget(EventData))
+	{
+		UE_LOG(LogDebuffContainer, Verbose, TEXT("  Ignoring - not for our target"));
+		return;
+	}
+
+	// HoT uses State.Health.Regenerating tag
+	FGameplayTag BuffType = SuspenseCoreTags::State::Health::Regenerating;
+
+	// Get duration from event data
+	float Duration = EventData.GetFloat(TEXT("Duration"), -1.0f);
+	float HealPerTick = EventData.GetFloat(TEXT("HealPerTick"), 0.0f);
+
+	UE_LOG(LogDebuffContainer, Log, TEXT("OnHoTStarted: Adding buff icon - Type=%s, Duration=%.1f, HealPerTick=%.1f"),
+		*BuffType.ToString(), Duration, HealPerTick);
+
+	// Add buff icon (same method as debuffs - unified approach)
+	AddOrUpdateDebuff(BuffType, Duration, 1);
+
+	// Blueprint event
+	OnDebuffAdded(BuffType);
+}
+
+void UW_DebuffContainer::OnHoTEnded(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	UE_LOG(LogDebuffContainer, Log, TEXT("OnHoTEnded: Received buff end event"));
+
+	// Check if event is for our target
+	if (!IsEventForTarget(EventData))
+	{
+		return;
+	}
+
+	// Remove the regenerating icon
+	FGameplayTag BuffType = SuspenseCoreTags::State::Health::Regenerating;
+
+	UE_LOG(LogDebuffContainer, Log, TEXT("OnHoTEnded: Removing buff icon - Type=%s"), *BuffType.ToString());
+
+	RemoveDebuff(BuffType);
+
+	// Blueprint event
+	OnDebuffRemoved(BuffType);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // EVENTBUS SETUP
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -382,7 +432,26 @@ void UW_DebuffContainer::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Low  // Low priority - UI doesn't need instant tick updates
 	);
 
-	UE_LOG(LogDebuffContainer, Log, TEXT("Event subscriptions setup complete"));
+	// ═══════════════════════════════════════════════════════════════════
+	// HoT (Buff) Events - Medical system integration
+	// ═══════════════════════════════════════════════════════════════════
+	UE_LOG(LogDebuffContainer, Warning, TEXT("  Subscribing to HoT (buff) events..."));
+
+	HoTStartedHandle = EventBus->SubscribeNative(
+		SuspenseCoreMedicalTags::Event::TAG_Event_Medical_HoTStarted,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &UW_DebuffContainer::OnHoTStarted),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	HoTEndedHandle = EventBus->SubscribeNative(
+		SuspenseCoreMedicalTags::Event::TAG_Event_Medical_HoTInterrupted,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &UW_DebuffContainer::OnHoTEnded),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogDebuffContainer, Log, TEXT("Event subscriptions setup complete (DoT + HoT)"));
 }
 
 void UW_DebuffContainer::TeardownEventSubscriptions()
@@ -398,7 +467,11 @@ void UW_DebuffContainer::TeardownEventSubscriptions()
 	EventBus->Unsubscribe(DoTExpiredHandle);
 	EventBus->Unsubscribe(DoTTickHandle);
 
-	UE_LOG(LogDebuffContainer, Verbose, TEXT("Event subscriptions torn down"));
+	// HoT handles
+	EventBus->Unsubscribe(HoTStartedHandle);
+	EventBus->Unsubscribe(HoTEndedHandle);
+
+	UE_LOG(LogDebuffContainer, Verbose, TEXT("Event subscriptions torn down (DoT + HoT)"));
 }
 
 USuspenseCoreEventBus* UW_DebuffContainer::GetEventBus() const

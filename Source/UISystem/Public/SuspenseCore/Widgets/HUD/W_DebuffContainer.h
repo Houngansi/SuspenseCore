@@ -267,6 +267,12 @@ protected:
 	UFUNCTION()
 	void OnIconRemovalComplete(UW_DebuffIcon* Icon);
 
+	/**
+	 * Called when icon duration timer expires (for auto-removal)
+	 */
+	UFUNCTION()
+	void OnIconDurationExpired(UW_DebuffIcon* Icon, FGameplayTag EffectType);
+
 private:
 	// ═══════════════════════════════════════════════════════════════════
 	// STATE

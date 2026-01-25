@@ -219,6 +219,12 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Debuff|Events")
 	FOnRemovalComplete OnRemovalComplete;
 
+	/** Called when duration timer reaches 0 (for auto-removal of timed effects) */
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDurationExpired, UW_DebuffIcon*, Icon, FGameplayTag, EffectType);
+
+	UPROPERTY(BlueprintAssignable, Category = "Debuff|Events")
+	FOnDurationExpired OnDurationExpired;
+
 	// ═══════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
 	// ═══════════════════════════════════════════════════════════════════

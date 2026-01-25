@@ -69,6 +69,9 @@ void UW_DebuffIcon::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	{
 		RemainingDuration -= InDeltaTime;
 
+		// Check if duration just expired
+		const bool bJustExpired = (RemainingDuration <= 0.0f);
+
 		// Clamp to 0
 		if (RemainingDuration < 0.0f)
 		{
@@ -80,6 +83,14 @@ void UW_DebuffIcon::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
 		// Check for critical state transition
 		UpdateCriticalState();
+
+		// Broadcast expiration event for auto-removal
+		if (bJustExpired)
+		{
+			UE_LOG(LogDebuffIcon, Log, TEXT("Duration expired for %s - broadcasting OnDurationExpired"),
+				*DoTType.ToString());
+			OnDurationExpired.Broadcast(this, DoTType);
+		}
 	}
 }
 

@@ -586,7 +586,8 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 
 		int32 Removed = ASC->RemoveActiveEffectsWithGrantedTags(LightBleedTags);
 
-		// Also try with the exact tag string used in bleeding effect
+		// TODO(2026-Q2): Remove fallback after confirming all bleeding effects use UTargetTagsGameplayEffectComponent
+		// This fallback is now redundant since GE_BleedingEffect uses native tags via the modern GAS component
 		if (Removed == 0)
 		{
 			FGameplayTagContainer AlternateTags;
@@ -620,7 +621,8 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 
 		int32 Removed = ASC->RemoveActiveEffectsWithGrantedTags(HeavyBleedTags);
 
-		// Also try with the exact tag string used in bleeding effect
+		// TODO(2026-Q2): Remove fallback after confirming all bleeding effects use UTargetTagsGameplayEffectComponent
+		// This fallback is now redundant since GE_BleedingEffect uses native tags via the modern GAS component
 		if (Removed == 0)
 		{
 			FGameplayTagContainer AlternateTags;

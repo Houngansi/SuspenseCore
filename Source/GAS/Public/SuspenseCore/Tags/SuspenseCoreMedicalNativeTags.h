@@ -75,6 +75,31 @@ namespace SuspenseCoreMedicalTags
 
 		/** HoT interrupted */
 		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Medical_HoTInterrupted);
+
+		// ══════════════════════════════════════════════════════════════
+		// Animation-Driven Flow Events (Tarkov-style)
+		// ══════════════════════════════════════════════════════════════
+
+		/** Medical item equipped (draw animation started) */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Medical_Equipped);
+
+		/** Medical item unequipped (returned to previous weapon) */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Medical_Unequipped);
+
+		/** Medical item ready after equip animation */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Medical_Ready);
+
+		/** Medical use animation started */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Medical_UseStarted);
+
+		/** Medical effect should be applied (AnimNotify "Apply") */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Medical_ApplyEffect);
+
+		/** Medical use animation completed successfully */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Medical_UseComplete);
+
+		/** Medical use was cancelled (damage interrupt) */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Medical_UseCancelled);
 	}
 
 	//==================================================================
@@ -89,6 +114,12 @@ namespace SuspenseCoreMedicalTags
 
 		/** Medical item currently being used */
 		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Medical_UsingItem);
+
+		/** Medical item is equipped and ready for use (Tarkov-style flow) */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Medical_Equipped);
+
+		/** Medical item use animation is in progress */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Medical_UsingAnimation);
 	}
 
 	//==================================================================
@@ -113,5 +144,20 @@ namespace SuspenseCoreMedicalTags
 
 		/** Can cure pain */
 		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Cure_Pain);
+	}
+
+	//==================================================================
+	// Ability Tags
+	// Used for ability identification and activation
+	// @see GA_MedicalEquip, GA_MedicalUse
+	//==================================================================
+
+	namespace Ability
+	{
+		/** Medical equip ability tag (for activation/cancellation) */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Ability_Medical_Equip);
+
+		/** Medical use ability tag (for activation/cancellation) */
+		GAS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Ability_Medical_Use);
 	}
 }

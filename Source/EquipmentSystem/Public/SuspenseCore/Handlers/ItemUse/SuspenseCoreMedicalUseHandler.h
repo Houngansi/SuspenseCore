@@ -6,12 +6,18 @@
 // Handles medical item consumption (bandages, medkits, painkillers, etc.)
 // Supports multiple use contexts: DoubleClick, QuickSlot, Hotkey.
 //
-// FLOW:
+// FLOW (Timer-based - Legacy):
 // 1. User double-clicks medical item or uses QuickSlot
 // 2. ItemUseService routes to this handler
 // 3. Handler calculates duration from item data
 // 4. GAS ability applies InProgress effect and waits
 // 5. OnOperationComplete() applies healing/effects via GAS
+//
+// FLOW (Animation-Driven - Tarkov-style):
+// 1. QuickSlot Press -> GA_MedicalEquip -> State.Medical.Equipped
+// 2. Fire (LMB) -> GA_MedicalUse -> AnimNotify "Apply" -> EventBus event
+// 3. MedicalUseHandler.OnAnimationApplyEffect() applies healing/cure effects
+// 4. GA_MedicalUse consumes item and cancels GA_MedicalEquip
 //
 // ARCHITECTURE:
 // - Duration-based (configurable per item type)
@@ -28,6 +34,7 @@
 #include "UObject/NoExportTypes.h"
 #include "SuspenseCore/Interfaces/ItemUse/ISuspenseCoreItemUseHandler.h"
 #include "SuspenseCore/Tags/SuspenseCoreItemUseNativeTags.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreMedicalUseHandler.generated.h"
 
@@ -229,6 +236,42 @@ protected:
 		const FSuspenseCoreItemUseResponse& Response,
 		AActor* OwnerActor);
 
+	//==================================================================
+	// Animation-Driven Flow Support (Tarkov-style)
+	// Called by GA_MedicalUse when "Apply" AnimNotify fires
+	// @see GA_MedicalUse, GA_MedicalEquip
+	//==================================================================
+
+	/**
+	 * Subscribe to animation-driven events from EventBus
+	 * Called during Initialize()
+	 */
+	void SetupAnimationEventSubscription();
+
+	/**
+	 * Unsubscribe from animation-driven events
+	 */
+	void TeardownAnimationEventSubscription();
+
+	/**
+	 * Handler for ApplyEffect event from GA_MedicalUse
+	 * Called when "Apply" AnimNotify fires during use animation.
+	 * Extracts item info from event data and applies healing/curing effects.
+	 *
+	 * @param EventTag The event tag (TAG_Event_Medical_ApplyEffect)
+	 * @param EventData Event data containing MedicalItemID, OwnerActor, etc.
+	 */
+	void OnAnimationApplyEffect(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
+
+	/**
+	 * Apply all medical effects for animation-driven flow
+	 * Convenience method that applies instant heal, HoT, and cures in one call.
+	 *
+	 * @param Actor Target actor
+	 * @param ItemID Medical item ID for capability lookup
+	 */
+	void ApplyMedicalEffectsFromAnimation(AActor* Actor, FName ItemID);
+
 private:
 	//==================================================================
 	// Dependencies
@@ -297,4 +340,11 @@ private:
 	/** HoT duration for Surgical Kit */
 	UPROPERTY(EditDefaultsOnly, Category = "Handler|HoT")
 	float SurgicalHoTDuration = 15.0f;
+
+	//==================================================================
+	// Animation-Driven Flow State
+	//==================================================================
+
+	/** Subscription handle for ApplyEffect event */
+	FSuspenseCoreSubscriptionHandle ApplyEffectSubscriptionHandle;
 };

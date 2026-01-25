@@ -13,6 +13,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMedicalUseHandler, Log, All);
@@ -185,20 +186,101 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::Execute(
 {
 	// Get item tags from DataManager
 	FGameplayTagContainer ItemTags;
+	FGameplayTag MedicalTypeTag;
 	if (DataManager.IsValid())
 	{
 		FSuspenseCoreUnifiedItemData ItemData;
 		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
 		{
 			ItemTags = ItemData.ItemTags;
+			MedicalTypeTag = ItemData.MedicalType;
 		}
 	}
 
 	ESuspenseCoreMedicalType MedType = GetMedicalType(ItemTags);
 
-	HANDLER_LOG(Log, TEXT("Execute: Using medical item %s (type=%d)"),
+	HANDLER_LOG(Log, TEXT("Execute: Using medical item %s (type=%d, context=%d)"),
 		*Request.SourceItem.ItemID.ToString(),
-		static_cast<int32>(MedType));
+		static_cast<int32>(MedType),
+		static_cast<int32>(Request.Context));
+
+	//==================================================================
+	// QuickSlot Context: Use Animation-Driven Flow (Tarkov-style)
+	// Similar to GrenadeHandler::ExecuteEquip - activate GA_MedicalEquip
+	//==================================================================
+	if (Request.Context == ESuspenseCoreItemUseContext::QuickSlot)
+	{
+		UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerActor);
+		if (ASC)
+		{
+			// Build event data for GA_MedicalEquip
+			// Similar to how GrenadeHandler sends data to GA_GrenadeEquip
+			FGameplayEventData EventData;
+			EventData.EventTag = MedicalTypeTag.IsValid() ? MedicalTypeTag :
+				FGameplayTag::RequestGameplayTag(FName("Item.Category.Medical"));
+			EventData.Instigator = OwnerActor;
+			EventData.Target = OwnerActor;
+			EventData.EventMagnitude = static_cast<float>(Request.QuickSlotIndex);
+
+			// Add medical type tag to InstigatorTags
+			if (MedicalTypeTag.IsValid())
+			{
+				EventData.InstigatorTags.AddTag(MedicalTypeTag);
+			}
+
+			HANDLER_LOG(Log, TEXT("Sending GameplayEvent for GA_MedicalEquip: Item=%s, Type=%s, Slot=%d"),
+				*Request.SourceItem.ItemID.ToString(),
+				*MedicalTypeTag.ToString(),
+				Request.QuickSlotIndex);
+
+			// Trigger GA_MedicalEquip via GameplayEvent
+			FGameplayTag EquipEventTag = SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Equip;
+			int32 TriggeredCount = ASC->HandleGameplayEvent(EquipEventTag, &EventData);
+
+			if (TriggeredCount > 0)
+			{
+				HANDLER_LOG(Log, TEXT("GA_MedicalEquip triggered via GameplayEvent (%d abilities)"), TriggeredCount);
+
+				// Return instant success - animation-driven flow handles the rest
+				// GA_MedicalEquip -> GA_MedicalUse -> AnimNotify "Apply" -> OnAnimationApplyEffect
+				FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
+				Response.HandlerTag = GetHandlerTag();
+				Response.Cooldown = 0.0f;
+				Response.Metadata.Add(TEXT("Flow"), TEXT("AnimationDriven"));
+				Response.Metadata.Add(TEXT("MedicalItemID"), Request.SourceItem.ItemID.ToString());
+
+				return Response;
+			}
+
+			// Fallback: Try direct activation with TryActivateAbilitiesByTag
+			HANDLER_LOG(Log, TEXT("Execute: Event trigger failed, trying TryActivateAbilitiesByTag"));
+
+			FGameplayTagContainer AbilityTags;
+			AbilityTags.AddTag(SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Equip);
+
+			bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags);
+
+			if (bActivated)
+			{
+				HANDLER_LOG(Log, TEXT("GA_MedicalEquip activated via TryActivateAbilitiesByTag"));
+
+				FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, 0.0f);
+				Response.HandlerTag = GetHandlerTag();
+				Response.Cooldown = 0.0f;
+				Response.Metadata.Add(TEXT("Flow"), TEXT("AnimationDriven"));
+				Response.Metadata.Add(TEXT("MedicalItemID"), Request.SourceItem.ItemID.ToString());
+
+				return Response;
+			}
+
+			HANDLER_LOG(Warning, TEXT("Failed to activate GA_MedicalEquip - falling back to timer-based flow"));
+		}
+	}
+
+	//==================================================================
+	// DoubleClick/Other Context: Use Legacy Timer-Based Flow
+	//==================================================================
+	HANDLER_LOG(Log, TEXT("Using timer-based flow for context %d"), static_cast<int32>(Request.Context));
 
 	// Get duration for this operation
 	float Duration = GetDuration(Request);
@@ -207,6 +289,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::Execute(
 	FSuspenseCoreItemUseResponse Response = FSuspenseCoreItemUseResponse::Success(Request.RequestID, Duration);
 	Response.HandlerTag = GetHandlerTag();
 	Response.Cooldown = GetCooldown(Request);
+	Response.Metadata.Add(TEXT("Flow"), TEXT("TimerBased"));
 
 	// Publish started event
 	PublishMedicalEvent(Request, Response, OwnerActor);

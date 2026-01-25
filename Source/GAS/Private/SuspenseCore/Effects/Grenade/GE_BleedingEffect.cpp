@@ -42,7 +42,7 @@ UGE_BleedingEffect_Light::UGE_BleedingEffect_Light(const FObjectInitializer& Obj
 	// SetByCaller magnitude for configurable damage per tick
 	// Default: 1-2 HP per tick for light bleed
 	FSetByCallerFloat SetByCaller;
-	SetByCaller.DataTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.Bleed"));
+	SetByCaller.DataTag = SuspenseCoreTags::Data::DoT::Bleed;
 
 	DamageModifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
 	Modifiers.Add(DamageModifier);
@@ -84,11 +84,11 @@ UGE_BleedingEffect_Light::UGE_BleedingEffect_Light(const FObjectInitializer& Obj
 	if (AssetTagsComponent)
 	{
 		FInheritedTagContainer AssetTagContainer;
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed")));
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed.Light")));
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.DoT")));
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Grenade.Shrapnel")));
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::Damage);
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::DamageBleed);
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::DamageBleedLight);
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::DoT::Root);
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::GrenadeShrapnel);
 		AssetTagsComponent->SetAndApplyAssetTagChanges(AssetTagContainer);
 		GEComponents.Add(AssetTagsComponent);
 	}
@@ -125,7 +125,7 @@ UGE_BleedingEffect_Heavy::UGE_BleedingEffect_Heavy(const FObjectInitializer& Obj
 	DamageModifier.ModifierOp = EGameplayModOp::Additive;
 
 	FSetByCallerFloat SetByCaller;
-	SetByCaller.DataTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.Bleed"));
+	SetByCaller.DataTag = SuspenseCoreTags::Data::DoT::Bleed;
 
 	DamageModifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
 	Modifiers.Add(DamageModifier);
@@ -167,11 +167,11 @@ UGE_BleedingEffect_Heavy::UGE_BleedingEffect_Heavy(const FObjectInitializer& Obj
 	if (AssetTagsComponent)
 	{
 		FInheritedTagContainer AssetTagContainer;
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed")));
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.Bleed.Heavy")));
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.DoT")));
-		AssetTagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Grenade.Shrapnel")));
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::Damage);
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::DamageBleed);
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::DamageBleedHeavy);
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::DoT::Root);
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::GrenadeShrapnel);
 		AssetTagsComponent->SetAndApplyAssetTagChanges(AssetTagContainer);
 		GEComponents.Add(AssetTagsComponent);
 	}

@@ -77,11 +77,13 @@ namespace SuspenseCoreMedicalTags
 
 	//==================================================================
 	// Ability Tags
+	// Convention: SuspenseCore.Ability.{Category}.{Action}
+	// @see SuspenseCoreGameplayTags.cpp - Throwable uses same pattern
 	//==================================================================
 
 	namespace Ability
 	{
-		UE_DEFINE_GAMEPLAY_TAG(TAG_Ability_Medical_Equip, "Ability.Medical.Equip");
-		UE_DEFINE_GAMEPLAY_TAG(TAG_Ability_Medical_Use, "Ability.Medical.Use");
+		UE_DEFINE_GAMEPLAY_TAG(TAG_Ability_Medical_Equip, "SuspenseCore.Ability.Medical.Equip");
+		UE_DEFINE_GAMEPLAY_TAG(TAG_Ability_Medical_Use, "SuspenseCore.Ability.Medical.Use");
 	}
 }

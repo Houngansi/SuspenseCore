@@ -543,14 +543,9 @@ bool UGA_MedicalUse::ApplyMedicalEffects()
 		return false;
 	}
 
-	// Build item use request
-	FSuspenseCoreItemUseRequest Request;
-	Request.ItemID = CurrentMedicalItemID;
-	Request.SourceSlotIndex = CurrentSlotIndex;
-	Request.OwnerActor = AvatarActor;
-	Request.Timestamp = FPlatformTime::Seconds();
-
-	// Publish apply effect event - MedicalUseHandler will handle the actual effects
+	// Publish apply effect event via EventBus - MedicalUseHandler will handle the actual effects
+	// Note: We use FSuspenseCoreEventData for cross-module communication instead of FSuspenseCoreItemUseRequest
+	// to avoid tight coupling between GAS and EquipmentSystem modules
 	if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
 	{
 		if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())

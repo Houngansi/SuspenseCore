@@ -814,21 +814,49 @@ void USuspenseCoreMedicalUseHandler::GetMedicalCapabilities(
 		OutCanCureHeavyBleed = ConsumableData.bCanHealHeavyBleed;
 		OutCanCureFracture = ConsumableData.bCanHealFracture;
 
-		// HoT calculation: HealRate is HP per second
-		// For post-use HoT, calculate duration from total heal / rate
+		// ══════════════════════════════════════════════════════════════════
+		// HoT Calculation (Tarkov-style per-use healing)
+		// ══════════════════════════════════════════════════════════════════
+		// SSOT Fields:
+		//   HealAmount  = Total HP resource (e.g., 300 for IFAK)
+		//   MaxUses     = Number of uses available (e.g., 3)
+		//   HealRate    = HP per second during HoT (e.g., 10 HP/sec)
+		//   UseTime     = Duration of use animation (e.g., 5 seconds)
+		//
+		// Per-Use Healing:
+		//   HealPerUse = HealAmount / MaxUses (e.g., 300/3 = 100 HP per use)
+		//   HoTDuration = HealPerUse / HealRate (e.g., 100/10 = 10 seconds)
+		//
+		// Example IFAK:
+		//   HealAmount=300, MaxUses=3, HealRate=10 HP/sec
+		//   -> Each use heals 100 HP over 10 seconds (10 HP/sec)
+		// ══════════════════════════════════════════════════════════════════
+
 		if (ConsumableData.HealRate > 0.0f && ConsumableData.HealAmount > 0.0f)
 		{
-			OutHoTAmount = ConsumableData.HealRate;
-			OutHoTDuration = ConsumableData.HealAmount / ConsumableData.HealRate;
+			// Calculate heal per single use
+			int32 MaxUses = FMath::Max(1, ConsumableData.MaxUses);
+			float HealPerUse = ConsumableData.HealAmount / static_cast<float>(MaxUses);
+
+			// Clamp heal per use to reasonable values (don't heal more than max HP typically)
+			HealPerUse = FMath::Clamp(HealPerUse, 1.0f, 100.0f);
+
+			// Set HoT parameters
+			OutHoTAmount = ConsumableData.HealRate;  // HP per tick/second
+			OutHoTDuration = HealPerUse / ConsumableData.HealRate;  // Duration based on per-use heal
+
+			// Clamp duration to reasonable values
+			OutHoTDuration = FMath::Clamp(OutHoTDuration, 1.0f, 30.0f);
 		}
 
-		HANDLER_LOG(Log, TEXT("GetMedicalCapabilities (SSOT): %s -> LightBleed=%d, HeavyBleed=%d, Fracture=%d, HoT=%.1f/%.1fs"),
+		HANDLER_LOG(Log, TEXT("GetMedicalCapabilities (SSOT): %s -> LightBleed=%d, HeavyBleed=%d, Fracture=%d, HoT=%.1f HP/s for %.1fs (%.0f HP total)"),
 			*ItemID.ToString(),
 			OutCanCureLightBleed,
 			OutCanCureHeavyBleed,
 			OutCanCureFracture,
 			OutHoTAmount,
-			OutHoTDuration);
+			OutHoTDuration,
+			OutHoTAmount * OutHoTDuration);
 		return;
 	}
 

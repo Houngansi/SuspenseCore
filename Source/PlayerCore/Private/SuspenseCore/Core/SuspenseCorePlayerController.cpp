@@ -8,6 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreMedicalNativeTags.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
@@ -400,7 +401,10 @@ void ASuspenseCorePlayerController::HandleAimReleased(const FInputActionValue& V
 
 void ASuspenseCorePlayerController::HandleFirePressed(const FInputActionValue& Value)
 {
-	// Check if grenade is equipped - if so, route to grenade throw instead of weapon fire
+	// Check equipment state to route Fire input to the appropriate ability:
+	// 1. Medical equipped → GA_MedicalUse (use medical item)
+	// 2. Grenade equipped → GA_GrenadeThrow (throw grenade)
+	// 3. Otherwise → Normal weapon fire
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 
 	UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] HandleFirePressed called"));
@@ -408,10 +412,20 @@ void ASuspenseCorePlayerController::HandleFirePressed(const FInputActionValue& V
 
 	if (ASC)
 	{
+		// Check for medical item equipped first (Tarkov-style medical flow)
+		bool bHasMedicalTag = ASC->HasMatchingGameplayTag(SuspenseCoreMedicalTags::State::TAG_State_Medical_Equipped);
 		bool bHasGrenadeTag = ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::GrenadeEquipped);
+
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] HasMatchingGameplayTag(State.Medical.Equipped): %s"), bHasMedicalTag ? TEXT("YES") : TEXT("NO"));
 		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] HasMatchingGameplayTag(State.GrenadeEquipped): %s"), bHasGrenadeTag ? TEXT("YES") : TEXT("NO"));
 
-		if (bHasGrenadeTag)
+		if (bHasMedicalTag)
+		{
+			// Medical item is equipped - activate use ability
+			UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] >>> Activating MEDICAL USE ability <<<"));
+			ActivateAbilityByTag(SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Use, true);
+		}
+		else if (bHasGrenadeTag)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] >>> Activating GRENADE THROW ability <<<"));
 			ActivateAbilityByTag(SuspenseCoreTags::Ability::Throwable::Grenade, true);
@@ -430,9 +444,34 @@ void ASuspenseCorePlayerController::HandleFirePressed(const FInputActionValue& V
 
 void ASuspenseCorePlayerController::HandleFireReleased(const FInputActionValue& Value)
 {
-	// Check if grenade is equipped - if so, route to grenade throw instead of weapon fire
+	// Check equipment state to route Fire release to the appropriate ability
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (ASC && ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::GrenadeEquipped))
+	if (!ASC)
+	{
+		return;
+	}
+
+	// Check for medical item equipped (Tarkov-style medical flow)
+	if (ASC->HasMatchingGameplayTag(SuspenseCoreMedicalTags::State::TAG_State_Medical_Equipped))
+	{
+		// Medical item is equipped - signal InputReleased to active medical use ability
+		// Note: Medical use typically continues even after release (unlike grenades)
+		// But we still signal the release in case the ability needs it
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Use);
+
+		TArray<FGameplayAbilitySpec*> MatchingSpecs;
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(TagContainer, MatchingSpecs);
+
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+		{
+			if (Spec && Spec->IsActive())
+			{
+				ASC->AbilitySpecInputReleased(*Spec);
+			}
+		}
+	}
+	else if (ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::GrenadeEquipped))
 	{
 		// Grenade is equipped - find and signal InputReleased to active grenade throw ability
 		// This is better than CancelAbilities because it lets the ability handle release gracefully

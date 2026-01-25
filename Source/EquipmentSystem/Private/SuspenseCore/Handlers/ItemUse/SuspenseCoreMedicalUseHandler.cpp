@@ -53,6 +53,9 @@ void USuspenseCoreMedicalUseHandler::Initialize(
 	DataManager = InDataManager;
 	EventBus = InEventBus;
 
+	// Setup animation-driven flow subscription
+	SetupAnimationEventSubscription();
+
 	HANDLER_LOG(Log, TEXT("Initialized with DataManager=%s, EventBus=%s"),
 		InDataManager ? TEXT("Valid") : TEXT("NULL"),
 		InEventBus ? TEXT("Valid") : TEXT("NULL"));
@@ -816,4 +819,149 @@ void USuspenseCoreMedicalUseHandler::PublishMedicalEvent(
 	}
 
 	EventBus->Publish(EventTag, EventData);
+}
+
+//==================================================================
+// Animation-Driven Flow Support (Tarkov-style)
+//==================================================================
+
+void USuspenseCoreMedicalUseHandler::SetupAnimationEventSubscription()
+{
+	if (!EventBus.IsValid())
+	{
+		HANDLER_LOG(Warning, TEXT("SetupAnimationEventSubscription: No EventBus available"));
+		return;
+	}
+
+	// Subscribe to ApplyEffect event from GA_MedicalUse
+	ApplyEffectSubscriptionHandle = EventBus->Subscribe(
+		SuspenseCoreMedicalTags::Event::TAG_Event_Medical_ApplyEffect,
+		FSuspenseCoreEventCallback::CreateUObject(this, &USuspenseCoreMedicalUseHandler::OnAnimationApplyEffect));
+
+	HANDLER_LOG(Log, TEXT("Subscribed to animation ApplyEffect event"));
+}
+
+void USuspenseCoreMedicalUseHandler::TeardownAnimationEventSubscription()
+{
+	if (EventBus.IsValid() && ApplyEffectSubscriptionHandle.IsValid())
+	{
+		EventBus->Unsubscribe(ApplyEffectSubscriptionHandle);
+		ApplyEffectSubscriptionHandle.Invalidate();
+
+		HANDLER_LOG(Log, TEXT("Unsubscribed from animation ApplyEffect event"));
+	}
+}
+
+void USuspenseCoreMedicalUseHandler::OnAnimationApplyEffect(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	HANDLER_LOG(Log, TEXT("OnAnimationApplyEffect: Received ApplyEffect event from GA_MedicalUse"));
+
+	// Extract medical item ID from event data
+	FName MedicalItemID = NAME_None;
+	if (const FString* ItemIDStr = EventData.StringPayload.Find(TEXT("MedicalItemID")))
+	{
+		MedicalItemID = FName(**ItemIDStr);
+	}
+
+	if (MedicalItemID.IsNone())
+	{
+		HANDLER_LOG(Warning, TEXT("OnAnimationApplyEffect: No MedicalItemID in event data"));
+		return;
+	}
+
+	// Get the actor from event source
+	AActor* OwnerActor = EventData.Source.Get();
+	if (!OwnerActor)
+	{
+		HANDLER_LOG(Warning, TEXT("OnAnimationApplyEffect: No Source actor in event data"));
+		return;
+	}
+
+	HANDLER_LOG(Log, TEXT("OnAnimationApplyEffect: Applying effects for %s to %s"),
+		*MedicalItemID.ToString(), *OwnerActor->GetName());
+
+	// Apply all medical effects
+	ApplyMedicalEffectsFromAnimation(OwnerActor, MedicalItemID);
+}
+
+void USuspenseCoreMedicalUseHandler::ApplyMedicalEffectsFromAnimation(AActor* Actor, FName ItemID)
+{
+	if (!Actor || ItemID.IsNone())
+	{
+		return;
+	}
+
+	// Get medical capabilities for this item
+	bool bCanCureLightBleed = false;
+	bool bCanCureHeavyBleed = false;
+	bool bCanCureFracture = false;
+	float HoTAmount = 0.0f;
+	float HoTDuration = 0.0f;
+
+	GetMedicalCapabilities(
+		ItemID,
+		bCanCureLightBleed,
+		bCanCureHeavyBleed,
+		bCanCureFracture,
+		HoTAmount,
+		HoTDuration);
+
+	// Get instant heal amount from item data
+	float InstantHealAmount = GetHealAmount(ItemID);
+
+	// 1. Apply instant healing
+	if (InstantHealAmount > 0.0f)
+	{
+		bool bHealed = ApplyHealing(Actor, InstantHealAmount);
+		if (bHealed)
+		{
+			HANDLER_LOG(Log, TEXT("Animation flow: Applied %.1f instant healing"), InstantHealAmount);
+		}
+	}
+
+	// 2. Apply HoT if applicable (Medkits, Surgical Kits)
+	if (HoTAmount > 0.0f && HoTDuration > 0.0f)
+	{
+		bool bHoTApplied = ApplyHealOverTime(Actor, HoTAmount, HoTDuration);
+		if (bHoTApplied)
+		{
+			HANDLER_LOG(Log, TEXT("Animation flow: Applied HoT: %.1f/tick for %.1fs"), HoTAmount, HoTDuration);
+		}
+	}
+
+	// 3. Cure bleeding effects
+	if (bCanCureLightBleed || bCanCureHeavyBleed)
+	{
+		int32 BleedsCured = CureBleedingEffect(Actor, bCanCureLightBleed, bCanCureHeavyBleed);
+		if (BleedsCured > 0)
+		{
+			HANDLER_LOG(Log, TEXT("Animation flow: Cured %d bleeding effect(s)"), BleedsCured);
+		}
+	}
+
+	// 4. Cure fractures (Splints, Surgical Kits)
+	if (bCanCureFracture)
+	{
+		int32 FracturesCured = CureFractureEffect(Actor);
+		if (FracturesCured > 0)
+		{
+			HANDLER_LOG(Log, TEXT("Animation flow: Cured %d fracture(s)"), FracturesCured);
+		}
+	}
+
+	// Publish heal applied event
+	if (EventBus.IsValid())
+	{
+		FSuspenseCoreEventData HealEvent;
+		HealEvent.Source = Actor;
+		HealEvent.Timestamp = FPlatformTime::Seconds();
+		HealEvent.StringPayload.Add(TEXT("MedicalItemID"), ItemID.ToString());
+		HealEvent.FloatPayload.Add(TEXT("InstantHeal"), InstantHealAmount);
+		HealEvent.FloatPayload.Add(TEXT("HoTAmount"), HoTAmount);
+		HealEvent.FloatPayload.Add(TEXT("HoTDuration"), HoTDuration);
+		HealEvent.BoolPayload.Add(TEXT("CuredLightBleed"), bCanCureLightBleed);
+		HealEvent.BoolPayload.Add(TEXT("CuredHeavyBleed"), bCanCureHeavyBleed);
+		HealEvent.BoolPayload.Add(TEXT("CuredFracture"), bCanCureFracture);
+		EventBus->Publish(SuspenseCoreMedicalTags::Event::TAG_Event_Medical_HealApplied, HealEvent);
+	}
 }

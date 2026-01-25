@@ -193,7 +193,12 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::Execute(
 		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
 		{
 			ItemTags = ItemData.ItemTags;
-			MedicalTypeTag = ItemData.MedicalType;
+			// Use ItemType as MedicalTypeTag if it's a medical category
+			// e.g., Item.Medical.Medkit, Item.Medical.Bandage
+			if (ItemData.ItemType.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Item.Medical"), false)))
+			{
+				MedicalTypeTag = ItemData.ItemType;
+			}
 		}
 	}
 

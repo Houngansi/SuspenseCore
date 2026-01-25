@@ -50,11 +50,16 @@ UGE_BleedingEffect_Light::UGE_BleedingEffect_Light(const FObjectInitializer& Obj
 	// ═══════════════════════════════════════════════════════════════════
 	// STACKING: Tarkov-style - multiple bleeds stack and multiply damage
 	// 3 light bleeds = 3x damage per tick
+	// NOTE: Stacking API will be made private in future UE versions.
+	//       Epic has not yet provided a component-based alternative.
+	//       @see GE_FlashbangEffect.cpp for consistent project pattern
 	// ═══════════════════════════════════════════════════════════════════
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	StackingType = EGameplayEffectStackingType::AggregateByTarget;
 	StackLimitCount = 5;  // Max 5 stacks of light bleeding
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackPeriodResetPolicy = EGameplayEffectStackingPeriodPolicy::ResetOnSuccessfulApplication;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// ═══════════════════════════════════════════════════════════════════
 	// GRANTED TAGS: State.Health.Bleeding.Light
@@ -133,11 +138,16 @@ UGE_BleedingEffect_Heavy::UGE_BleedingEffect_Heavy(const FObjectInitializer& Obj
 	// ═══════════════════════════════════════════════════════════════════
 	// STACKING: Tarkov-style - multiple heavy bleeds stack and multiply damage
 	// 3 heavy bleeds = 3x damage per tick (very dangerous!)
+	// NOTE: Stacking API will be made private in future UE versions.
+	//       Epic has not yet provided a component-based alternative.
+	//       @see GE_FlashbangEffect.cpp for consistent project pattern
 	// ═══════════════════════════════════════════════════════════════════
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	StackingType = EGameplayEffectStackingType::AggregateByTarget;
 	StackLimitCount = 5;  // Max 5 stacks of heavy bleeding
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackPeriodResetPolicy = EGameplayEffectStackingPeriodPolicy::ResetOnSuccessfulApplication;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// ═══════════════════════════════════════════════════════════════════
 	// GRANTED TAGS: State.Health.Bleeding.Heavy

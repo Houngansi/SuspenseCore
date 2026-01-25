@@ -1894,6 +1894,21 @@ bool USuspenseCoreDataManager::InitializeStatusEffectAttributesSystem()
 
 	UE_LOG(LogSuspenseCoreData, Log, TEXT("StatusEffectAttributes Row Structure: %s"), *RowStruct->GetName());
 
+	// Validate row structure type - must be FSuspenseCoreStatusEffectAttributeRow
+	// If the DataTable uses FSuspenseCoreStatusEffectVisualRow instead, skip this legacy system
+	const FString ExpectedStructName = TEXT("SuspenseCoreStatusEffectAttributeRow");
+	const FString ActualStructName = RowStruct->GetName();
+
+	if (!ActualStructName.Contains(ExpectedStructName))
+	{
+		UE_LOG(LogSuspenseCoreData, Warning,
+			TEXT("StatusEffectAttributesDataTable uses '%s' instead of 'FSuspenseCoreStatusEffectAttributeRow'. ")
+			TEXT("This is expected if using the new v2.0 visual-only system. Skipping legacy attributes cache."),
+			*ActualStructName);
+		// Not an error - the new system uses FSuspenseCoreStatusEffectVisualRow via StatusEffectVisualsDataTable
+		return false;
+	}
+
 	return BuildStatusEffectAttributesCache(LoadedStatusEffectAttributesDataTable);
 }
 

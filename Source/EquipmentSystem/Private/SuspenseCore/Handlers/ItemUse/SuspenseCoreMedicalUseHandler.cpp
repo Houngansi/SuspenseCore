@@ -834,9 +834,11 @@ void USuspenseCoreMedicalUseHandler::SetupAnimationEventSubscription()
 	}
 
 	// Subscribe to ApplyEffect event from GA_MedicalUse
-	ApplyEffectSubscriptionHandle = EventBus->Subscribe(
+	// Use SubscribeNative with FSuspenseCoreNativeEventCallback for C++ handlers
+	ApplyEffectSubscriptionHandle = EventBus->SubscribeNative(
 		SuspenseCoreMedicalTags::Event::TAG_Event_Medical_ApplyEffect,
-		FSuspenseCoreEventCallback::CreateUObject(this, &USuspenseCoreMedicalUseHandler::OnAnimationApplyEffect));
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMedicalUseHandler::OnAnimationApplyEffect));
 
 	HANDLER_LOG(Log, TEXT("Subscribed to animation ApplyEffect event"));
 }
@@ -869,11 +871,12 @@ void USuspenseCoreMedicalUseHandler::OnAnimationApplyEffect(FGameplayTag EventTa
 		return;
 	}
 
-	// Get the actor from event source
-	AActor* OwnerActor = EventData.Source.Get();
+	// Get the actor from event source (Source is TObjectPtr<UObject>, need to Cast)
+	AActor* OwnerActor = Cast<AActor>(EventData.Source.Get());
 	if (!OwnerActor)
 	{
-		HANDLER_LOG(Warning, TEXT("OnAnimationApplyEffect: No Source actor in event data"));
+		HANDLER_LOG(Warning, TEXT("OnAnimationApplyEffect: No Source actor in event data (Source=%s)"),
+			EventData.Source.Get() ? *EventData.Source->GetName() : TEXT("NULL"));
 		return;
 	}
 

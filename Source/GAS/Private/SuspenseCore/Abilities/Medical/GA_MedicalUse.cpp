@@ -9,7 +9,6 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
-#include "SuspenseCore/Handlers/ItemUse/SuspenseCoreMedicalUseHandler.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
@@ -679,12 +678,6 @@ void UGA_MedicalUse::BroadcastMedicalEvent(FGameplayTag EventTag)
 	}
 }
 
-USuspenseCoreMedicalUseHandler* UGA_MedicalUse::GetMedicalUseHandler() const
-{
-	// MedicalUseHandler is typically accessed via ServiceProvider
-	// For now, rely on EventBus for communication
-	return nullptr;
-}
 
 void UGA_MedicalUse::CancelEquipAbility()
 {

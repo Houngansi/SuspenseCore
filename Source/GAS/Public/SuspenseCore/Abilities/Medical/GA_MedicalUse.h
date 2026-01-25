@@ -41,7 +41,6 @@
 
 // Forward declarations
 class UAnimMontage;
-class USuspenseCoreMedicalUseHandler;
 class UGameplayEffect;
 class USoundBase;
 
@@ -274,9 +273,6 @@ private:
 
 	/** Broadcast medical events via EventBus */
 	void BroadcastMedicalEvent(FGameplayTag EventTag);
-
-	/** Get MedicalUseHandler from ServiceProvider */
-	USuspenseCoreMedicalUseHandler* GetMedicalUseHandler() const;
 
 	/** Cancel GA_MedicalEquip ability after use completes */
 	void CancelEquipAbility();

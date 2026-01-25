@@ -493,6 +493,132 @@ void UMyClass::BroadcastMyEvent(const FString& Param)
 
 ---
 
+## Common Pitfalls & Solutions
+
+### EventBus Subscription Errors
+
+#### Problem: `CreateUObject is not a member of FSuspenseCoreEventCallback`
+
+**Cause:** Using the wrong delegate type for C++ subscription.
+
+| Delegate Type | Use Case | Method |
+|--------------|----------|--------|
+| `FSuspenseCoreEventCallback` | Blueprint/Dynamic | `BindDynamic()` |
+| `FSuspenseCoreNativeEventCallback` | C++ Native | `CreateUObject()` |
+
+**Wrong:**
+```cpp
+// ERROR: FSuspenseCoreEventCallback is a DYNAMIC_DELEGATE - no CreateUObject
+EventBus->Subscribe(
+    Tag,
+    FSuspenseCoreEventCallback::CreateUObject(this, &UMyClass::OnEvent));
+```
+
+**Correct:**
+```cpp
+// Use SubscribeNative with FSuspenseCoreNativeEventCallback
+EventBus->SubscribeNative(
+    Tag,
+    this,  // Subscriber object for weak reference
+    FSuspenseCoreNativeEventCallback::CreateUObject(this, &UMyClass::OnEvent));
+```
+
+---
+
+### EventData Type Casting
+
+#### Problem: `Cannot convert UObject* to AActor*`
+
+**Cause:** `FSuspenseCoreEventData::Source` is `TObjectPtr<UObject>`, not `AActor*`.
+
+**Wrong:**
+```cpp
+AActor* Actor = EventData.Source.Get();  // ERROR: UObject* to AActor*
+```
+
+**Correct:**
+```cpp
+AActor* Actor = Cast<AActor>(EventData.Source.Get());
+if (!Actor) { /* Handle null */ }
+```
+
+---
+
+### Cross-Module Include Errors
+
+#### Problem: `No such file or directory` for headers in other modules
+
+**Cause:** Including headers from other modules using wrong path or without module dependency.
+
+**Rules:**
+1. GAS module should NOT include EquipmentSystem headers directly
+2. Use EventBus for cross-module communication
+3. If include needed, add module dependency in `.Build.cs`
+
+**Wrong (GAS → EquipmentSystem):**
+```cpp
+// In GAS module - ERROR: Can't include EquipmentSystem headers
+#include "SuspenseCore/Handlers/ItemUse/SuspenseCoreMedicalUseHandler.h"
+```
+
+**Correct:**
+```cpp
+// Use EventBus for communication instead of direct include
+// MedicalUseHandler subscribes to events, GA_MedicalUse publishes them
+EventBus->Publish(SuspenseCoreMedicalTags::Event::TAG_Event_Medical_ApplyEffect, EventData);
+```
+
+---
+
+### GameplayTag Deprecation Warnings
+
+#### Problem: `C4996 StackingType deprecated` warnings
+
+**Cause:** Epic deprecated some GAS properties but hasn't provided alternatives yet.
+
+**Solution:** Use pragma to suppress:
+```cpp
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+StackingType = EGameplayEffectStackingType::AggregateByTarget;
+StackLimitCount = 5;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+```
+
+---
+
+### Modern UE5 GAS Components
+
+#### Problem: `InheritableOwnedTagsContainer deprecated`
+
+**Solution:** Use `UTargetTagsGameplayEffectComponent`:
+```cpp
+// In GameplayEffect constructor
+UTargetTagsGameplayEffectComponent* TargetTagsComponent =
+    CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("TargetTags"));
+
+FInheritedTagContainer& TagContainer = TargetTagsComponent->GetConfiguredTargetTagChanges();
+TagContainer.Added.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
+
+GEComponents.Add(TargetTagsComponent);
+```
+
+---
+
+### Native Tags vs RequestGameplayTag
+
+#### Problem: Tag not found at runtime / inconsistent tag usage
+
+**Solution:** Always use native tags from `SuspenseCore*NativeTags.h`:
+```cpp
+// Wrong - runtime string lookup, prone to typos
+FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("State.Health.Bleeding.Light"));
+
+// Correct - compile-time checked, cached
+FGameplayTag Tag = SuspenseCoreTags::State::Health::BleedingLight;
+```
+
+---
+
 ## Contact
 
 For questions about architecture decisions, contact the Tech Lead or reference this document.

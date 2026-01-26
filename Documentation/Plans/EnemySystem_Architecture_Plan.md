@@ -1,28 +1,31 @@
 # EnemySystem Architecture Plan
 
-> **Version:** 1.0
+> **Version:** 2.0
 > **Author:** Claude (Technical Lead)
 > **Date:** 2026-01-26
 > **Target:** Unreal Engine 5.7 | AAA MMO FPS (Tarkov-Style)
 > **Status:** PLANNING
+> **Legacy Reference:** `DisabledModules/LegasyEnemyCoreSystem/`
 
 ---
 
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
-2. [Architecture Overview](#architecture-overview)
-3. [Module Structure](#module-structure)
-4. [FSM State Machine Design](#fsm-state-machine-design)
-5. [StateTree Integration (UE 5.7)](#statetree-integration-ue-57)
-6. [Class Hierarchy](#class-hierarchy)
-7. [SSOT Data Architecture](#ssot-data-architecture)
-8. [GAS Integration](#gas-integration)
-9. [EventBus Communication](#eventbus-communication)
-10. [Perception System](#perception-system)
-11. [Implementation Phases](#implementation-phases)
-12. [File Structure](#file-structure)
-13. [Code Templates](#code-templates)
+2. [Legacy System Analysis](#legacy-system-analysis)
+3. [Architecture Overview](#architecture-overview)
+4. [Module Structure](#module-structure)
+5. [FSM State Machine Design](#fsm-state-machine-design)
+6. [StateTree Integration (UE 5.7)](#statetree-integration-ue-57)
+7. [Class Hierarchy](#class-hierarchy)
+8. [SSOT Data Architecture](#ssot-data-architecture)
+9. [GAS Integration](#gas-integration)
+10. [EventBus Communication](#eventbus-communication)
+11. [Perception System](#perception-system)
+12. [Implementation Phases](#implementation-phases)
+13. [File Structure](#file-structure)
+14. [Code Templates](#code-templates)
+15. [Migration Guide](#migration-guide)
 
 ---
 
@@ -48,6 +51,156 @@
 | **Threat Assessment** | Приоритизация целей по угрозе |
 | **Scav/PMC Types** | Разные типы AI с различным поведением |
 | **Boss AI** | Продвинутые паттерны для боссов |
+
+---
+
+## Legacy System Analysis
+
+> **Source:** `DisabledModules/LegasyEnemyCoreSystem/` (10,732 строки кода)
+
+### Изученные файлы
+
+| Категория | Файлы | Строк |
+|-----------|-------|-------|
+| **FSM Core** | MedComEnemyFSMComponent, MedComEnemyState, EnemyBehaviorDataAsset | ~1,800 |
+| **States** | IdleState, PatrolState, ChaseState, AttackState, ReturnState, DeathState | ~2,100 |
+| **Character** | MedComEnemyCharacter | ~1,160 |
+| **Components** | WeaponHandler, AIMovement, Combat, AbilityInitializer | ~1,600 |
+| **Services** | CrowdManagerSubsystem, NPCSignificanceManager | ~600 |
+| **AI Helpers** | DetectionHelper, AsyncTaskRepositionCalculation | ~800 |
+
+### Архитектура Legacy FSM
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      LEGACY: MedComEnemyFSMComponent                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Event Queue (TQueue<FPendingFSMEvent>)                                     │
+│      │                                                                       │
+│      ▼                                                                       │
+│  ProcessFSMEvent() ──► TransitionMap [O(1) lookup]                          │
+│      │                      │                                                │
+│      │                      ▼                                                │
+│      │              TMap<FName, TMap<EEnemyEvent, FName>>                    │
+│      │                                                                       │
+│      ▼                                                                       │
+│  PerformStateChange()                                                       │
+│      │                                                                       │
+│      ├── CurrentState->OnExit()                                             │
+│      ├── NewState->OnEnter()                                                │
+│      └── Update StateTimers                                                 │
+│                                                                              │
+│  MasterTick() ──► CurrentState->ProcessTick()                               │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Ключевые паттерны Legacy
+
+#### 1. Event-Driven FSM (СОХРАНИТЬ ✓)
+
+```cpp
+// Legacy: EEnemyEvent enum
+enum class EEnemyEvent : uint8
+{
+    None, PlayerSeen, PlayerLost, TookDamage, ReachedTarget,
+    TargetOutOfRange, AmmoEmpty, ReloadComplete, PatrolComplete,
+    IdleTimeout, SearchTimeout, ReturnComplete, Dead
+};
+
+// NEW: Заменить на GameplayTags
+namespace SuspenseCoreEnemyTags::Event::FSM
+{
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(PlayerSeen);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(PlayerLost);
+    UE_DECLARE_GAMEPLAY_TAG_EXTERN(TookDamage);
+    // ...
+}
+```
+
+#### 2. DataAsset Configuration (СОХРАНИТЬ ✓)
+
+```cpp
+// Legacy: UEnemyBehaviorDataAsset
+UPROPERTY() FName InitialState;
+UPROPERTY() TArray<FStateDescription> States;
+UPROPERTY() float IdleTime, PatrolSpeed, ChaseSpeed, AttackRange...
+
+// NEW: USuspenseCoreEnemyBehaviorData
+// Тот же подход, но с SuspenseCore naming
+```
+
+#### 3. LOD System (СОХРАНИТЬ ✓)
+
+```cpp
+// Legacy: EAIDetailLevel
+enum class EAIDetailLevel : uint8
+{
+    Full,     // До 5000 юнитов
+    Reduced,  // 5000-12000 юнитов
+    Minimal,  // 12000-20000 юнитов
+    Sleep     // Свыше 20000 юнитов
+};
+
+// NEW: Интегрировать с SignificanceManager
+```
+
+#### 4. State Base Class (СОХРАНИТЬ ✓)
+
+```cpp
+// Legacy: UMedComEnemyState
+virtual void OnEnter(AMedComEnemyCharacter* Owner);
+virtual void OnExit(AMedComEnemyCharacter* Owner);
+virtual void OnEvent(AMedComEnemyCharacter* Owner, EEnemyEvent Event, AActor* Instigator);
+virtual void OnTimerFired(AMedComEnemyCharacter* Owner, FName TimerName);
+virtual void ProcessTick(AMedComEnemyCharacter* Owner, float DeltaTime);
+
+// NEW: USuspenseCoreEnemyState - тот же интерфейс
+```
+
+### Что улучшить
+
+| Legacy | New | Причина |
+|--------|-----|---------|
+| `MedCom` prefix | `SuspenseCore` prefix | Соответствие naming conventions |
+| ASC на Character | ASC на EnemyState | Паттерн PlayerCore (replication) |
+| Прямые вызовы | EventBus | Decoupling между системами |
+| `EEnemyEvent` enum | Native GameplayTags | Extensibility, runtime flexibility |
+| BehaviorTree ready | StateTree native | UE 5.7 best practices |
+| Manual perception | AIPerception component | Unreal native, optimized |
+
+### Legacy States → New States Mapping
+
+| Legacy State | New State | Изменения |
+|--------------|-----------|-----------|
+| `UMedComIdleState` | `USuspenseCoreEnemyIdleState` | + EventBus integration |
+| `UMedComPatrolState` | `USuspenseCoreEnemyPatrolState` | + Smart patrol points |
+| `UMedComChaseState` | `USuspenseCoreEnemyChaseState` | + Prediction |
+| `UMedComAttackState` | `USuspenseCoreEnemyAttackState` | + GAS abilities |
+| `UMedComReturnState` | `USuspenseCoreEnemyReturnState` | + Alert memory |
+| `UMedComDeathState` | `USuspenseCoreEnemyDeathState` | + Loot spawn |
+
+### Legacy Components → New Components
+
+| Legacy Component | New Component | Изменения |
+|------------------|---------------|-----------|
+| `UMedComEnemyFSMComponent` | `USuspenseCoreEnemyFSMComponent` | + StateTree bridge |
+| `UMedComWeaponHandlerComponent` | `USuspenseCoreEnemyWeaponComponent` | + Existing EquipmentSystem |
+| `UMedComAIMovementComponent` | `USuspenseCoreEnemyMovementComponent` | + NavMesh optimizations |
+| `UMedComCombatComponent` | `USuspenseCoreEnemyCombatComponent` | + Tactical behaviors |
+| N/A | `USuspenseCoreEnemyPerceptionComponent` | NEW: Wrap AIPerception |
+| N/A | `USuspenseCoreEnemySquadComponent` | NEW: Group coordination |
+
+### Код для переиспользования
+
+Следующий код из legacy системы можно адаптировать напрямую:
+
+1. **TransitionMap builder** (`MedComEnemyFSMComponent::BuildTransitionMap`)
+2. **Patrol point generation** (`MedComPatrolState::GeneratePatrolPoints`)
+3. **LOD management** (`MedComEnemyCharacter::ApplyDetailLevelSettings`)
+4. **Fire mode selection** (`MedComWeaponHandlerComponent::SelectAppropriateFireMode`)
+5. **Async reposition calculation** (`MedComAsyncTaskRepositionCalculation`)
 
 ---
 
@@ -1377,6 +1530,176 @@ namespace SuspenseCoreEnemyTags
         }
     }
 }
+```
+
+---
+
+## Migration Guide
+
+### From Legacy MedComEnemyCore to SuspenseCoreEnemySystem
+
+#### Step 1: Rename Classes
+
+```bash
+# Class renaming pattern
+MedComEnemyCharacter     → ASuspenseCoreEnemy
+MedComEnemyFSMComponent  → USuspenseCoreEnemyFSMComponent
+MedComEnemyState         → USuspenseCoreEnemyState
+MedComIdleState          → USuspenseCoreEnemyIdleState
+MedComPatrolState        → USuspenseCoreEnemyPatrolState
+MedComChaseState         → USuspenseCoreEnemyChaseState
+MedComAttackState        → USuspenseCoreEnemyAttackState
+MedComReturnState        → USuspenseCoreEnemyReturnState
+MedComDeathState         → USuspenseCoreEnemyDeathState
+MedComWeaponHandlerComponent → USuspenseCoreEnemyWeaponComponent
+MedComAIMovementComponent → USuspenseCoreEnemyMovementComponent
+EnemyBehaviorDataAsset   → USuspenseCoreEnemyBehaviorData
+```
+
+#### Step 2: Replace EEnemyEvent with GameplayTags
+
+```cpp
+// OLD (Legacy)
+enum class EEnemyEvent : uint8
+{
+    PlayerSeen,
+    PlayerLost,
+    TookDamage,
+    // ...
+};
+
+void ProcessFSMEvent(EEnemyEvent Event, AActor* Instigator);
+
+// NEW (SuspenseCore)
+// In SuspenseCoreEnemyNativeTags.h
+namespace SuspenseCoreEnemyTags::Event::FSM
+{
+    ENEMYSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PlayerSeen);
+    ENEMYSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PlayerLost);
+    ENEMYSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TookDamage);
+    // ...
+}
+
+void ProcessFSMEvent(const FGameplayTag& EventTag, AActor* Instigator);
+```
+
+#### Step 3: Move ASC to EnemyState
+
+```cpp
+// OLD (Legacy): ASC on Character
+class AMedComEnemyCharacter : public ACharacter, public IAbilitySystemInterface
+{
+protected:
+    UPROPERTY()
+    UAbilitySystemComponent* AbilitySystemComponent;  // ← Here
+};
+
+// NEW (SuspenseCore): ASC on EnemyState
+class ASuspenseCoreEnemy : public ACharacter, public IAbilitySystemInterface
+{
+    virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override
+    {
+        return EnemyState ? EnemyState->GetAbilitySystemComponent() : nullptr;
+    }
+protected:
+    UPROPERTY()
+    ASuspenseCoreEnemyState* EnemyState;  // ASC lives here
+};
+
+class ASuspenseCoreEnemyState : public APlayerState, public IAbilitySystemInterface
+{
+protected:
+    UPROPERTY()
+    USuspenseCoreAbilitySystemComponent* AbilitySystemComponent;  // ← Now here
+};
+```
+
+#### Step 4: Integrate EventBus
+
+```cpp
+// OLD (Legacy): Direct method calls
+void UMedComEnemyFSMComponent::ProcessFSMEvent(EEnemyEvent Event, AActor* Instigator)
+{
+    // Direct state change
+    ChangeState(NewState);
+}
+
+// NEW (SuspenseCore): EventBus integration
+void USuspenseCoreEnemyFSMComponent::ProcessFSMEvent(const FGameplayTag& EventTag, AActor* Instigator)
+{
+    // Publish to EventBus for cross-system communication
+    if (USuspenseCoreEventBus* EventBus = USuspenseCoreHelpers::GetEventBus(this))
+    {
+        FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(GetOwner());
+        Data.SetObject(TEXT("Instigator"), Instigator);
+        EventBus->Publish(EventTag, Data);
+    }
+
+    // Then perform local state change
+    ChangeState(NewState);
+}
+```
+
+#### Step 5: Add StateTree Bridge
+
+```cpp
+// NEW: FSM component with StateTree support
+class USuspenseCoreEnemyFSMComponent : public UActorComponent
+{
+public:
+    // Legacy FSM support
+    void ProcessFSMEvent(const FGameplayTag& EventTag, AActor* Instigator);
+    void ChangeState(TSubclassOf<USuspenseCoreEnemyState> NewStateClass);
+
+    // NEW: StateTree bridge
+    UFUNCTION(BlueprintCallable, Category = "AI|FSM")
+    void SyncWithStateTree(UStateTreeComponent* StateTreeComponent);
+
+    // Blackboard sync
+    void UpdateBlackboardFromFSM(UBlackboardComponent* Blackboard);
+    void UpdateFSMFromBlackboard(UBlackboardComponent* Blackboard);
+};
+```
+
+### Migration Checklist
+
+- [ ] Create EnemySystem module with Build.cs
+- [ ] Define native GameplayTags in SuspenseCoreEnemyNativeTags.h
+- [ ] Create ASuspenseCoreEnemy (Character)
+- [ ] Create ASuspenseCoreEnemyState (with ASC)
+- [ ] Create ASuspenseCoreEnemyAIController
+- [ ] Create USuspenseCoreEnemyFSMComponent
+- [ ] Migrate states with SuspenseCore naming
+- [ ] Create USuspenseCoreEnemyBehaviorData (DataAsset)
+- [ ] Add EventBus integration
+- [ ] Create StateTree tasks and conditions
+- [ ] Test all state transitions
+- [ ] Performance testing with LOD system
+
+### Legacy Code Reference
+
+Оригинальный код доступен для справки:
+
+```
+DisabledModules/LegasyEnemyCoreSystem/
+├── public/Enemy/
+│   ├── MedComEnemyCharacter.h
+│   ├── FSM/
+│   │   ├── MedComEnemyFSMComponent.h
+│   │   ├── MedComEnemyState.h
+│   │   ├── EnemyBehaviorDataAsset.h
+│   │   └── States/
+│   │       ├── MedComIdleState.h
+│   │       ├── MedComPatrolState.h
+│   │       ├── MedComChaseState.h
+│   │       ├── MedComAttackState.h
+│   │       ├── MedComReturnState.h
+│   │       └── MedComDeathState.h
+│   └── Components/
+│       ├── MedComWeaponHandlerComponent.h
+│       └── MedComAIMovementComponent.h
+└── private/Enemy/
+    └── [Implementation files]
 ```
 
 ---

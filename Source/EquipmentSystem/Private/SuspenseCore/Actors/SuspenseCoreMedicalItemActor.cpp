@@ -6,6 +6,8 @@
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimationAsset.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMedicalItemActor, Log, All);
 
@@ -20,23 +22,28 @@ ASuspenseCoreMedicalItemActor::ASuspenseCoreMedicalItemActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Create mesh component
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
-	SetRootComponent(MeshComponent);
+	// Create static mesh component (for simple items like bandages)
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	SetRootComponent(StaticMeshComponent);
 
-	// Configure for visual-only use
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	MeshComponent->SetSimulatePhysics(false);
-	MeshComponent->SetGenerateOverlapEvents(false);
-	MeshComponent->CastShadow = true;
+	// Configure static mesh for visual-only use
+	StaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	StaticMeshComponent->SetSimulatePhysics(false);
+	StaticMeshComponent->SetGenerateOverlapEvents(false);
+	StaticMeshComponent->CastShadow = true;
 
-	// Default transform offsets (can be overridden in Blueprint)
-	BandageOffset = FTransform::Identity;
-	MedkitOffset = FTransform::Identity;
-	InjectorOffset = FTransform::Identity;
-	SplintOffset = FTransform::Identity;
-	SurgicalOffset = FTransform::Identity;
-	PillsOffset = FTransform::Identity;
+	// Create skeletal mesh component (for animated items like syringes)
+	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMeshComponent"));
+	SkeletalMeshComponent->SetupAttachment(StaticMeshComponent);
+
+	// Configure skeletal mesh for visual-only use
+	SkeletalMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SkeletalMeshComponent->SetSimulatePhysics(false);
+	SkeletalMeshComponent->SetGenerateOverlapEvents(false);
+	SkeletalMeshComponent->CastShadow = true;
+
+	// Default: static mesh visible, skeletal hidden
+	ActiveMeshType = ESuspenseCoreMedicalMeshType::StaticMesh;
 }
 
 //==================================================================
@@ -47,7 +54,12 @@ void ASuspenseCoreMedicalItemActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	MEDICAL_ACTOR_LOG(Log, TEXT("BeginPlay: Type=%d"), static_cast<int32>(VisualType));
+	// Initial visibility update
+	UpdateComponentVisibility();
+
+	MEDICAL_ACTOR_LOG(Log, TEXT("BeginPlay: Type=%d, MeshType=%d"),
+		static_cast<int32>(VisualType),
+		static_cast<int32>(ActiveMeshType));
 }
 
 //==================================================================
@@ -61,8 +73,9 @@ void ASuspenseCoreMedicalItemActor::InitializeFromItemID(FName ItemID, USuspense
 
 	if (!InDataManager)
 	{
-		MEDICAL_ACTOR_LOG(Warning, TEXT("InitializeFromItemID: No DataManager, using default mesh"));
-		SetMesh(GetMeshForType(ESuspenseCoreMedicalVisualType::Generic));
+		MEDICAL_ACTOR_LOG(Warning, TEXT("InitializeFromItemID: No DataManager, using generic config"));
+		VisualType = ESuspenseCoreMedicalVisualType::Generic;
+		ApplyConfig(GenericConfig);
 		return;
 	}
 
@@ -73,22 +86,20 @@ void ASuspenseCoreMedicalItemActor::InitializeFromItemID(FName ItemID, USuspense
 		// Determine visual type from item tags
 		VisualType = DetermineVisualType(ItemData.ItemTags);
 
-		// Try to load item-specific mesh from SSOT
-		// TODO: Add MeshPath to FSuspenseCoreUnifiedItemData for custom meshes
-		// For now, use default mesh for type
-		UStaticMesh* TypeMesh = GetMeshForType(VisualType);
-		SetMesh(TypeMesh);
+		// Get and apply config for this type
+		const FSuspenseCoreMedicalVisualConfig& Config = GetConfigForType(VisualType);
+		ApplyConfig(Config);
 
-		MEDICAL_ACTOR_LOG(Log, TEXT("InitializeFromItemID: %s -> Type=%d, Mesh=%s"),
+		MEDICAL_ACTOR_LOG(Log, TEXT("InitializeFromItemID: %s -> Type=%d, MeshType=%d"),
 			*ItemID.ToString(),
 			static_cast<int32>(VisualType),
-			TypeMesh ? *TypeMesh->GetName() : TEXT("None"));
+			static_cast<int32>(ActiveMeshType));
 	}
 	else
 	{
 		MEDICAL_ACTOR_LOG(Warning, TEXT("InitializeFromItemID: Item %s not found in SSOT"), *ItemID.ToString());
 		VisualType = ESuspenseCoreMedicalVisualType::Generic;
-		SetMesh(GetMeshForType(VisualType));
+		ApplyConfig(GenericConfig);
 	}
 }
 
@@ -127,18 +138,53 @@ void ASuspenseCoreMedicalItemActor::InitializeFromTypeTag(FGameplayTag MedicalTy
 		VisualType = ESuspenseCoreMedicalVisualType::Generic;
 	}
 
-	SetMesh(GetMeshForType(VisualType));
+	const FSuspenseCoreMedicalVisualConfig& Config = GetConfigForType(VisualType);
+	ApplyConfig(Config);
 
-	MEDICAL_ACTOR_LOG(Log, TEXT("InitializeFromTypeTag: %s -> Type=%d"),
-		*MedicalTypeTag.ToString(), static_cast<int32>(VisualType));
+	MEDICAL_ACTOR_LOG(Log, TEXT("InitializeFromTypeTag: %s -> Type=%d, MeshType=%d"),
+		*MedicalTypeTag.ToString(),
+		static_cast<int32>(VisualType),
+		static_cast<int32>(ActiveMeshType));
 }
 
-void ASuspenseCoreMedicalItemActor::SetMesh(UStaticMesh* NewMesh)
+void ASuspenseCoreMedicalItemActor::SetStaticMesh(UStaticMesh* NewMesh)
 {
-	if (MeshComponent && NewMesh)
+	if (!StaticMeshComponent)
 	{
-		MeshComponent->SetStaticMesh(NewMesh);
-		MEDICAL_ACTOR_LOG(Verbose, TEXT("SetMesh: %s"), *NewMesh->GetName());
+		return;
+	}
+
+	if (NewMesh)
+	{
+		StaticMeshComponent->SetStaticMesh(NewMesh);
+		ActiveMeshType = ESuspenseCoreMedicalMeshType::StaticMesh;
+		UpdateComponentVisibility();
+		MEDICAL_ACTOR_LOG(Verbose, TEXT("SetStaticMesh: %s"), *NewMesh->GetName());
+	}
+}
+
+void ASuspenseCoreMedicalItemActor::SetSkeletalMesh(USkeletalMesh* NewMesh, UAnimationAsset* OptionalAnim)
+{
+	if (!SkeletalMeshComponent)
+	{
+		return;
+	}
+
+	if (NewMesh)
+	{
+		SkeletalMeshComponent->SetSkeletalMesh(NewMesh);
+		ActiveMeshType = ESuspenseCoreMedicalMeshType::SkeletalMesh;
+		UpdateComponentVisibility();
+
+		// Play optional animation
+		if (OptionalAnim)
+		{
+			PlayAnimation(OptionalAnim, true);
+		}
+
+		MEDICAL_ACTOR_LOG(Verbose, TEXT("SetSkeletalMesh: %s, Anim=%s"),
+			*NewMesh->GetName(),
+			OptionalAnim ? *OptionalAnim->GetName() : TEXT("None"));
 	}
 }
 
@@ -148,23 +194,7 @@ void ASuspenseCoreMedicalItemActor::SetMesh(UStaticMesh* NewMesh)
 
 FTransform ASuspenseCoreMedicalItemActor::GetAttachOffset() const
 {
-	switch (VisualType)
-	{
-		case ESuspenseCoreMedicalVisualType::Bandage:
-			return BandageOffset;
-		case ESuspenseCoreMedicalVisualType::Medkit:
-			return MedkitOffset;
-		case ESuspenseCoreMedicalVisualType::Injector:
-			return InjectorOffset;
-		case ESuspenseCoreMedicalVisualType::Splint:
-			return SplintOffset;
-		case ESuspenseCoreMedicalVisualType::Surgical:
-			return SurgicalOffset;
-		case ESuspenseCoreMedicalVisualType::Pills:
-			return PillsOffset;
-		default:
-			return FTransform::Identity;
-	}
+	return CurrentConfig.AttachOffset;
 }
 
 //==================================================================
@@ -178,11 +208,47 @@ void ASuspenseCoreMedicalItemActor::SetVisibility(bool bVisible)
 	MEDICAL_ACTOR_LOG(Verbose, TEXT("SetVisibility: %s"), bVisible ? TEXT("Visible") : TEXT("Hidden"));
 }
 
+void ASuspenseCoreMedicalItemActor::PlayAnimation(UAnimationAsset* Animation, bool bLooping)
+{
+	if (!SkeletalMeshComponent || !Animation)
+	{
+		return;
+	}
+
+	if (ActiveMeshType != ESuspenseCoreMedicalMeshType::SkeletalMesh)
+	{
+		MEDICAL_ACTOR_LOG(Warning, TEXT("PlayAnimation: Not using skeletal mesh"));
+		return;
+	}
+
+	SkeletalMeshComponent->PlayAnimation(Animation, bLooping);
+
+	MEDICAL_ACTOR_LOG(Verbose, TEXT("PlayAnimation: %s, Looping=%d"),
+		*Animation->GetName(), bLooping ? 1 : 0);
+}
+
+void ASuspenseCoreMedicalItemActor::StopAnimation()
+{
+	if (!SkeletalMeshComponent)
+	{
+		return;
+	}
+
+	SkeletalMeshComponent->Stop();
+
+	MEDICAL_ACTOR_LOG(Verbose, TEXT("StopAnimation"));
+}
+
 void ASuspenseCoreMedicalItemActor::ResetForPool()
 {
 	// Reset state for reuse
 	MedicalItemID = NAME_None;
 	VisualType = ESuspenseCoreMedicalVisualType::Generic;
+	ActiveMeshType = ESuspenseCoreMedicalMeshType::StaticMesh;
+	CurrentConfig = FSuspenseCoreMedicalVisualConfig();
+
+	// Stop any animations
+	StopAnimation();
 
 	// Detach from any parent
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
@@ -193,6 +259,9 @@ void ASuspenseCoreMedicalItemActor::ResetForPool()
 
 	// Reset transform
 	SetActorTransform(FTransform::Identity);
+
+	// Reset visibility
+	UpdateComponentVisibility();
 
 	MEDICAL_ACTOR_LOG(Log, TEXT("ResetForPool: Ready for reuse"));
 }
@@ -235,24 +304,80 @@ ESuspenseCoreMedicalVisualType ASuspenseCoreMedicalItemActor::DetermineVisualTyp
 	return ESuspenseCoreMedicalVisualType::Generic;
 }
 
-UStaticMesh* ASuspenseCoreMedicalItemActor::GetMeshForType(ESuspenseCoreMedicalVisualType Type) const
+const FSuspenseCoreMedicalVisualConfig& ASuspenseCoreMedicalItemActor::GetConfigForType(
+	ESuspenseCoreMedicalVisualType Type) const
 {
 	switch (Type)
 	{
 		case ESuspenseCoreMedicalVisualType::Bandage:
-			return BandageMesh ? BandageMesh.Get() : GenericMesh.Get();
+			return BandageConfig;
 		case ESuspenseCoreMedicalVisualType::Medkit:
-			return MedkitMesh ? MedkitMesh.Get() : GenericMesh.Get();
+			return MedkitConfig;
 		case ESuspenseCoreMedicalVisualType::Injector:
-			return InjectorMesh ? InjectorMesh.Get() : GenericMesh.Get();
+			return InjectorConfig;
 		case ESuspenseCoreMedicalVisualType::Splint:
-			return SplintMesh ? SplintMesh.Get() : GenericMesh.Get();
+			return SplintConfig;
 		case ESuspenseCoreMedicalVisualType::Surgical:
-			return SurgicalMesh ? SurgicalMesh.Get() : GenericMesh.Get();
+			return SurgicalConfig;
 		case ESuspenseCoreMedicalVisualType::Pills:
-			return PillsMesh ? PillsMesh.Get() : GenericMesh.Get();
+			return PillsConfig;
 		default:
-			return GenericMesh.Get();
+			return GenericConfig;
+	}
+}
+
+void ASuspenseCoreMedicalItemActor::ApplyConfig(const FSuspenseCoreMedicalVisualConfig& Config)
+{
+	CurrentConfig = Config;
+	ActiveMeshType = Config.MeshType;
+
+	if (Config.MeshType == ESuspenseCoreMedicalMeshType::StaticMesh)
+	{
+		// Use static mesh
+		if (StaticMeshComponent && Config.StaticMesh)
+		{
+			StaticMeshComponent->SetStaticMesh(Config.StaticMesh);
+		}
+	}
+	else // SkeletalMesh
+	{
+		// Use skeletal mesh
+		if (SkeletalMeshComponent && Config.SkeletalMesh)
+		{
+			SkeletalMeshComponent->SetSkeletalMesh(Config.SkeletalMesh);
+
+			// Play idle animation if specified
+			if (Config.IdleAnimation)
+			{
+				SkeletalMeshComponent->PlayAnimation(Config.IdleAnimation, true);
+			}
+		}
+	}
+
+	UpdateComponentVisibility();
+
+	MEDICAL_ACTOR_LOG(Log, TEXT("ApplyConfig: MeshType=%d, HasStaticMesh=%d, HasSkeletalMesh=%d"),
+		static_cast<int32>(Config.MeshType),
+		Config.StaticMesh != nullptr ? 1 : 0,
+		Config.SkeletalMesh != nullptr ? 1 : 0);
+}
+
+void ASuspenseCoreMedicalItemActor::UpdateComponentVisibility()
+{
+	if (!StaticMeshComponent || !SkeletalMeshComponent)
+	{
+		return;
+	}
+
+	if (ActiveMeshType == ESuspenseCoreMedicalMeshType::StaticMesh)
+	{
+		StaticMeshComponent->SetVisibility(true);
+		SkeletalMeshComponent->SetVisibility(false);
+	}
+	else // SkeletalMesh
+	{
+		StaticMeshComponent->SetVisibility(false);
+		SkeletalMeshComponent->SetVisibility(true);
 	}
 }
 

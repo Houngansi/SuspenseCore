@@ -688,9 +688,20 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 
 		TotalRemoved += Removed;
 
-		// NOTE: DoT.Removed event is published automatically by DoTService via ASC delegate
-		// (OnAnyGameplayEffectRemovedDelegate -> OnActiveGameplayEffectRemovedWithASC)
-		// No need to manually publish here - doing so would cause duplicate events!
+		// CRITICAL: Manually publish DoT.Removed event for UI update
+		// ASC delegate OnAnyGameplayEffectRemovedDelegate does NOT fire when effects are removed
+		// via RemoveActiveEffectsWithGrantedTags (UE5 GAS limitation).
+		// DoTService tracks via delegates, but we must notify EventBus manually here.
+		if (Removed > 0 && EventBus.IsValid())
+		{
+			FSuspenseCoreEventData DoTRemovedEvent;
+			DoTRemovedEvent.Source = Actor;
+			DoTRemovedEvent.Timestamp = FPlatformTime::Seconds();
+			DoTRemovedEvent.Tags.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
+			DoTRemovedEvent.StringPayload.Add(TEXT("DoTType"), TEXT("State.Health.Bleeding.Light"));
+			EventBus->Publish(SuspenseCoreTags::Event::DoT::Removed, DoTRemovedEvent);
+			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Published DoT.Removed for Light bleeding"));
+		}
 
 		HANDLER_LOG(Log, TEXT("CureBleedingEffect: Light bleed - removed %d effect(s)"), Removed);
 	}
@@ -715,9 +726,20 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 
 		TotalRemoved += Removed;
 
-		// NOTE: DoT.Removed event is published automatically by DoTService via ASC delegate
-		// (OnAnyGameplayEffectRemovedDelegate -> OnActiveGameplayEffectRemovedWithASC)
-		// No need to manually publish here - doing so would cause duplicate events!
+		// CRITICAL: Manually publish DoT.Removed event for UI update
+		// ASC delegate OnAnyGameplayEffectRemovedDelegate does NOT fire when effects are removed
+		// via RemoveActiveEffectsWithGrantedTags (UE5 GAS limitation).
+		// DoTService tracks via delegates, but we must notify EventBus manually here.
+		if (Removed > 0 && EventBus.IsValid())
+		{
+			FSuspenseCoreEventData DoTRemovedEvent;
+			DoTRemovedEvent.Source = Actor;
+			DoTRemovedEvent.Timestamp = FPlatformTime::Seconds();
+			DoTRemovedEvent.Tags.AddTag(SuspenseCoreTags::State::Health::BleedingHeavy);
+			DoTRemovedEvent.StringPayload.Add(TEXT("DoTType"), TEXT("State.Health.Bleeding.Heavy"));
+			EventBus->Publish(SuspenseCoreTags::Event::DoT::Removed, DoTRemovedEvent);
+			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Published DoT.Removed for Heavy bleeding"));
+		}
 
 		HANDLER_LOG(Log, TEXT("CureBleedingEffect: Heavy bleed - removed %d effect(s)"), Removed);
 	}

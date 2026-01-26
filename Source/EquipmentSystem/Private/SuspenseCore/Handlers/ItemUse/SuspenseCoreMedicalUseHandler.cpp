@@ -1072,9 +1072,9 @@ void USuspenseCoreMedicalUseHandler::ApplyMedicalEffectsFromAnimation(AActor* Ac
 		HealEvent.Source = Actor;
 		HealEvent.Timestamp = FPlatformTime::Seconds();
 		HealEvent.StringPayload.Add(TEXT("MedicalItemID"), ItemID.ToString());
-		HealEvent.FloatPayload.Add(TEXT("InstantHeal"), InstantHealAmount);
 		HealEvent.FloatPayload.Add(TEXT("HoTAmount"), HoTAmount);
 		HealEvent.FloatPayload.Add(TEXT("HoTDuration"), HoTDuration);
+		HealEvent.FloatPayload.Add(TEXT("TotalHeal"), HoTAmount * HoTDuration);
 		HealEvent.BoolPayload.Add(TEXT("CuredLightBleed"), bCanCureLightBleed);
 		HealEvent.BoolPayload.Add(TEXT("CuredHeavyBleed"), bCanCureHeavyBleed);
 		HealEvent.BoolPayload.Add(TEXT("CuredFracture"), bCanCureFracture);

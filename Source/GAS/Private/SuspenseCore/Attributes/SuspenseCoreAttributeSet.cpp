@@ -11,6 +11,10 @@
 #include "GameplayEffectExtension.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "Components/CapsuleComponent.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreAttributes, Log, All);
 
 USuspenseCoreAttributeSet::USuspenseCoreAttributeSet()
 {
@@ -172,7 +176,7 @@ USuspenseCoreAbilitySystemComponent* USuspenseCoreAttributeSet::GetSuspenseCoreA
 
 bool USuspenseCoreAttributeSet::IsAlive() const
 {
-	return GetHealth() > 0.0f;
+	return !bIsDead && GetHealth() > 0.0f;
 }
 
 float USuspenseCoreAttributeSet::GetHealthPercent() const
@@ -267,14 +271,103 @@ void USuspenseCoreAttributeSet::BroadcastAttributeChange(
 
 void USuspenseCoreAttributeSet::HandleDeath(AActor* DamageInstigator, AActor* DamageCauser)
 {
-	if (USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC())
+	// Prevent multiple death calls
+	if (bIsDead)
 	{
-		ASC->PublishCriticalEvent(
-			FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.Player.Died"))),
-			0.0f,
-			GetMaxHealth()
-		);
+		return;
 	}
+	bIsDead = true;
+
+	USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC();
+	if (!ASC)
+	{
+		return;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// 1. Add State.Dead tag to block abilities
+	// ═══════════════════════════════════════════════════════════════════════════════
+	FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(FName(TEXT("State.Dead")), false);
+	if (DeadTag.IsValid())
+	{
+		ASC->AddLooseGameplayTag(DeadTag);
+		UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("Added State.Dead tag to %s"), *GetOwningActor()->GetName());
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// 2. Cancel all active abilities
+	// ═══════════════════════════════════════════════════════════════════════════════
+	ASC->CancelAllAbilities();
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// 3. Remove all active gameplay effects (DoTs, buffs, etc.)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	FGameplayEffectQuery Query;
+	ASC->RemoveActiveEffects(Query);
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// 4. Publish death event via EventBus
+	// ═══════════════════════════════════════════════════════════════════════════════
+	ASC->PublishCriticalEvent(
+		FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.Player.Died"))),
+		0.0f,
+		GetMaxHealth()
+	);
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// 5. Apply death effects to Character
+	// ═══════════════════════════════════════════════════════════════════════════════
+	AActor* OwningActor = GetOwningActor();
+	if (!OwningActor)
+	{
+		return;
+	}
+
+	ACharacter* Character = Cast<ACharacter>(OwningActor);
+	if (!Character)
+	{
+		return;
+	}
+
+	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("═══════════════════════════════════════════════════════"));
+	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("  CHARACTER DEATH: %s"), *Character->GetName());
+	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("  Killer: %s"), DamageInstigator ? *DamageInstigator->GetName() : TEXT("Unknown"));
+	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("  Causer: %s"), DamageCauser ? *DamageCauser->GetName() : TEXT("Unknown"));
+	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("═══════════════════════════════════════════════════════"));
+
+	// Disable movement
+	if (UCharacterMovementComponent* Movement = Character->GetCharacterMovement())
+	{
+		Movement->DisableMovement();
+		Movement->StopMovementImmediately();
+	}
+
+	// Disable collision on capsule
+	if (UCapsuleComponent* Capsule = Character->GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	// Enable ragdoll physics on mesh
+	if (USkeletalMeshComponent* Mesh = Character->GetMesh())
+	{
+		Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Mesh->SetCollisionResponseToAllChannels(ECR_Block);
+		Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+		Mesh->SetSimulatePhysics(true);
+	}
+
+	// Disable input on player controller
+	if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+	{
+		PC->DisableInput(PC);
+
+		// Optionally show death screen or spectate
+		// PC->ChangeState(NAME_Spectating);
+	}
+
+	// Detach controller
+	Character->DetachFromControllerPendingDestroy();
 }
 
 void USuspenseCoreAttributeSet::HandleLowHealth()

@@ -162,29 +162,32 @@ void UGA_MedicalUse::ActivateAbility(
 		UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 		if (ASC)
 		{
-			// Find active GA_MedicalEquip instance to get item info
-			FGameplayTagContainer EquipTags;
-			EquipTags.AddTag(SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Equip);
-
-			TArray<FGameplayAbilitySpec*> MatchingSpecs;
-			ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(EquipTags, MatchingSpecs, false);
-
-			for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+			// Find active GA_MedicalEquip instance by iterating all activatable abilities
+			// Using GetActivatableAbilities() instead of tag-based search because
+			// GA_MedicalEquip uses SetAssetTags() which doesn't populate AbilityTags
+			TArray<FGameplayAbilitySpec>& Specs = ASC->GetActivatableAbilities();
+			for (FGameplayAbilitySpec& Spec : Specs)
 			{
-				if (Spec && Spec->IsActive())
+				if (Spec.IsActive())
 				{
-					UGA_MedicalEquip* EquipAbility = Cast<UGA_MedicalEquip>(Spec->GetPrimaryInstance());
-					if (EquipAbility)
+					// Check all instances (InstancedPerExecution creates multiple)
+					TArray<UGameplayAbility*> Instances = Spec.GetAbilityInstances();
+					for (UGameplayAbility* Instance : Instances)
 					{
-						CurrentMedicalItemID = EquipAbility->GetMedicalItemID();
-						CurrentSlotIndex = EquipAbility->SourceQuickSlotIndex;
-						CurrentMedicalTypeTag = EquipAbility->MedicalTypeTag;
-						bMedicalInfoSet = true;
+						UGA_MedicalEquip* EquipAbility = Cast<UGA_MedicalEquip>(Instance);
+						if (EquipAbility && EquipAbility->IsMedicalReady())
+						{
+							CurrentMedicalItemID = EquipAbility->GetMedicalItemID();
+							CurrentSlotIndex = EquipAbility->SourceQuickSlotIndex;
+							CurrentMedicalTypeTag = EquipAbility->MedicalTypeTag;
+							bMedicalInfoSet = true;
 
-						MEDICAL_LOG(Log, TEXT("ActivateAbility: Got info from GA_MedicalEquip: %s"),
-							*CurrentMedicalItemID.ToString());
-						break;
+							MEDICAL_LOG(Log, TEXT("ActivateAbility: Got info from GA_MedicalEquip: %s (Slot=%d)"),
+								*CurrentMedicalItemID.ToString(), CurrentSlotIndex);
+							break;
+						}
 					}
+					if (bMedicalInfoSet) break;
 				}
 			}
 		}

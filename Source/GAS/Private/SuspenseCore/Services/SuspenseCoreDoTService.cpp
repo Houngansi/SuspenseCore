@@ -468,8 +468,15 @@ void USuspenseCoreDoTService::BindToASC(UAbilitySystemComponent* ASC)
 		this, &USuspenseCoreDoTService::OnActiveGameplayEffectAdded);
 
 	// Subscribe to effect removed delegate
-	NewBinding.OnEffectRemovedHandle = ASC->OnAnyGameplayEffectRemovedDelegate().AddUObject(
-		this, &USuspenseCoreDoTService::OnActiveGameplayEffectRemoved);
+	// Use lambda to capture ASC pointer for correct target actor identification
+	NewBinding.OnEffectRemovedHandle = ASC->OnAnyGameplayEffectRemovedDelegate().AddLambda(
+		[this, WeakASC = TWeakObjectPtr<UAbilitySystemComponent>(ASC)](const FActiveGameplayEffect& Effect)
+		{
+			if (UAbilitySystemComponent* BoundASC = WeakASC.Get())
+			{
+				OnActiveGameplayEffectRemovedWithASC(Effect, BoundASC);
+			}
+		});
 
 	BoundASCs.Add(NewBinding);
 
@@ -544,23 +551,38 @@ void USuspenseCoreDoTService::OnActiveGameplayEffectAdded(
 
 void USuspenseCoreDoTService::OnActiveGameplayEffectRemoved(const FActiveGameplayEffect& Effect)
 {
+	// Legacy method - should not be called directly anymore
+	// Use OnActiveGameplayEffectRemovedWithASC instead
+	UE_LOG(LogDoTService, Warning, TEXT("OnActiveGameplayEffectRemoved called without ASC - using fallback"));
+
+	// Fallback: try to find ASC that might own this effect
+	for (const FSuspenseCoreASCBinding& Binding : BoundASCs)
+	{
+		if (Binding.ASC.IsValid())
+		{
+			OnActiveGameplayEffectRemovedWithASC(Effect, Binding.ASC.Get());
+			return;
+		}
+	}
+}
+
+void USuspenseCoreDoTService::OnActiveGameplayEffectRemovedWithASC(
+	const FActiveGameplayEffect& Effect,
+	UAbilitySystemComponent* SourceASC)
+{
 	if (!IsDoTEffect(Effect))
 	{
 		return;
 	}
 
-	// Find owning ASC and target actor
-	AActor* TargetActor = nullptr;
-	for (const FSuspenseCoreASCBinding& Binding : BoundASCs)
-	{
-		if (Binding.ASC.IsValid())
-		{
-			TargetActor = Binding.ASC->GetOwner();
-			break;
-		}
-	}
+	// Get target actor from the ASC that triggered the removal
+	AActor* TargetActor = SourceASC ? SourceASC->GetOwner() : nullptr;
 
 	FGameplayTag DoTType = GetDoTTypeFromEffect(Effect);
+
+	UE_LOG(LogDoTService, Warning, TEXT("DoT removed (ASC): Type=%s, Target=%s"),
+		*DoTType.ToString(),
+		TargetActor ? *TargetActor->GetName() : TEXT("NULL"));
 
 	// Publish removal event
 	FSuspenseCoreDoTEventPayload Payload;
@@ -577,8 +599,10 @@ void USuspenseCoreDoTService::OnActiveGameplayEffectRemoved(const FActiveGamepla
 
 	PublishDoTEvent(EventTag, Payload);
 
-	UE_LOG(LogDoTService, Log, TEXT("DoT removed (ASC): %s (expired=%d)"),
-		*DoTType.ToString(), bExpired);
+	UE_LOG(LogDoTService, Log, TEXT("DoT removed event published: %s for %s (expired=%d)"),
+		*DoTType.ToString(),
+		TargetActor ? *TargetActor->GetName() : TEXT("Unknown"),
+		bExpired);
 }
 
 void USuspenseCoreDoTService::OnGameplayEffectStackChanged(

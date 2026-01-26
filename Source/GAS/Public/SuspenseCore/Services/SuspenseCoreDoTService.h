@@ -236,9 +236,19 @@ protected:
 	/**
 	 * Called when any GameplayEffect is removed from bound ASC
 	 * Filters for DoT effects and publishes EventBus events
+	 * @deprecated Use OnActiveGameplayEffectRemovedWithASC instead
 	 */
 	void OnActiveGameplayEffectRemoved(
 		const FActiveGameplayEffect& Effect
+	);
+
+	/**
+	 * Called when any GameplayEffect is removed from bound ASC (with ASC reference)
+	 * This version correctly identifies the target actor from the source ASC
+	 */
+	void OnActiveGameplayEffectRemovedWithASC(
+		const FActiveGameplayEffect& Effect,
+		UAbilitySystemComponent* SourceASC
 	);
 
 	/**

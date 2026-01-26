@@ -150,6 +150,55 @@ Source/GAS/Abilities/
 
 ---
 
+### EnemySystem (AI Bots) - NEW
+
+**File:** [Plans/EnemySystem_Architecture_Plan.md](Plans/EnemySystem_Architecture_Plan.md)
+**Status:** PLANNING
+
+**Summary:**
+> Complete AI bot system architecture for Tarkov-style MMO FPS. Features FSM state machine via
+> GameplayTags, StateTree integration (UE 5.7), SSOT via DataAssets, full GAS integration.
+
+**Key Features:**
+- FSM States: Idle, Alert, Investigate, Combat, Cover, Flank, Retreat, Dead
+- StateTree (UE 5.7) for visual behavior editing
+- Perception system (sight, hearing)
+- Squad coordination
+- Enemy types: Scav, PMC, Boss, Raider, Sniper
+
+**Architecture:**
+- ASuspenseCoreEnemy (Character)
+- ASuspenseCoreEnemyState (GAS host)
+- ASuspenseCoreEnemyAIController (StateTree)
+- USuspenseCoreEnemyAIComponent (FSM)
+- USuspenseCoreEnemyPerceptionComponent
+
+**Estimated:** 6-8 weeks implementation
+
+---
+
+### Level Streaming System - NEW
+
+**File:** [Plans/LevelStreaming_System_Plan.md](Plans/LevelStreaming_System_Plan.md)
+**Status:** PLANNING
+
+**Summary:**
+> Tarkov-style level streaming without World Partition. Level Instances for instanced raids,
+> lobby system, character selection. Supports matchmaking and extraction gameplay.
+
+---
+
+### AbilitySystem SSOT Refactor - NEW
+
+**File:** [Plans/AbilitySystem_SSOT_Refactor_Plan.md](Plans/AbilitySystem_SSOT_Refactor_Plan.md)
+**Status:** PLANNING
+
+**Summary:**
+> Refactor character abilities to follow SSOT pattern. Move StartupAbilities from hardcoded
+> PlayerState to DataAssets with inheritance support.
+
+---
+
 ### DoT System (Bleeding/Burning) - ✅ COMPLETE
 
 **File:** [Plans/DoT_System_ImplementationPlan.md](Plans/DoT_System_ImplementationPlan.md)

@@ -1,5 +1,5 @@
 #include "SuspenseCore/FSM/States/SuspenseCoreEnemyIdleState.h"
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "EnemySystem.h"
 
@@ -11,7 +11,7 @@ USuspenseCoreEnemyIdleState::USuspenseCoreEnemyIdleState()
     TimeSinceLastLook = 0.0f;
 }
 
-void USuspenseCoreEnemyIdleState::OnEnterState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyIdleState::OnEnterState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     Super::OnEnterState(Enemy);
 
@@ -29,13 +29,13 @@ void USuspenseCoreEnemyIdleState::OnEnterState(ASuspenseCoreEnemy* Enemy)
     }
 }
 
-void USuspenseCoreEnemyIdleState::OnExitState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyIdleState::OnExitState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     StopTimer(Enemy, FName(TEXT("IdleTimeout")));
     Super::OnExitState(Enemy);
 }
 
-void USuspenseCoreEnemyIdleState::OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime)
+void USuspenseCoreEnemyIdleState::OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime)
 {
     Super::OnTickState(Enemy, DeltaTime);
 
@@ -63,7 +63,7 @@ void USuspenseCoreEnemyIdleState::OnTickState(ASuspenseCoreEnemy* Enemy, float D
     }
 }
 
-void USuspenseCoreEnemyIdleState::OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
+void USuspenseCoreEnemyIdleState::OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
 {
     Super::OnFSMEvent(Enemy, EventTag, Instigator);
 

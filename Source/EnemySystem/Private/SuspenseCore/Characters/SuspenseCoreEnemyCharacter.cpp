@@ -1,4 +1,4 @@
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "SuspenseCore/Core/SuspenseCoreEnemyState.h"
 #include "SuspenseCore/FSM/SuspenseCoreEnemyFSMComponent.h"
 #include "SuspenseCore/Data/SuspenseCoreEnemyBehaviorData.h"
@@ -9,7 +9,7 @@
 #include "AbilitySystemComponent.h"
 #include "EnemySystem.h"
 
-ASuspenseCoreEnemy::ASuspenseCoreEnemy()
+ASuspenseCoreEnemyCharacter::ASuspenseCoreEnemyCharacter()
 {
     PrimaryActorTick.bCanEverTick = false;
 
@@ -20,7 +20,7 @@ ASuspenseCoreEnemy::ASuspenseCoreEnemy()
     EnemyTypeTag = SuspenseCoreEnemyTags::Type::Scav;
 }
 
-void ASuspenseCoreEnemy::BeginPlay()
+void ASuspenseCoreEnemyCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -30,19 +30,19 @@ void ASuspenseCoreEnemy::BeginPlay()
     }
 }
 
-void ASuspenseCoreEnemy::PossessedBy(AController* NewController)
+void ASuspenseCoreEnemyCharacter::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
 
     SetupAbilitySystem();
 }
 
-void ASuspenseCoreEnemy::UnPossessed()
+void ASuspenseCoreEnemyCharacter::UnPossessed()
 {
     Super::UnPossessed();
 }
 
-UAbilitySystemComponent* ASuspenseCoreEnemy::GetAbilitySystemComponent() const
+UAbilitySystemComponent* ASuspenseCoreEnemyCharacter::GetAbilitySystemComponent() const
 {
     if (EnemyState)
     {
@@ -51,7 +51,7 @@ UAbilitySystemComponent* ASuspenseCoreEnemy::GetAbilitySystemComponent() const
     return nullptr;
 }
 
-void ASuspenseCoreEnemy::InitializeEnemy(USuspenseCoreEnemyBehaviorData* BehaviorData)
+void ASuspenseCoreEnemyCharacter::InitializeEnemy(USuspenseCoreEnemyBehaviorData* BehaviorData)
 {
     if (!BehaviorData)
     {
@@ -78,7 +78,7 @@ void ASuspenseCoreEnemy::InitializeEnemy(USuspenseCoreEnemyBehaviorData* Behavio
         *GetName(), *BehaviorData->GetName());
 }
 
-void ASuspenseCoreEnemy::SetupAbilitySystem()
+void ASuspenseCoreEnemyCharacter::SetupAbilitySystem()
 {
     AController* MyController = GetController();
     if (!MyController)
@@ -100,7 +100,7 @@ void ASuspenseCoreEnemy::SetupAbilitySystem()
     }
 }
 
-bool ASuspenseCoreEnemy::IsAlive() const
+bool ASuspenseCoreEnemyCharacter::IsAlive() const
 {
     if (!EnemyState)
     {
@@ -116,7 +116,7 @@ bool ASuspenseCoreEnemy::IsAlive() const
     return true;
 }
 
-FGameplayTag ASuspenseCoreEnemy::GetCurrentStateTag() const
+FGameplayTag ASuspenseCoreEnemyCharacter::GetCurrentStateTag() const
 {
     if (FSMComponent)
     {
@@ -125,7 +125,7 @@ FGameplayTag ASuspenseCoreEnemy::GetCurrentStateTag() const
     return FGameplayTag();
 }
 
-void ASuspenseCoreEnemy::StopMovement()
+void ASuspenseCoreEnemyCharacter::StopMovement()
 {
     if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
     {
@@ -139,24 +139,24 @@ void ASuspenseCoreEnemy::StopMovement()
     }
 }
 
-void ASuspenseCoreEnemy::ExecuteAttack()
+void ASuspenseCoreEnemyCharacter::ExecuteAttack()
 {
     UE_LOG(LogEnemySystem, Verbose, TEXT("[%s] Executing attack on target: %s"),
         *GetName(),
         CurrentTarget.IsValid() ? *CurrentTarget->GetName() : TEXT("None"));
 }
 
-AActor* ASuspenseCoreEnemy::GetCurrentTarget() const
+AActor* ASuspenseCoreEnemyCharacter::GetCurrentTarget() const
 {
     return CurrentTarget.Get();
 }
 
-void ASuspenseCoreEnemy::SetCurrentTarget(AActor* NewTarget)
+void ASuspenseCoreEnemyCharacter::SetCurrentTarget(AActor* NewTarget)
 {
     CurrentTarget = NewTarget;
 }
 
-void ASuspenseCoreEnemy::OnPerceptionUpdated(AActor* Actor, bool bIsSensed)
+void ASuspenseCoreEnemyCharacter::OnPerceptionUpdated(AActor* Actor, bool bIsSensed)
 {
     if (!FSMComponent)
     {

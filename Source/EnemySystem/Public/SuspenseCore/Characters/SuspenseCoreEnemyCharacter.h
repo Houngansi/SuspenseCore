@@ -4,7 +4,7 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCoreEnemy.generated.h"
+#include "SuspenseCoreEnemyCharacter.generated.h"
 
 class ASuspenseCoreEnemyState;
 class USuspenseCoreEnemyFSMComponent;
@@ -12,12 +12,12 @@ class USuspenseCoreEnemyBehaviorData;
 class UAbilitySystemComponent;
 
 UCLASS()
-class ENEMYSYSTEM_API ASuspenseCoreEnemy : public ACharacter, public IAbilitySystemInterface
+class ENEMYSYSTEM_API ASuspenseCoreEnemyCharacter : public ACharacter, public IAbilitySystemInterface
 {
     GENERATED_BODY()
 
 public:
-    ASuspenseCoreEnemy();
+    ASuspenseCoreEnemyCharacter();
 
     virtual void BeginPlay() override;
     virtual void PossessedBy(AController* NewController) override;

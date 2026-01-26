@@ -12,10 +12,10 @@ class ENEMYSYSTEM_API USuspenseCoreEnemyChaseState : public USuspenseCoreEnemySt
 public:
     USuspenseCoreEnemyChaseState();
 
-    virtual void OnEnterState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnExitState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime) override;
-    virtual void OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator) override;
+    virtual void OnEnterState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnExitState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime) override;
+    virtual void OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator) override;
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Chase")
@@ -39,6 +39,6 @@ protected:
 
     TWeakObjectPtr<class AAIController> CachedController;
 
-    void UpdateChase(ASuspenseCoreEnemy* Enemy, float DeltaTime);
-    void MoveToTarget(ASuspenseCoreEnemy* Enemy, const FVector& TargetLocation);
+    void UpdateChase(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime);
+    void MoveToTarget(ASuspenseCoreEnemyCharacter* Enemy, const FVector& TargetLocation);
 };

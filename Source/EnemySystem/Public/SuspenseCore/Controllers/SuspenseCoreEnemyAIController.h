@@ -6,7 +6,7 @@
 #include "SuspenseCoreEnemyAIController.generated.h"
 
 class UAIPerceptionComponent;
-class ASuspenseCoreEnemy;
+class ASuspenseCoreEnemyCharacter;
 
 UCLASS()
 class ENEMYSYSTEM_API ASuspenseCoreEnemyAIController : public AAIController
@@ -29,5 +29,5 @@ protected:
     UFUNCTION()
     void OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
 
-    TWeakObjectPtr<ASuspenseCoreEnemy> ControlledEnemy;
+    TWeakObjectPtr<ASuspenseCoreEnemyCharacter> ControlledEnemy;
 };

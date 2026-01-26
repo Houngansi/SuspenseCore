@@ -1,5 +1,5 @@
 #include "SuspenseCore/FSM/States/SuspenseCoreEnemyDeathState.h"
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -12,7 +12,7 @@ USuspenseCoreEnemyDeathState::USuspenseCoreEnemyDeathState()
     bEnableRagdoll = true;
 }
 
-void USuspenseCoreEnemyDeathState::OnEnterState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyDeathState::OnEnterState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     Super::OnEnterState(Enemy);
 
@@ -49,17 +49,17 @@ void USuspenseCoreEnemyDeathState::OnEnterState(ASuspenseCoreEnemy* Enemy)
     UE_LOG(LogEnemySystem, Log, TEXT("[%s] Entered death state"), *Enemy->GetName());
 }
 
-void USuspenseCoreEnemyDeathState::OnExitState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyDeathState::OnExitState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     Super::OnExitState(Enemy);
 }
 
-void USuspenseCoreEnemyDeathState::OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime)
+void USuspenseCoreEnemyDeathState::OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime)
 {
     Super::OnTickState(Enemy, DeltaTime);
 }
 
-void USuspenseCoreEnemyDeathState::EnableRagdoll(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyDeathState::EnableRagdoll(ASuspenseCoreEnemyCharacter* Enemy)
 {
     if (!Enemy)
     {
@@ -74,7 +74,7 @@ void USuspenseCoreEnemyDeathState::EnableRagdoll(ASuspenseCoreEnemy* Enemy)
     }
 }
 
-void USuspenseCoreEnemyDeathState::ScheduleDespawn(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyDeathState::ScheduleDespawn(ASuspenseCoreEnemyCharacter* Enemy)
 {
     if (!Enemy || DespawnDelay <= 0.0f)
     {

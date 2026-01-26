@@ -12,10 +12,10 @@ class ENEMYSYSTEM_API USuspenseCoreEnemyIdleState : public USuspenseCoreEnemySta
 public:
     USuspenseCoreEnemyIdleState();
 
-    virtual void OnEnterState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnExitState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime) override;
-    virtual void OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator) override;
+    virtual void OnEnterState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnExitState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime) override;
+    virtual void OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator) override;
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Idle")

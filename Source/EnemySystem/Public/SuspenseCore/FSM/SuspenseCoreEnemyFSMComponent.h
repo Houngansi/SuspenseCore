@@ -5,7 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEnemyFSMComponent.generated.h"
 
-class ASuspenseCoreEnemy;
+class ASuspenseCoreEnemyCharacter;
 class USuspenseCoreEnemyStateBase;
 class USuspenseCoreEnemyBehaviorData;
 
@@ -71,7 +71,7 @@ public:
 
 protected:
     UPROPERTY()
-    TObjectPtr<ASuspenseCoreEnemy> OwnerEnemy;
+    TObjectPtr<ASuspenseCoreEnemyCharacter> OwnerEnemy;
 
     UPROPERTY()
     TObjectPtr<USuspenseCoreEnemyStateBase> CurrentState;

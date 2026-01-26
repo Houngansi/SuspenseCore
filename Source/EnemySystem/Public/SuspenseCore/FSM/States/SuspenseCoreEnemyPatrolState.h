@@ -13,10 +13,10 @@ class ENEMYSYSTEM_API USuspenseCoreEnemyPatrolState : public USuspenseCoreEnemyS
 public:
     USuspenseCoreEnemyPatrolState();
 
-    virtual void OnEnterState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnExitState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime) override;
-    virtual void OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator) override;
+    virtual void OnEnterState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnExitState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime) override;
+    virtual void OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator) override;
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Patrol")
@@ -37,9 +37,9 @@ protected:
     bool bIsWaiting;
     bool bIsMoving;
 
-    void GeneratePatrolPoints(ASuspenseCoreEnemy* Enemy);
-    void MoveToNextPoint(ASuspenseCoreEnemy* Enemy);
-    void OnReachedPatrolPoint(ASuspenseCoreEnemy* Enemy);
+    void GeneratePatrolPoints(ASuspenseCoreEnemyCharacter* Enemy);
+    void MoveToNextPoint(ASuspenseCoreEnemyCharacter* Enemy);
+    void OnReachedPatrolPoint(ASuspenseCoreEnemyCharacter* Enemy);
 
     UFUNCTION()
     void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result);

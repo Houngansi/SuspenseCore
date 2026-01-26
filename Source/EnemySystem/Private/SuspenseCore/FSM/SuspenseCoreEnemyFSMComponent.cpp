@@ -1,6 +1,6 @@
 #include "SuspenseCore/FSM/SuspenseCoreEnemyFSMComponent.h"
 #include "SuspenseCore/FSM/SuspenseCoreEnemyStateBase.h"
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "SuspenseCore/Data/SuspenseCoreEnemyBehaviorData.h"
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "TimerManager.h"
@@ -19,10 +19,10 @@ void USuspenseCoreEnemyFSMComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    OwnerEnemy = Cast<ASuspenseCoreEnemy>(GetOwner());
+    OwnerEnemy = Cast<ASuspenseCoreEnemyCharacter>(GetOwner());
     if (!OwnerEnemy)
     {
-        UE_LOG(LogEnemySystem, Error, TEXT("FSMComponent owner is not ASuspenseCoreEnemy"));
+        UE_LOG(LogEnemySystem, Error, TEXT("FSMComponent owner is not ASuspenseCoreEnemyCharacter"));
     }
 }
 

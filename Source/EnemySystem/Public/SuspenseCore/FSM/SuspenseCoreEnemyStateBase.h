@@ -5,7 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEnemyStateBase.generated.h"
 
-class ASuspenseCoreEnemy;
+class ASuspenseCoreEnemyCharacter;
 class USuspenseCoreEnemyFSMComponent;
 
 UCLASS(Abstract, Blueprintable)
@@ -16,10 +16,10 @@ class ENEMYSYSTEM_API USuspenseCoreEnemyStateBase : public UObject
 public:
     USuspenseCoreEnemyStateBase();
 
-    virtual void OnEnterState(ASuspenseCoreEnemy* Enemy);
-    virtual void OnExitState(ASuspenseCoreEnemy* Enemy);
-    virtual void OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime);
-    virtual void OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator);
+    virtual void OnEnterState(ASuspenseCoreEnemyCharacter* Enemy);
+    virtual void OnExitState(ASuspenseCoreEnemyCharacter* Enemy);
+    virtual void OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime);
+    virtual void OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator);
 
     FGameplayTag GetStateTag() const;
     void SetFSMComponent(USuspenseCoreEnemyFSMComponent* InFSMComponent);
@@ -32,11 +32,11 @@ protected:
     TObjectPtr<USuspenseCoreEnemyFSMComponent> FSMComponent;
 
     void RequestStateChange(const FGameplayTag& NewStateTag);
-    void StartTimer(ASuspenseCoreEnemy* Enemy, FName TimerName, float Duration, bool bLoop);
-    void StopTimer(ASuspenseCoreEnemy* Enemy, FName TimerName);
+    void StartTimer(ASuspenseCoreEnemyCharacter* Enemy, FName TimerName, float Duration, bool bLoop);
+    void StopTimer(ASuspenseCoreEnemyCharacter* Enemy, FName TimerName);
 
-    bool CanSeeTarget(ASuspenseCoreEnemy* Enemy, AActor* Target) const;
-    float GetDistanceToTarget(ASuspenseCoreEnemy* Enemy, AActor* Target) const;
-    AActor* GetCurrentTarget(ASuspenseCoreEnemy* Enemy) const;
-    void SetCurrentTarget(ASuspenseCoreEnemy* Enemy, AActor* NewTarget);
+    bool CanSeeTarget(ASuspenseCoreEnemyCharacter* Enemy, AActor* Target) const;
+    float GetDistanceToTarget(ASuspenseCoreEnemyCharacter* Enemy, AActor* Target) const;
+    AActor* GetCurrentTarget(ASuspenseCoreEnemyCharacter* Enemy) const;
+    void SetCurrentTarget(ASuspenseCoreEnemyCharacter* Enemy, AActor* NewTarget);
 };

@@ -1,6 +1,6 @@
 #include "SuspenseCore/FSM/SuspenseCoreEnemyStateBase.h"
 #include "SuspenseCore/FSM/SuspenseCoreEnemyFSMComponent.h"
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "AIController.h"
 #include "EnemySystem.h"
 
@@ -9,25 +9,25 @@ USuspenseCoreEnemyStateBase::USuspenseCoreEnemyStateBase()
     FSMComponent = nullptr;
 }
 
-void USuspenseCoreEnemyStateBase::OnEnterState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyStateBase::OnEnterState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     UE_LOG(LogEnemySystem, Verbose, TEXT("[%s] Entering state: %s"),
         Enemy ? *Enemy->GetName() : TEXT("None"),
         *StateTag.ToString());
 }
 
-void USuspenseCoreEnemyStateBase::OnExitState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyStateBase::OnExitState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     UE_LOG(LogEnemySystem, Verbose, TEXT("[%s] Exiting state: %s"),
         Enemy ? *Enemy->GetName() : TEXT("None"),
         *StateTag.ToString());
 }
 
-void USuspenseCoreEnemyStateBase::OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime)
+void USuspenseCoreEnemyStateBase::OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime)
 {
 }
 
-void USuspenseCoreEnemyStateBase::OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
+void USuspenseCoreEnemyStateBase::OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
 {
 }
 
@@ -49,7 +49,7 @@ void USuspenseCoreEnemyStateBase::RequestStateChange(const FGameplayTag& NewStat
     }
 }
 
-void USuspenseCoreEnemyStateBase::StartTimer(ASuspenseCoreEnemy* Enemy, FName TimerName, float Duration, bool bLoop)
+void USuspenseCoreEnemyStateBase::StartTimer(ASuspenseCoreEnemyCharacter* Enemy, FName TimerName, float Duration, bool bLoop)
 {
     if (FSMComponent)
     {
@@ -57,7 +57,7 @@ void USuspenseCoreEnemyStateBase::StartTimer(ASuspenseCoreEnemy* Enemy, FName Ti
     }
 }
 
-void USuspenseCoreEnemyStateBase::StopTimer(ASuspenseCoreEnemy* Enemy, FName TimerName)
+void USuspenseCoreEnemyStateBase::StopTimer(ASuspenseCoreEnemyCharacter* Enemy, FName TimerName)
 {
     if (FSMComponent)
     {
@@ -65,7 +65,7 @@ void USuspenseCoreEnemyStateBase::StopTimer(ASuspenseCoreEnemy* Enemy, FName Tim
     }
 }
 
-bool USuspenseCoreEnemyStateBase::CanSeeTarget(ASuspenseCoreEnemy* Enemy, AActor* Target) const
+bool USuspenseCoreEnemyStateBase::CanSeeTarget(ASuspenseCoreEnemyCharacter* Enemy, AActor* Target) const
 {
     if (!Enemy || !Target)
     {
@@ -95,7 +95,7 @@ bool USuspenseCoreEnemyStateBase::CanSeeTarget(ASuspenseCoreEnemy* Enemy, AActor
     return HitResult.GetActor() == Target;
 }
 
-float USuspenseCoreEnemyStateBase::GetDistanceToTarget(ASuspenseCoreEnemy* Enemy, AActor* Target) const
+float USuspenseCoreEnemyStateBase::GetDistanceToTarget(ASuspenseCoreEnemyCharacter* Enemy, AActor* Target) const
 {
     if (!Enemy || !Target)
     {
@@ -105,7 +105,7 @@ float USuspenseCoreEnemyStateBase::GetDistanceToTarget(ASuspenseCoreEnemy* Enemy
     return FVector::Dist(Enemy->GetActorLocation(), Target->GetActorLocation());
 }
 
-AActor* USuspenseCoreEnemyStateBase::GetCurrentTarget(ASuspenseCoreEnemy* Enemy) const
+AActor* USuspenseCoreEnemyStateBase::GetCurrentTarget(ASuspenseCoreEnemyCharacter* Enemy) const
 {
     if (!Enemy)
     {
@@ -114,7 +114,7 @@ AActor* USuspenseCoreEnemyStateBase::GetCurrentTarget(ASuspenseCoreEnemy* Enemy)
     return Enemy->GetCurrentTarget();
 }
 
-void USuspenseCoreEnemyStateBase::SetCurrentTarget(ASuspenseCoreEnemy* Enemy, AActor* NewTarget)
+void USuspenseCoreEnemyStateBase::SetCurrentTarget(ASuspenseCoreEnemyCharacter* Enemy, AActor* NewTarget)
 {
     if (Enemy)
     {

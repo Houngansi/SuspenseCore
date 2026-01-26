@@ -1,6 +1,6 @@
 #include "SuspenseCore/Controllers/SuspenseCoreEnemyAIController.h"
 #include "SuspenseCore/Core/SuspenseCoreEnemyState.h"
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISenseConfig_Hearing.h"
@@ -41,7 +41,7 @@ void ASuspenseCoreEnemyAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
 
-    ControlledEnemy = Cast<ASuspenseCoreEnemy>(InPawn);
+    ControlledEnemy = Cast<ASuspenseCoreEnemyCharacter>(InPawn);
 
     if (AIPerceptionComponent)
     {

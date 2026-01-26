@@ -1,5 +1,5 @@
 #include "SuspenseCore/FSM/States/SuspenseCoreEnemyPatrolState.h"
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "AIController.h"
 #include "NavigationSystem.h"
@@ -17,7 +17,7 @@ USuspenseCoreEnemyPatrolState::USuspenseCoreEnemyPatrolState()
     bIsMoving = false;
 }
 
-void USuspenseCoreEnemyPatrolState::OnEnterState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyPatrolState::OnEnterState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     Super::OnEnterState(Enemy);
 
@@ -46,7 +46,7 @@ void USuspenseCoreEnemyPatrolState::OnEnterState(ASuspenseCoreEnemy* Enemy)
     MoveToNextPoint(Enemy);
 }
 
-void USuspenseCoreEnemyPatrolState::OnExitState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyPatrolState::OnExitState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     if (CachedController.IsValid())
     {
@@ -59,12 +59,12 @@ void USuspenseCoreEnemyPatrolState::OnExitState(ASuspenseCoreEnemy* Enemy)
     Super::OnExitState(Enemy);
 }
 
-void USuspenseCoreEnemyPatrolState::OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime)
+void USuspenseCoreEnemyPatrolState::OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime)
 {
     Super::OnTickState(Enemy, DeltaTime);
 }
 
-void USuspenseCoreEnemyPatrolState::OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
+void USuspenseCoreEnemyPatrolState::OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
 {
     Super::OnFSMEvent(Enemy, EventTag, Instigator);
 
@@ -79,7 +79,7 @@ void USuspenseCoreEnemyPatrolState::OnFSMEvent(ASuspenseCoreEnemy* Enemy, const 
     }
 }
 
-void USuspenseCoreEnemyPatrolState::GeneratePatrolPoints(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyPatrolState::GeneratePatrolPoints(ASuspenseCoreEnemyCharacter* Enemy)
 {
     PatrolPoints.Empty();
 
@@ -121,7 +121,7 @@ void USuspenseCoreEnemyPatrolState::GeneratePatrolPoints(ASuspenseCoreEnemy* Ene
     }
 }
 
-void USuspenseCoreEnemyPatrolState::MoveToNextPoint(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyPatrolState::MoveToNextPoint(ASuspenseCoreEnemyCharacter* Enemy)
 {
     if (!Enemy || PatrolPoints.Num() == 0)
     {
@@ -140,7 +140,7 @@ void USuspenseCoreEnemyPatrolState::MoveToNextPoint(ASuspenseCoreEnemy* Enemy)
     AIController->MoveToLocation(TargetLocation, AcceptanceRadius, true, true, false, true);
 }
 
-void USuspenseCoreEnemyPatrolState::OnReachedPatrolPoint(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyPatrolState::OnReachedPatrolPoint(ASuspenseCoreEnemyCharacter* Enemy)
 {
     bIsMoving = false;
     bIsWaiting = true;
@@ -154,7 +154,7 @@ void USuspenseCoreEnemyPatrolState::OnMoveCompleted(FAIRequestID RequestID, EPat
 {
     if (Result == EPathFollowingResult::Success)
     {
-        ASuspenseCoreEnemy* Enemy = Cast<ASuspenseCoreEnemy>(CachedController.IsValid() ? CachedController->GetPawn() : nullptr);
+        ASuspenseCoreEnemyCharacter* Enemy = Cast<ASuspenseCoreEnemyCharacter>(CachedController.IsValid() ? CachedController->GetPawn() : nullptr);
         OnReachedPatrolPoint(Enemy);
     }
 }

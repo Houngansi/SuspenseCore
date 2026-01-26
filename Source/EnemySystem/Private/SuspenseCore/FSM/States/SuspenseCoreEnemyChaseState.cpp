@@ -1,5 +1,5 @@
 #include "SuspenseCore/FSM/States/SuspenseCoreEnemyChaseState.h"
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "SuspenseCore/FSM/SuspenseCoreEnemyFSMComponent.h"
 #include "AIController.h"
@@ -17,7 +17,7 @@ USuspenseCoreEnemyChaseState::USuspenseCoreEnemyChaseState()
     TimeSinceLastPathUpdate = 0.0f;
 }
 
-void USuspenseCoreEnemyChaseState::OnEnterState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyChaseState::OnEnterState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     Super::OnEnterState(Enemy);
 
@@ -42,7 +42,7 @@ void USuspenseCoreEnemyChaseState::OnEnterState(ASuspenseCoreEnemy* Enemy)
     }
 }
 
-void USuspenseCoreEnemyChaseState::OnExitState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyChaseState::OnExitState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     if (CachedController.IsValid())
     {
@@ -52,19 +52,19 @@ void USuspenseCoreEnemyChaseState::OnExitState(ASuspenseCoreEnemy* Enemy)
     Super::OnExitState(Enemy);
 }
 
-void USuspenseCoreEnemyChaseState::OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime)
+void USuspenseCoreEnemyChaseState::OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime)
 {
     Super::OnTickState(Enemy, DeltaTime);
 
     UpdateChase(Enemy, DeltaTime);
 }
 
-void USuspenseCoreEnemyChaseState::OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
+void USuspenseCoreEnemyChaseState::OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
 {
     Super::OnFSMEvent(Enemy, EventTag, Instigator);
 }
 
-void USuspenseCoreEnemyChaseState::UpdateChase(ASuspenseCoreEnemy* Enemy, float DeltaTime)
+void USuspenseCoreEnemyChaseState::UpdateChase(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime)
 {
     if (!Enemy)
     {
@@ -129,7 +129,7 @@ void USuspenseCoreEnemyChaseState::UpdateChase(ASuspenseCoreEnemy* Enemy, float 
     }
 }
 
-void USuspenseCoreEnemyChaseState::MoveToTarget(ASuspenseCoreEnemy* Enemy, const FVector& TargetLocation)
+void USuspenseCoreEnemyChaseState::MoveToTarget(ASuspenseCoreEnemyCharacter* Enemy, const FVector& TargetLocation)
 {
     AAIController* AIController = CachedController.Get();
     if (!AIController)

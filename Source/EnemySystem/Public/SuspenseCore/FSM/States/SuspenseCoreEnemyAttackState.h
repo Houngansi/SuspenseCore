@@ -12,10 +12,10 @@ class ENEMYSYSTEM_API USuspenseCoreEnemyAttackState : public USuspenseCoreEnemyS
 public:
     USuspenseCoreEnemyAttackState();
 
-    virtual void OnEnterState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnExitState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime) override;
-    virtual void OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator) override;
+    virtual void OnEnterState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnExitState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime) override;
+    virtual void OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator) override;
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Attack")
@@ -33,7 +33,7 @@ protected:
     float TimeSinceLastAttack;
     float TimeSinceTargetSeen;
 
-    void PerformAttack(ASuspenseCoreEnemy* Enemy);
-    void RotateTowardsTarget(ASuspenseCoreEnemy* Enemy, float DeltaTime);
-    bool IsTargetInAttackRange(ASuspenseCoreEnemy* Enemy) const;
+    void PerformAttack(ASuspenseCoreEnemyCharacter* Enemy);
+    void RotateTowardsTarget(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime);
+    bool IsTargetInAttackRange(ASuspenseCoreEnemyCharacter* Enemy) const;
 };

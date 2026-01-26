@@ -1,5 +1,5 @@
 #include "SuspenseCore/FSM/States/SuspenseCoreEnemyAttackState.h"
-#include "SuspenseCore/Characters/SuspenseCoreEnemy.h"
+#include "SuspenseCore/Characters/SuspenseCoreEnemyCharacter.h"
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "SuspenseCore/FSM/SuspenseCoreEnemyFSMComponent.h"
 #include "EnemySystem.h"
@@ -15,7 +15,7 @@ USuspenseCoreEnemyAttackState::USuspenseCoreEnemyAttackState()
     TimeSinceTargetSeen = 0.0f;
 }
 
-void USuspenseCoreEnemyAttackState::OnEnterState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyAttackState::OnEnterState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     Super::OnEnterState(Enemy);
 
@@ -28,12 +28,12 @@ void USuspenseCoreEnemyAttackState::OnEnterState(ASuspenseCoreEnemy* Enemy)
     TimeSinceTargetSeen = 0.0f;
 }
 
-void USuspenseCoreEnemyAttackState::OnExitState(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyAttackState::OnExitState(ASuspenseCoreEnemyCharacter* Enemy)
 {
     Super::OnExitState(Enemy);
 }
 
-void USuspenseCoreEnemyAttackState::OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime)
+void USuspenseCoreEnemyAttackState::OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime)
 {
     Super::OnTickState(Enemy, DeltaTime);
 
@@ -89,12 +89,12 @@ void USuspenseCoreEnemyAttackState::OnTickState(ASuspenseCoreEnemy* Enemy, float
     }
 }
 
-void USuspenseCoreEnemyAttackState::OnFSMEvent(ASuspenseCoreEnemy* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
+void USuspenseCoreEnemyAttackState::OnFSMEvent(ASuspenseCoreEnemyCharacter* Enemy, const FGameplayTag& EventTag, AActor* Instigator)
 {
     Super::OnFSMEvent(Enemy, EventTag, Instigator);
 }
 
-void USuspenseCoreEnemyAttackState::PerformAttack(ASuspenseCoreEnemy* Enemy)
+void USuspenseCoreEnemyAttackState::PerformAttack(ASuspenseCoreEnemyCharacter* Enemy)
 {
     if (!Enemy)
     {
@@ -106,7 +106,7 @@ void USuspenseCoreEnemyAttackState::PerformAttack(ASuspenseCoreEnemy* Enemy)
     UE_LOG(LogEnemySystem, Verbose, TEXT("[%s] Performing attack"), *Enemy->GetName());
 }
 
-void USuspenseCoreEnemyAttackState::RotateTowardsTarget(ASuspenseCoreEnemy* Enemy, float DeltaTime)
+void USuspenseCoreEnemyAttackState::RotateTowardsTarget(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime)
 {
     if (!Enemy)
     {
@@ -136,7 +136,7 @@ void USuspenseCoreEnemyAttackState::RotateTowardsTarget(ASuspenseCoreEnemy* Enem
     Enemy->SetActorRotation(NewRotation);
 }
 
-bool USuspenseCoreEnemyAttackState::IsTargetInAttackRange(ASuspenseCoreEnemy* Enemy) const
+bool USuspenseCoreEnemyAttackState::IsTargetInAttackRange(ASuspenseCoreEnemyCharacter* Enemy) const
 {
     AActor* Target = GetCurrentTarget(Enemy);
     if (!Target)

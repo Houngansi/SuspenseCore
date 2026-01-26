@@ -12,9 +12,9 @@ class ENEMYSYSTEM_API USuspenseCoreEnemyDeathState : public USuspenseCoreEnemySt
 public:
     USuspenseCoreEnemyDeathState();
 
-    virtual void OnEnterState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnExitState(ASuspenseCoreEnemy* Enemy) override;
-    virtual void OnTickState(ASuspenseCoreEnemy* Enemy, float DeltaTime) override;
+    virtual void OnEnterState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnExitState(ASuspenseCoreEnemyCharacter* Enemy) override;
+    virtual void OnTickState(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime) override;
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Death")
@@ -23,6 +23,6 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Death")
     bool bEnableRagdoll;
 
-    void EnableRagdoll(ASuspenseCoreEnemy* Enemy);
-    void ScheduleDespawn(ASuspenseCoreEnemy* Enemy);
+    void EnableRagdoll(ASuspenseCoreEnemyCharacter* Enemy);
+    void ScheduleDespawn(ASuspenseCoreEnemyCharacter* Enemy);
 };

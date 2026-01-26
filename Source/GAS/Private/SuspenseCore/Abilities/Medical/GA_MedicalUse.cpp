@@ -50,6 +50,10 @@ UGA_MedicalUse::UGA_MedicalUse()
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
 
+	// CRITICAL: Block re-activation while already using medical item
+	// Prevents Fire input spam from consuming multiple charges
+	ActivationBlockedTags.AddTag(SuspenseCoreMedicalTags::State::TAG_State_Medical_UsingAnimation);
+
 	// Tarkov-style flow: require medical item to be equipped first
 	ActivationRequiredTags.AddTag(SuspenseCoreMedicalTags::State::TAG_State_Medical_Equipped);
 
@@ -317,7 +321,8 @@ void UGA_MedicalUse::OnApplyNotify()
 		bEffectsApplied = true;
 		PlaySound(ApplySound);
 		OnEffectsApplied();
-		BroadcastMedicalEvent(SuspenseCoreMedicalTags::Event::TAG_Event_Medical_ApplyEffect);
+		// Note: ApplyMedicalEffects() already publishes TAG_Event_Medical_ApplyEffect
+		// Don't call BroadcastMedicalEvent with same tag - it would duplicate effects!
 
 		MEDICAL_LOG(Log, TEXT("Medical effects applied successfully"));
 	}

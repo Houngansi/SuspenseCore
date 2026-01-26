@@ -748,6 +748,7 @@ void USuspenseCoreWeaponStanceComponent::OnStanceChangeRequested(FGameplayTag Ev
 	const FString* WeaponTypeStr = EventData.StringPayload.Find(TEXT("WeaponType"));
 	const bool* bIsDrawn = EventData.BoolPayload.Find(TEXT("IsDrawn"));
 	const bool* bIsGrenade = EventData.BoolPayload.Find(TEXT("IsGrenade"));
+	const bool* bIsMedical = EventData.BoolPayload.Find(TEXT("IsMedical"));
 
 	// Store current state for restoration
 	StoredPreviousWeaponType = CurrentWeaponType;
@@ -758,15 +759,19 @@ void USuspenseCoreWeaponStanceComponent::OnStanceChangeRequested(FGameplayTag Ev
 		bStoredPreviousDrawnState ? TEXT("true") : TEXT("false"));
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// HIDE CURRENT WEAPON when switching to grenade
+	// HIDE CURRENT WEAPON when switching to grenade or medical item
 	// The weapon actor remains attached but hidden - will be shown on restore
 	// ═══════════════════════════════════════════════════════════════════════════
-	if (bIsGrenade && *bIsGrenade)
+	const bool bShouldHideWeapon = (bIsGrenade && *bIsGrenade) || (bIsMedical && *bIsMedical);
+	if (bShouldHideWeapon)
 	{
 		if (AActor* WeaponActor = TrackedEquipmentActor.Get())
 		{
 			WeaponActor->SetActorHiddenInGame(true);
-			UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Hidden weapon actor: %s"), *WeaponActor->GetName());
+			UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Hidden weapon actor: %s (Grenade=%d, Medical=%d)"),
+				*WeaponActor->GetName(),
+				bIsGrenade ? *bIsGrenade : 0,
+				bIsMedical ? *bIsMedical : 0);
 		}
 	}
 

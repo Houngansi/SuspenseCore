@@ -12,6 +12,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreMedicalNativeTags.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Services/SuspenseCoreDoTService.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemGlobals.h"
@@ -688,19 +689,18 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 
 		TotalRemoved += Removed;
 
-		// CRITICAL: Manually publish DoT.Removed event for UI update
+		// CRITICAL: Notify DoTService to clear ManualDoTCache and publish DoT.Removed event
 		// ASC delegate OnAnyGameplayEffectRemovedDelegate does NOT fire when effects are removed
 		// via RemoveActiveEffectsWithGrantedTags (UE5 GAS limitation).
-		// DoTService tracks via delegates, but we must notify EventBus manually here.
-		if (Removed > 0 && EventBus.IsValid())
+		// We must manually notify DoTService so it clears internal state + publishes events.
+		if (Removed > 0)
 		{
-			FSuspenseCoreEventData DoTRemovedEvent;
-			DoTRemovedEvent.Source = Actor;
-			DoTRemovedEvent.Timestamp = FPlatformTime::Seconds();
-			DoTRemovedEvent.Tags.AddTag(SuspenseCoreTags::State::Health::BleedingLight);
-			DoTRemovedEvent.StringPayload.Add(TEXT("DoTType"), TEXT("State.Health.Bleeding.Light"));
-			EventBus->Publish(SuspenseCoreTags::Event::DoT::Removed, DoTRemovedEvent);
-			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Published DoT.Removed for Light bleeding"));
+			USuspenseCoreDoTService* DoTService = USuspenseCoreDoTService::Get(Actor);
+			if (DoTService)
+			{
+				DoTService->NotifyDoTRemoved(Actor, SuspenseCoreTags::State::Health::BleedingLight, false);
+				HANDLER_LOG(Log, TEXT("CureBleedingEffect: Notified DoTService of Light bleeding removal"));
+			}
 		}
 
 		HANDLER_LOG(Log, TEXT("CureBleedingEffect: Light bleed - removed %d effect(s)"), Removed);
@@ -726,19 +726,18 @@ int32 USuspenseCoreMedicalUseHandler::CureBleedingEffect(AActor* Actor, bool bCa
 
 		TotalRemoved += Removed;
 
-		// CRITICAL: Manually publish DoT.Removed event for UI update
+		// CRITICAL: Notify DoTService to clear ManualDoTCache and publish DoT.Removed event
 		// ASC delegate OnAnyGameplayEffectRemovedDelegate does NOT fire when effects are removed
 		// via RemoveActiveEffectsWithGrantedTags (UE5 GAS limitation).
-		// DoTService tracks via delegates, but we must notify EventBus manually here.
-		if (Removed > 0 && EventBus.IsValid())
+		// We must manually notify DoTService so it clears internal state + publishes events.
+		if (Removed > 0)
 		{
-			FSuspenseCoreEventData DoTRemovedEvent;
-			DoTRemovedEvent.Source = Actor;
-			DoTRemovedEvent.Timestamp = FPlatformTime::Seconds();
-			DoTRemovedEvent.Tags.AddTag(SuspenseCoreTags::State::Health::BleedingHeavy);
-			DoTRemovedEvent.StringPayload.Add(TEXT("DoTType"), TEXT("State.Health.Bleeding.Heavy"));
-			EventBus->Publish(SuspenseCoreTags::Event::DoT::Removed, DoTRemovedEvent);
-			HANDLER_LOG(Log, TEXT("CureBleedingEffect: Published DoT.Removed for Heavy bleeding"));
+			USuspenseCoreDoTService* DoTService = USuspenseCoreDoTService::Get(Actor);
+			if (DoTService)
+			{
+				DoTService->NotifyDoTRemoved(Actor, SuspenseCoreTags::State::Health::BleedingHeavy, false);
+				HANDLER_LOG(Log, TEXT("CureBleedingEffect: Notified DoTService of Heavy bleeding removal"));
+			}
 		}
 
 		HANDLER_LOG(Log, TEXT("CureBleedingEffect: Heavy bleed - removed %d effect(s)"), Removed);

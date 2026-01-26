@@ -11,6 +11,7 @@
 #include "SuspenseCore/Effects/Medical/GE_HealOverTime.h"
 #include "SuspenseCore/Tags/SuspenseCoreMedicalNativeTags.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemGlobals.h"
@@ -88,8 +89,7 @@ FText USuspenseCoreMedicalUseHandler::GetDisplayName() const
 FGameplayTagContainer USuspenseCoreMedicalUseHandler::GetSupportedSourceTags() const
 {
 	FGameplayTagContainer Tags;
-	Tags.AddTag(FGameplayTag::RequestGameplayTag(FName("Item.Category.Medical"), false));
-	Tags.AddTag(FGameplayTag::RequestGameplayTag(FName("Item.Medical"), false));
+	Tags.AddTag(SuspenseCoreEquipmentTags::Item::TAG_Item_Medical);
 	return Tags;
 }
 
@@ -127,17 +127,17 @@ bool USuspenseCoreMedicalUseHandler::CanHandle(const FSuspenseCoreItemUseRequest
 		FSuspenseCoreUnifiedItemData ItemData;
 		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
 		{
-			FGameplayTag MedicalTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Medical"), false);
-			FGameplayTag MedicalTag2 = FGameplayTag::RequestGameplayTag(FName("Item.Medical"), false);
+			// Use native tag for Item.Medical
+			const FGameplayTag& MedicalTag = SuspenseCoreEquipmentTags::Item::TAG_Item_Medical;
 
 			// Check ItemType tag
-			if (ItemData.ItemType.MatchesTag(MedicalTag) || ItemData.ItemType.MatchesTag(MedicalTag2))
+			if (ItemData.ItemType.MatchesTag(MedicalTag))
 			{
 				return true;
 			}
 
 			// Check ItemTags container
-			if (ItemData.ItemTags.HasTag(MedicalTag) || ItemData.ItemTags.HasTag(MedicalTag2))
+			if (ItemData.ItemTags.HasTag(MedicalTag))
 			{
 				return true;
 			}
@@ -195,7 +195,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::Execute(
 			ItemTags = ItemData.ItemTags;
 			// Use ItemType as MedicalTypeTag if it's a medical category
 			// e.g., Item.Medical.Medkit, Item.Medical.Bandage
-			if (ItemData.ItemType.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Item.Medical"), false)))
+			if (ItemData.ItemType.MatchesTag(SuspenseCoreEquipmentTags::Item::TAG_Item_Medical))
 			{
 				MedicalTypeTag = ItemData.ItemType;
 			}
@@ -222,7 +222,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::Execute(
 			// Similar to how GrenadeHandler sends data to GA_GrenadeEquip
 			FGameplayEventData EventData;
 			EventData.EventTag = MedicalTypeTag.IsValid() ? MedicalTypeTag :
-				FGameplayTag::RequestGameplayTag(FName("Item.Category.Medical"));
+				SuspenseCoreEquipmentTags::Item::TAG_Item_Medical;
 			EventData.Instigator = OwnerActor;
 			EventData.Target = OwnerActor;
 			EventData.EventMagnitude = static_cast<float>(Request.QuickSlotIndex);

@@ -19,6 +19,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreMedicalNativeTags.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/Pawn.h"
 
@@ -47,6 +48,13 @@ UGA_WeaponSwitch::UGA_WeaponSwitch()
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Reloading);
+
+	// Cancel equip abilities when switching to weapon
+	// This prevents Fire input conflict between medical/grenade/weapon
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Equip);
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Use);
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Throwable::Equip);
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Throwable::Grenade);
 
 	// Enable EventBus integration
 	bPublishAbilityEvents = true;

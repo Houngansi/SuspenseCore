@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Abilities/Throwable/SuspenseCoreGrenadeEquipAbility.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreMedicalNativeTags.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
@@ -52,6 +53,11 @@ USuspenseCoreGrenadeEquipAbility::USuspenseCoreGrenadeEquipAbility()
 	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::Fire);
 	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::Reload);
 	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::AimDownSight);
+
+	// Cancel medical equip - prevents Fire input conflict
+	// When grenade is equipped, medical item must be unequipped
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Equip);
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreMedicalTags::Ability::TAG_Ability_Medical_Use);
 
 	// Default timing
 	MinEquipTime = 0.3f;

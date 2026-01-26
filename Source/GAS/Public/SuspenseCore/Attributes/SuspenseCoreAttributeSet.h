@@ -201,6 +201,7 @@ protected:
 
 	/**
 	 * Обработка смерти.
+	 * Публикует событие смерти и вызывает Die() на персонаже.
 	 */
 	virtual void HandleDeath(AActor* DamageInstigator, AActor* DamageCauser);
 
@@ -208,6 +209,9 @@ protected:
 	 * Обработка низкого здоровья.
 	 */
 	virtual void HandleLowHealth();
+
+	/** Флаг предотвращения двойного вызова смерти */
+	bool bIsDead = false;
 
 	/**
 	 * Clamp значение атрибута.

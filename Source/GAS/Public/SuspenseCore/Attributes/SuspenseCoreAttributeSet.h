@@ -232,4 +232,7 @@ private:
 
 	/** Было ли опубликовано событие низкого здоровья */
 	bool bLowHealthEventPublished = false;
+
+	/** Cached stamina value before PreAttributeChange for accurate broadcast in PostGameplayEffectExecute */
+	float CachedPreChangeStamina = 0.0f;
 };

@@ -14,7 +14,7 @@ ASuspenseCoreEnemyState::ASuspenseCoreEnemyState()
 
     EnemyLevel = 1;
 
-    NetUpdateFrequency = 10.0f;
+    SetNetUpdateFrequency(10.0f);
 }
 
 void ASuspenseCoreEnemyState::BeginPlay()
@@ -23,7 +23,7 @@ void ASuspenseCoreEnemyState::BeginPlay()
 
     if (AbilitySystemComponent && AttributeSet)
     {
-        AbilitySystemComponent->AddAttributeSetSubobject(AttributeSet);
+        AbilitySystemComponent->AddAttributeSetSubobject(AttributeSet.Get());
         AbilitySystemComponent->InitAbilityActorInfo(this, GetPawn());
     }
 }

@@ -49,6 +49,11 @@ UGA_MedicalEquip::UGA_MedicalEquip()
 	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::Reload);
 	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::AimDownSight);
 
+	// Cancel grenade equip - prevents Fire input conflict
+	// When medical item is equipped, grenade must be unequipped
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Throwable::Equip);
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Throwable::Grenade);
+
 	// Default timing
 	MinEquipTime = 0.2f;
 	DrawMontagePlayRate = 1.0f;

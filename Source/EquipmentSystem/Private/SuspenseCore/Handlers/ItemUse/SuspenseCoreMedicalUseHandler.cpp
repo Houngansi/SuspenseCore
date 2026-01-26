@@ -369,48 +369,48 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::OnOperationComplete
 
 	if (OwnerActor)
 	{
-		// 1. Apply instant healing
-		if (InstantHealAmount > 0.0f)
-		{
-			bool bHealed = ApplyHealing(OwnerActor, InstantHealAmount);
-			if (bHealed)
-			{
-				Response.Metadata.Add(TEXT("InstantHeal"), FString::SanitizeFloat(InstantHealAmount));
-				HANDLER_LOG(Log, TEXT("Applied %.1f instant healing"), InstantHealAmount);
-			}
-		}
+		// ══════════════════════════════════════════════════════════════════
+		// TARKOV-STYLE MEDICAL EFFECT ORDER:
+		// 1. First cure negative effects (bleeding, fractures)
+		// 2. Then apply HoT (heal over time with per-second ticks)
+		// 3. NO instant healing - all healing is via HoT
+		// ══════════════════════════════════════════════════════════════════
 
-		// 2. Apply HoT if applicable (Medkits, Surgical Kits)
-		if (HoTAmount > 0.0f && HoTDuration > 0.0f)
-		{
-			bool bHoTApplied = ApplyHealOverTime(OwnerActor, HoTAmount, HoTDuration);
-			if (bHoTApplied)
-			{
-				Response.Metadata.Add(TEXT("HoTPerTick"), FString::SanitizeFloat(HoTAmount));
-				Response.Metadata.Add(TEXT("HoTDuration"), FString::SanitizeFloat(HoTDuration));
-				HANDLER_LOG(Log, TEXT("Applied HoT: %.1f/tick for %.1fs"), HoTAmount, HoTDuration);
-			}
-		}
-
-		// 3. Cure bleeding effects
+		// 1. Cure bleeding effects FIRST (stop the damage source)
 		if (bCanCureLightBleed || bCanCureHeavyBleed)
 		{
 			int32 BleedsCured = CureBleedingEffect(OwnerActor, bCanCureLightBleed, bCanCureHeavyBleed);
 			if (BleedsCured > 0)
 			{
 				Response.Metadata.Add(TEXT("BleedingCured"), FString::FromInt(BleedsCured));
-				HANDLER_LOG(Log, TEXT("Cured %d bleeding effect(s)"), BleedsCured);
+				HANDLER_LOG(Log, TEXT("[Step 1] Cured %d bleeding effect(s)"), BleedsCured);
 			}
 		}
 
-		// 4. Cure fractures (Splints, Surgical Kits)
+		// 2. Cure fractures (Splints, Surgical Kits)
 		if (bCanCureFracture)
 		{
 			int32 FracturesCured = CureFractureEffect(OwnerActor);
 			if (FracturesCured > 0)
 			{
 				Response.Metadata.Add(TEXT("FracturesCured"), FString::FromInt(FracturesCured));
-				HANDLER_LOG(Log, TEXT("Cured %d fracture(s)"), FracturesCured);
+				HANDLER_LOG(Log, TEXT("[Step 2] Cured %d fracture(s)"), FracturesCured);
+			}
+		}
+
+		// 3. Apply HoT (heal over time with per-second ticks)
+		// This is the ONLY healing - no instant heal for Tarkov-style
+		if (HoTAmount > 0.0f && HoTDuration > 0.0f)
+		{
+			bool bHoTApplied = ApplyHealOverTime(OwnerActor, HoTAmount, HoTDuration);
+			if (bHoTApplied)
+			{
+				float TotalHeal = HoTAmount * HoTDuration;
+				Response.Metadata.Add(TEXT("HoTPerTick"), FString::SanitizeFloat(HoTAmount));
+				Response.Metadata.Add(TEXT("HoTDuration"), FString::SanitizeFloat(HoTDuration));
+				Response.Metadata.Add(TEXT("TotalHeal"), FString::SanitizeFloat(TotalHeal));
+				HANDLER_LOG(Log, TEXT("[Step 3] Applied HoT: %.1f HP/sec for %.1fs (%.0f HP total)"),
+					HoTAmount, HoTDuration, TotalHeal);
 			}
 		}
 	}
@@ -1025,46 +1025,43 @@ void USuspenseCoreMedicalUseHandler::ApplyMedicalEffectsFromAnimation(AActor* Ac
 		HoTAmount,
 		HoTDuration);
 
-	// Get instant heal amount from item data
-	float InstantHealAmount = GetHealAmount(ItemID);
+	// ══════════════════════════════════════════════════════════════════
+	// TARKOV-STYLE MEDICAL EFFECT ORDER:
+	// 1. First cure negative effects (bleeding, fractures)
+	// 2. Then apply HoT (heal over time with per-second ticks)
+	// 3. NO instant healing - all healing is via HoT
+	// ══════════════════════════════════════════════════════════════════
 
-	// 1. Apply instant healing
-	if (InstantHealAmount > 0.0f)
-	{
-		bool bHealed = ApplyHealing(Actor, InstantHealAmount);
-		if (bHealed)
-		{
-			HANDLER_LOG(Log, TEXT("Animation flow: Applied %.1f instant healing"), InstantHealAmount);
-		}
-	}
-
-	// 2. Apply HoT if applicable (Medkits, Surgical Kits)
-	if (HoTAmount > 0.0f && HoTDuration > 0.0f)
-	{
-		bool bHoTApplied = ApplyHealOverTime(Actor, HoTAmount, HoTDuration);
-		if (bHoTApplied)
-		{
-			HANDLER_LOG(Log, TEXT("Animation flow: Applied HoT: %.1f/tick for %.1fs"), HoTAmount, HoTDuration);
-		}
-	}
-
-	// 3. Cure bleeding effects
+	// 1. Cure bleeding effects FIRST (stop the damage source)
 	if (bCanCureLightBleed || bCanCureHeavyBleed)
 	{
 		int32 BleedsCured = CureBleedingEffect(Actor, bCanCureLightBleed, bCanCureHeavyBleed);
 		if (BleedsCured > 0)
 		{
-			HANDLER_LOG(Log, TEXT("Animation flow: Cured %d bleeding effect(s)"), BleedsCured);
+			HANDLER_LOG(Log, TEXT("Animation flow: [Step 1] Cured %d bleeding effect(s)"), BleedsCured);
 		}
 	}
 
-	// 4. Cure fractures (Splints, Surgical Kits)
+	// 2. Cure fractures (Splints, Surgical Kits)
 	if (bCanCureFracture)
 	{
 		int32 FracturesCured = CureFractureEffect(Actor);
 		if (FracturesCured > 0)
 		{
-			HANDLER_LOG(Log, TEXT("Animation flow: Cured %d fracture(s)"), FracturesCured);
+			HANDLER_LOG(Log, TEXT("Animation flow: [Step 2] Cured %d fracture(s)"), FracturesCured);
+		}
+	}
+
+	// 3. Apply HoT (heal over time with per-second ticks)
+	// This is the ONLY healing - no instant heal for Tarkov-style
+	if (HoTAmount > 0.0f && HoTDuration > 0.0f)
+	{
+		bool bHoTApplied = ApplyHealOverTime(Actor, HoTAmount, HoTDuration);
+		if (bHoTApplied)
+		{
+			float TotalHeal = HoTAmount * HoTDuration;
+			HANDLER_LOG(Log, TEXT("Animation flow: [Step 3] Applied HoT: %.1f HP/sec for %.1fs (%.0f HP total)"),
+				HoTAmount, HoTDuration, TotalHeal);
 		}
 	}
 

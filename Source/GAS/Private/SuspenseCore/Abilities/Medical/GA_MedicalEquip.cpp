@@ -173,14 +173,12 @@ void UGA_MedicalEquip::ActivateAbility(
 	// Extract medical item info from TriggerEventData if available
 	if (TriggerEventData)
 	{
-		// MedicalTypeTag from EventTag
-		if (TriggerEventData->EventTag.IsValid())
-		{
-			MedicalTypeTag = TriggerEventData->EventTag;
-			MEDICAL_LOG(Log, TEXT("Extracted MedicalTypeTag from EventTag: %s"), *MedicalTypeTag.ToString());
-		}
+		// IMPORTANT: Do NOT extract MedicalTypeTag from EventTag directly!
+		// When ability is triggered via HandleGameplayEvent(TriggerTag, &Payload),
+		// EventTag may contain the trigger tag (Ability.Medical.Equip) not the item type.
+		// Instead, extract from InstigatorTags which the handler populates correctly.
 
-		// Extract MedicalType from InstigatorTags
+		// Extract MedicalType from InstigatorTags (this is reliable)
 		for (const FGameplayTag& Tag : TriggerEventData->InstigatorTags)
 		{
 			FString TagStr = Tag.ToString();
@@ -189,6 +187,22 @@ void UGA_MedicalEquip::ActivateAbility(
 				MedicalTypeTag = Tag;
 				MEDICAL_LOG(Log, TEXT("Extracted MedicalTypeTag from InstigatorTags: %s"), *MedicalTypeTag.ToString());
 				break;
+			}
+		}
+
+		// Fallback: Check EventTag only if InstigatorTags didn't provide a valid tag
+		// AND EventTag is an Item.* tag (not an Ability.* tag)
+		if (!MedicalTypeTag.IsValid() && TriggerEventData->EventTag.IsValid())
+		{
+			FString EventTagStr = TriggerEventData->EventTag.ToString();
+			if (EventTagStr.StartsWith(TEXT("Item.Medical.")) || EventTagStr.StartsWith(TEXT("Item.Consumable.")))
+			{
+				MedicalTypeTag = TriggerEventData->EventTag;
+				MEDICAL_LOG(Log, TEXT("Extracted MedicalTypeTag from EventTag (fallback): %s"), *MedicalTypeTag.ToString());
+			}
+			else
+			{
+				MEDICAL_LOG(Warning, TEXT("EventTag is not an item tag (skipping): %s"), *EventTagStr);
 			}
 		}
 

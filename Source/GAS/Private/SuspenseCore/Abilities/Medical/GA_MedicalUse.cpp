@@ -589,7 +589,7 @@ void UGA_MedicalUse::ConsumeMedicalItem()
 		return;
 	}
 
-	// Find QuickSlotProvider and clear the slot
+	// Find QuickSlotProvider and consume one use (not clear the entire slot!)
 	TArray<UActorComponent*> Components;
 	AvatarActor->GetComponents(Components);
 
@@ -597,8 +597,12 @@ void UGA_MedicalUse::ConsumeMedicalItem()
 	{
 		if (Comp && Comp->Implements<USuspenseCoreQuickSlotProvider>())
 		{
-			ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(Comp, CurrentSlotIndex);
-			MEDICAL_LOG(Log, TEXT("ConsumeMedicalItem: Cleared slot %d"), CurrentSlotIndex);
+			// ConsumeSlotUse decrements quantity by 1
+			// Returns true if uses remain, false if slot was depleted and cleared
+			bool bUsesRemaining = ISuspenseCoreQuickSlotProvider::Execute_ConsumeSlotUse(Comp, CurrentSlotIndex);
+
+			MEDICAL_LOG(Log, TEXT("ConsumeMedicalItem: Consumed 1 use from slot %d (remaining=%s)"),
+				CurrentSlotIndex, bUsesRemaining ? TEXT("true") : TEXT("depleted"));
 			break;
 		}
 	}

@@ -79,4 +79,12 @@ public:
     /** Clear specified slot */
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "QuickSlot")
     void ClearSlot(int32 SlotIndex);
+
+    /**
+     * Consume one use from a consumable in the slot
+     * @param SlotIndex Slot index (0-3)
+     * @return true if uses remain (slot still valid), false if depleted (slot was cleared)
+     */
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "QuickSlot")
+    bool ConsumeSlotUse(int32 SlotIndex);
 };

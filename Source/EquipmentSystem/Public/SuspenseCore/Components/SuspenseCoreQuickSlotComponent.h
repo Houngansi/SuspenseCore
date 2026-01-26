@@ -153,13 +153,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "QuickSlot|Usage")
     void StartSlotCooldown(int32 SlotIndex, float CooldownDuration);
 
-    /**
-     * Consume one use from a consumable in the slot
-     * @param SlotIndex Slot index (0-3)
-     * @return true if uses remain (slot still valid), false if depleted (slot will be cleared)
-     */
-    UFUNCTION(BlueprintCallable, Category = "QuickSlot|Usage")
-    bool ConsumeSlotUse(int32 SlotIndex);
+    // NOTE: ConsumeSlotUse is now part of ISuspenseCoreQuickSlotProvider interface
+    // Implementation: ConsumeSlotUse_Implementation() in protected section
 
     /**
      * Get remaining uses for a consumable in the slot
@@ -259,6 +254,7 @@ protected:
     virtual bool GetFirstMagazineSlotIndex_Implementation(int32& OutSlotIndex) const override;
     virtual bool StoreEjectedMagazine_Implementation(const FSuspenseCoreMagazineInstance& EjectedMagazine, int32& OutSlotIndex) override;
     virtual void ClearSlot_Implementation(int32 SlotIndex) override;
+    virtual bool ConsumeSlotUse_Implementation(int32 SlotIndex) override;
 
     //==================================================================
     // Server RPCs

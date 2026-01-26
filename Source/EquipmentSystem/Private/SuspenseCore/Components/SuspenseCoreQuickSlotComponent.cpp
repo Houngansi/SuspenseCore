@@ -257,7 +257,7 @@ void USuspenseCoreQuickSlotComponent::StartSlotCooldown(int32 SlotIndex, float C
     }
 }
 
-bool USuspenseCoreQuickSlotComponent::ConsumeSlotUse(int32 SlotIndex)
+bool USuspenseCoreQuickSlotComponent::ConsumeSlotUse_Implementation(int32 SlotIndex)
 {
     if (!IsValidSlotIndex(SlotIndex))
     {

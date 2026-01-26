@@ -61,6 +61,13 @@ void USuspenseCoreAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 void USuspenseCoreAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
 	Super::PreAttributeChange(Attribute, NewValue);
+
+	// Cache old stamina before the change for accurate broadcast in PostGameplayEffectExecute
+	if (Attribute == GetStaminaAttribute())
+	{
+		CachedPreChangeStamina = GetStamina();
+	}
+
 	ClampAttribute(Attribute, NewValue);
 }
 
@@ -131,23 +138,10 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 	// Process Stamina change
 	else if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
 	{
-		const float MaxST = GetMaxStamina();
-		const float StaminaDelta = Data.EvaluatedData.Magnitude;
-		float CurrentStamina = GetStamina();
-
-		// For positive changes (regen), flatten base value to prevent accumulation
-		if (StaminaDelta > 0.0f)
-		{
-			const float ClampedValue = FMath::Clamp(CurrentStamina, 0.0f, MaxST);
-			if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
-			{
-				ASC->SetNumericAttributeBase(GetStaminaAttribute(), ClampedValue);
-			}
-			CurrentStamina = ClampedValue;
-		}
-
-		const float OldStamina = FMath::Clamp(CurrentStamina - StaminaDelta, 0.0f, MaxST);
-		BroadcastAttributeChange(GetStaminaAttribute(), OldStamina, CurrentStamina);
+		// Use the cached pre-change value for accurate broadcast
+		// CachedPreChangeStamina was set in PreAttributeChange before clamping
+		const float CurrentStamina = GetStamina();
+		BroadcastAttributeChange(GetStaminaAttribute(), CachedPreChangeStamina, CurrentStamina);
 	}
 	// Process MaxStamina change
 	else if (Data.EvaluatedData.Attribute == GetMaxStaminaAttribute())

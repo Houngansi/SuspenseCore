@@ -2823,7 +2823,31 @@ Project Settings → Navigation System:
 
 **Без правильного AnimBP враг будет двигаться но анимация останется в Idle!**
 
-#### Требования к AnimBP:
+#### Вариант 1: Использовать USuspenseCoreEnemyAnimInstance (рекомендуется)
+
+EnemySystem включает готовый AnimInstance с locomotion данными:
+
+**Файл:** `SuspenseCore/Animation/SuspenseCoreEnemyAnimInstance.h`
+
+**Доступные переменные (BlueprintReadOnly):**
+| Переменная | Тип | Описание |
+|------------|-----|----------|
+| `Speed` | float | Полная скорость (с вертикальной) |
+| `GroundSpeed` | float | Горизонтальная скорость (для BlendSpace) |
+| `NormalizedSpeed` | float | 0-1 относительно MaxWalkSpeed |
+| `MovementDirection` | float | -180 to 180 относительно facing |
+| `MoveForward` | float | -1 to 1 компонент вперёд |
+| `MoveRight` | float | -1 to 1 компонент вправо |
+| `bIsMoving` | bool | Speed > 10 |
+| `bIsInAir` | bool | В воздухе |
+| `bIsFalling` | bool | Падает |
+
+**Настройка:**
+1. Создайте AnimBlueprint на базе `USuspenseCoreEnemyAnimInstance`
+2. В AnimGraph используйте `GroundSpeed` для BlendSpace
+3. Назначьте AnimBP в Mesh компонент BP_Enemy
+
+#### Вариант 2: Ручная настройка AnimBP
 
 1. **Создайте AnimBlueprint** для скелета врага
 2. **В Event Graph** получите скорость персонажа:
@@ -2853,6 +2877,7 @@ Get Velocity → Vector Length → Print String
 1. Откройте `BP_Enemy_*`
 2. Выберите `Mesh` компонент
 3. В Details: `Animation → Anim Class` → выберите ваш AnimBP
+4. Если используете `USuspenseCoreEnemyAnimInstance` — Parent Class должен быть этот класс
 
 ---
 

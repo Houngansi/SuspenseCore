@@ -165,13 +165,20 @@ void ASuspenseCoreEnemyCharacter::OnPerceptionUpdated(AActor* Actor, bool bIsSen
 
     if (bIsSensed)
     {
+        // CRITICAL: Set the detected actor as target BEFORE sending event
+        // Otherwise Chase state will get null target and fail immediately
+        SetCurrentTarget(Actor);
         FSMComponent->SendFSMEvent(SuspenseCoreEnemyTags::Event::PlayerDetected, Actor);
+
+        UE_LOG(LogEnemySystem, Log, TEXT("[%s] Target acquired: %s"),
+            *GetName(), *Actor->GetName());
     }
     else
     {
         if (CurrentTarget.Get() == Actor)
         {
             FSMComponent->SendFSMEvent(SuspenseCoreEnemyTags::Event::PlayerLost, Actor);
+            // Don't clear target immediately - let Chase state handle memory/timeout
         }
     }
 }

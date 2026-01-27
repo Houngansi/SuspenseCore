@@ -34,6 +34,14 @@ void USuspenseCoreEnemyChaseState::OnEnterState(ASuspenseCoreEnemyCharacter* Ene
         CachedController = AIController;
     }
 
+    // Apply chase speed to movement component
+    if (UCharacterMovementComponent* MovementComp = Enemy->GetCharacterMovement())
+    {
+        MovementComp->MaxWalkSpeed = ChaseSpeed;
+        UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: Entered - Setting MaxWalkSpeed=%.1f"),
+            *GetNameSafe(Enemy), ChaseSpeed);
+    }
+
     TimeSinceTargetSeen = 0.0f;
     TimeSinceLastPathUpdate = PathUpdateInterval;
 
@@ -140,16 +148,26 @@ void USuspenseCoreEnemyChaseState::MoveToTarget(ASuspenseCoreEnemyCharacter* Ene
         return;
     }
 
-    // Debug: Log movement attempt
+    // Debug: Log movement attempt with velocity
     if (UCharacterMovementComponent* MovementComp = Enemy ? Enemy->GetCharacterMovement() : nullptr)
     {
-        UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: MoveToTarget - MaxWalkSpeed=%.1f, Target=%s"),
+        const FVector Velocity = Enemy->GetVelocity();
+        UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: MoveToTarget - MaxWalkSpeed=%.1f, CurrentVelocity=%.1f, Target=%s"),
             *GetNameSafe(Enemy),
             MovementComp->MaxWalkSpeed,
+            Velocity.Size(),
             *TargetLocation.ToString());
     }
 
-    EPathFollowingRequestResult::Type Result = AIController->MoveToLocation(TargetLocation, AttackRange * 0.8f, true, true, false, true);
+    // Use pathfinding with projection to NavMesh (5th param = true)
+    EPathFollowingRequestResult::Type Result = AIController->MoveToLocation(
+        TargetLocation,
+        AttackRange * 0.8f,  // AcceptanceRadius
+        true,                // bStopOnOverlap
+        true,                // bUsePathfinding
+        true,                // bProjectDestinationToNavigation - CRITICAL!
+        true                 // bCanStrafe
+    );
 
     if (Result == EPathFollowingRequestResult::Failed)
     {

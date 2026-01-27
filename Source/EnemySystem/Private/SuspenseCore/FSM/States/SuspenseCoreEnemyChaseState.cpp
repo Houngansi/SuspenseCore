@@ -3,6 +3,8 @@
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "SuspenseCore/FSM/SuspenseCoreEnemyFSMComponent.h"
 #include "AIController.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "EnemySystem.h"
 
 USuspenseCoreEnemyChaseState::USuspenseCoreEnemyChaseState()
@@ -134,8 +136,27 @@ void USuspenseCoreEnemyChaseState::MoveToTarget(ASuspenseCoreEnemyCharacter* Ene
     AAIController* AIController = CachedController.Get();
     if (!AIController)
     {
+        UE_LOG(LogEnemySystem, Warning, TEXT("[%s] ChaseState: No AIController!"), *GetNameSafe(Enemy));
         return;
     }
 
-    AIController->MoveToLocation(TargetLocation, AttackRange * 0.8f, true, true, false, true);
+    // Debug: Log movement attempt
+    if (UCharacterMovementComponent* MovementComp = Enemy ? Enemy->GetCharacterMovement() : nullptr)
+    {
+        UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: MoveToTarget - MaxWalkSpeed=%.1f, Target=%s"),
+            *GetNameSafe(Enemy),
+            MovementComp->MaxWalkSpeed,
+            *TargetLocation.ToString());
+    }
+
+    EPathFollowingRequestResult::Type Result = AIController->MoveToLocation(TargetLocation, AttackRange * 0.8f, true, true, false, true);
+
+    if (Result == EPathFollowingRequestResult::Failed)
+    {
+        UE_LOG(LogEnemySystem, Warning, TEXT("[%s] ChaseState: MoveToLocation FAILED! Check NavMesh!"), *GetNameSafe(Enemy));
+    }
+    else if (Result == EPathFollowingRequestResult::AlreadyAtGoal)
+    {
+        UE_LOG(LogEnemySystem, Verbose, TEXT("[%s] ChaseState: Already at goal"), *GetNameSafe(Enemy));
+    }
 }

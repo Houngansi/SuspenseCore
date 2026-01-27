@@ -1,11 +1,12 @@
 // SuspenseCoreEnemyAnimInstance.h
-// Simple AnimInstance for enemy characters that provides locomotion data.
-// Use Speed, GroundSpeed, MovementDirection in your AnimBP BlendSpaces.
+// AnimInstance для вражеских персонажей с идентичными переменными как в USuspenseCoreCharacterAnimInstance.
+// Позволяет использовать тот же AnimBP что и для игрока.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
+#include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 #include "SuspenseCoreEnemyAnimInstance.generated.h"
 
 class UCharacterMovementComponent;
@@ -13,14 +14,8 @@ class UCharacterMovementComponent;
 /**
  * USuspenseCoreEnemyAnimInstance
  *
- * Simple AnimInstance for enemy AI characters.
- * Provides locomotion data from CharacterMovementComponent.
- *
- * Use in AnimBP:
- * - Speed (for BlendSpace axis)
- * - GroundSpeed (horizontal only)
- * - MovementDirection (-180 to 180)
- * - bIsMoving (for state transitions)
+ * AnimInstance для AI персонажей с теми же переменными что и USuspenseCoreCharacterAnimInstance.
+ * Можно использовать тот же AnimBP без изменений.
  */
 UCLASS()
 class ENEMYSYSTEM_API USuspenseCoreEnemyAnimInstance : public UAnimInstance
@@ -34,72 +29,124 @@ public:
     virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
     // ═══════════════════════════════════════════════════════════════════════════════
-    // LOCOMOTION DATA (use in BlendSpaces)
+    // MOVEMENT STATE (идентично USuspenseCoreCharacterAnimInstance)
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    /** Total velocity magnitude (includes vertical) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
-    float Speed = 0.0f;
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
+    ESuspenseCoreMovementState MovementState = ESuspenseCoreMovementState::Idle;
 
-    /** Horizontal velocity magnitude (XY only, for ground movement) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
-    float GroundSpeed = 0.0f;
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
+    bool bIsSprinting = false;
 
-    /** Normalized speed (0-1 based on MaxWalkSpeed) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
-    float NormalizedSpeed = 0.0f;
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
+    bool bIsCrouching = false;
 
-    /** Movement direction relative to actor forward (-180 to 180) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
-    float MovementDirection = 0.0f;
-
-    /** Forward movement component (-1 to 1) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
-    float MoveForward = 0.0f;
-
-    /** Right movement component (-1 to 1) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
-    float MoveRight = 0.0f;
-
-    /** Is character currently moving (speed > threshold) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
-    bool bIsMoving = false;
-
-    /** Is character in air */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
     bool bIsInAir = false;
 
-    /** Is character falling */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
     bool bIsFalling = false;
 
-    /** Vertical velocity (for jump/fall blending) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Locomotion")
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
+    bool bIsJumping = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
+    bool bHasMovementInput = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
+    bool bIsOnGround = true;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
+    bool bIsSliding = false;
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // VELOCITY & DIRECTION (идентично USuspenseCoreCharacterAnimInstance)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Velocity")
+    float Speed = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Velocity")
+    float GroundSpeed = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Velocity")
+    float NormalizedSpeed = 0.0f;
+
+    /** Направление движения вперёд (-1..1) - для BlendSpace Axis */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Direction")
+    float MoveForward = 0.0f;
+
+    /** Направление движения вправо (-1..1) - для BlendSpace Axis */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Direction")
+    float MoveRight = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Direction")
+    float MovementDirection = 0.0f;
+
+    /** Величина движения (0-2) для State Machine переходов */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Direction")
+    float Movement = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Velocity")
     float VerticalVelocity = 0.0f;
 
     // ═══════════════════════════════════════════════════════════════════════════════
-    // COMBAT STATE (optional, for weapon stances)
+    // POSE STATES (упрощённые для AI)
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    /** Does enemy have a weapon equipped */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Combat")
-    bool bHasWeapon = false;
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|PoseStates")
+    float Lean = 0.0f;
 
-    /** Is enemy currently attacking */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Combat")
-    bool bIsAttacking = false;
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|PoseStates")
+    float BodyPitch = 0.0f;
 
-    /** Is enemy dead (for death animation) */
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Combat")
-    bool bIsDead = false;
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|PoseStates")
+    float YawOffset = 0.0f;
 
     // ═══════════════════════════════════════════════════════════════════════════════
-    // CONFIGURATION
+    // AIM OFFSET (для AI прицеливания)
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    /** Speed threshold for bIsMoving (default: 10) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Config")
-    float MovingThreshold = 10.0f;
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|AimOffset")
+    float AimYaw = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|AimOffset")
+    float AimPitch = 0.0f;
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // WEAPON STATE (для AI с оружием)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
+    bool bHasWeaponEquipped = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
+    bool bIsWeaponDrawn = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
+    bool bIsAiming = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
+    float AimingAlpha = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
+    bool bIsFiring = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
+    bool bIsReloading = false;
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // GAS ATTRIBUTES (для совместимости)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Attributes")
+    float MaxWalkSpeed = 400.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Attributes")
+    float MaxSprintSpeed = 600.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Attributes")
+    float MaxCrouchSpeed = 200.0f;
 
 protected:
     UPROPERTY(Transient)
@@ -108,5 +155,7 @@ protected:
     UPROPERTY(Transient)
     TWeakObjectPtr<UCharacterMovementComponent> CachedMovementComponent;
 
-    void UpdateLocomotionData(float DeltaSeconds);
+    void UpdateMovementData(float DeltaSeconds);
+    void UpdateVelocityData(float DeltaSeconds);
+    void UpdateAimData(float DeltaSeconds);
 };

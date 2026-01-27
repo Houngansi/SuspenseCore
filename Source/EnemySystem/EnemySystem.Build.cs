@@ -33,7 +33,8 @@ public class EnemySystem : ModuleRules
                 "GameplayAbilities",
                 "GameplayTags",
                 "BridgeSystem",
-                "GAS"
+                "GAS",
+                "PlayerCore"
             }
         );
 

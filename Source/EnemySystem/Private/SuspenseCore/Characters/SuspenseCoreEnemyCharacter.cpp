@@ -74,6 +74,29 @@ void ASuspenseCoreEnemyCharacter::InitializeEnemy(USuspenseCoreEnemyBehaviorData
         EnemyState->ApplyStartupEffects(BehaviorData->StartupEffects);
     }
 
+    // CRITICAL: Apply movement speeds to CharacterMovementComponent
+    // Without this, AIController::MoveToLocation won't work properly
+    if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+    {
+        const float RunSpeed = BehaviorData->GetEffectiveRunSpeed();
+        const float WalkSpeed = BehaviorData->GetEffectiveWalkSpeed();
+
+        MovementComp->MaxWalkSpeed = RunSpeed;
+        MovementComp->MaxWalkSpeedCrouched = WalkSpeed * 0.5f;
+
+        UE_LOG(LogEnemySystem, Log, TEXT("[%s] Movement initialized - MaxWalkSpeed: %.1f"),
+            *GetName(), RunSpeed);
+    }
+
+    // Also set the MovementSpeed attribute if we have an attribute set
+    if (EnemyState)
+    {
+        if (USuspenseCoreEnemyAttributeSet* AttrSet = EnemyState->GetAttributeSet())
+        {
+            AttrSet->SetMovementSpeed(BehaviorData->GetEffectiveRunSpeed());
+        }
+    }
+
     UE_LOG(LogEnemySystem, Log, TEXT("[%s] Enemy initialized with behavior: %s"),
         *GetName(), *BehaviorData->GetName());
 }

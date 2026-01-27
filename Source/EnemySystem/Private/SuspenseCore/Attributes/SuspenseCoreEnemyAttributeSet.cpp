@@ -2,6 +2,8 @@
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "EnemySystem.h"
 
 USuspenseCoreEnemyAttributeSet::USuspenseCoreEnemyAttributeSet()
@@ -64,6 +66,11 @@ void USuspenseCoreEnemyAttributeSet::PostGameplayEffectExecute(const FGameplayEf
 
             HandleHealthChanged(NewHealth - OldHealth, Data);
         }
+    }
+    // Apply movement speed changes to CharacterMovementComponent
+    else if (Data.EvaluatedData.Attribute == GetMovementSpeedAttribute())
+    {
+        ApplyMovementSpeedToCharacter();
     }
 }
 
@@ -152,4 +159,38 @@ void USuspenseCoreEnemyAttributeSet::OnRep_Armor(const FGameplayAttributeData& O
 void USuspenseCoreEnemyAttributeSet::OnRep_MovementSpeed(const FGameplayAttributeData& OldValue)
 {
     GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreEnemyAttributeSet, MovementSpeed, OldValue);
+    ApplyMovementSpeedToCharacter();
+}
+
+void USuspenseCoreEnemyAttributeSet::ApplyMovementSpeedToCharacter()
+{
+    AActor* OwningActor = nullptr;
+
+    if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+    {
+        OwningActor = ASC->GetAvatarActor();
+    }
+
+    if (!OwningActor)
+    {
+        return;
+    }
+
+    ACharacter* Character = Cast<ACharacter>(OwningActor);
+    if (!Character)
+    {
+        return;
+    }
+
+    UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
+    if (!MovementComponent)
+    {
+        return;
+    }
+
+    const float NewSpeed = GetMovementSpeed();
+    MovementComponent->MaxWalkSpeed = NewSpeed;
+
+    UE_LOG(LogEnemySystem, Verbose, TEXT("[%s] Movement speed applied: %.1f"),
+        *Character->GetName(), NewSpeed);
 }

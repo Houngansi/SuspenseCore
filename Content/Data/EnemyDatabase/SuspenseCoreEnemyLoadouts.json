@@ -1,0 +1,313 @@
+[
+  {
+    "Name": "Loadout_Scav_Pistol",
+    "Comment": "Basic scav with PM pistol - poorest loadout",
+    "Weapons": [
+      {
+        "WeaponItemID": "Weapon_PM_Makarov",
+        "AttachmentItemIDs": [],
+        "Magazines": [
+          {
+            "MagazineItemID": "Mag_PM_8rnd",
+            "AmmoItemID": "Ammo_9x18_PM_Pst",
+            "LoadedAmmoCount": 8,
+            "Location": "InWeapon"
+          },
+          {
+            "MagazineItemID": "Mag_PM_8rnd",
+            "AmmoItemID": "Ammo_9x18_PM_Pst",
+            "LoadedAmmoCount": 8,
+            "Location": "InRig"
+          }
+        ],
+        "LooseAmmo": {
+          "AmmoItemID": "Ammo_9x18_PM_Pst",
+          "MinCount": 0,
+          "MaxCount": 16,
+          "SpawnChance": 0.5
+        },
+        "EquipSlot": "PrimaryWeapon",
+        "Durability": 0.65
+      }
+    ],
+    "Armor": {
+      "BodyArmorItemID": "",
+      "HelmetItemID": "",
+      "RigItemID": "Rig_Scav_Vest",
+      "FaceCoverItemID": "",
+      "EyewearItemID": "",
+      "HeadsetItemID": "",
+      "BodyArmorDurability": 1.0,
+      "HelmetDurability": 1.0
+    },
+    "BackpackItemID": "",
+    "RigContents": [
+      { "ItemID": "Consumable_Bandage", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.6 },
+      { "ItemID": "Consumable_AI2_Medkit", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.3 }
+    ],
+    "BackpackContents": [],
+    "PocketContents": [
+      { "ItemID": "Misc_Cigarettes", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.4 },
+      { "ItemID": "Misc_Lighter", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.3 }
+    ],
+    "Currency": [
+      { "ItemID": "Currency_Roubles", "Quantity": 1, "MinQuantity": 500, "MaxQuantity": 3000, "SpawnChance": 0.7 }
+    ],
+    "QuestItems": [],
+    "Keys": []
+  },
+  {
+    "Name": "Loadout_Scav_Shotgun",
+    "Comment": "Scav with MP-133 shotgun",
+    "Weapons": [
+      {
+        "WeaponItemID": "Weapon_MP133",
+        "AttachmentItemIDs": [],
+        "Magazines": [],
+        "LooseAmmo": {
+          "AmmoItemID": "Ammo_12x70_Buckshot",
+          "MinCount": 8,
+          "MaxCount": 24,
+          "SpawnChance": 1.0
+        },
+        "EquipSlot": "PrimaryWeapon",
+        "Durability": 0.55
+      }
+    ],
+    "Armor": {
+      "BodyArmorItemID": "",
+      "HelmetItemID": "Helmet_SSh68",
+      "RigItemID": "Rig_Scav_Vest",
+      "FaceCoverItemID": "",
+      "EyewearItemID": "",
+      "HeadsetItemID": "",
+      "BodyArmorDurability": 1.0,
+      "HelmetDurability": 0.7
+    },
+    "BackpackItemID": "",
+    "RigContents": [
+      { "ItemID": "Consumable_Bandage", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 2, "SpawnChance": 0.7 }
+    ],
+    "BackpackContents": [],
+    "PocketContents": [],
+    "Currency": [
+      { "ItemID": "Currency_Roubles", "Quantity": 1, "MinQuantity": 1000, "MaxQuantity": 5000, "SpawnChance": 0.6 }
+    ],
+    "QuestItems": [],
+    "Keys": []
+  },
+  {
+    "Name": "Loadout_Scav_AKS74U",
+    "Comment": "Better scav with AKS-74U",
+    "Weapons": [
+      {
+        "WeaponItemID": "Weapon_AKS74U",
+        "AttachmentItemIDs": [],
+        "Magazines": [
+          {
+            "MagazineItemID": "Mag_AK74_30rnd",
+            "AmmoItemID": "Ammo_545x39_PS",
+            "LoadedAmmoCount": 30,
+            "Location": "InWeapon"
+          },
+          {
+            "MagazineItemID": "Mag_AK74_30rnd",
+            "AmmoItemID": "Ammo_545x39_PS",
+            "LoadedAmmoCount": 30,
+            "Location": "InRig"
+          }
+        ],
+        "LooseAmmo": {
+          "AmmoItemID": "Ammo_545x39_PS",
+          "MinCount": 0,
+          "MaxCount": 30,
+          "SpawnChance": 0.4
+        },
+        "EquipSlot": "PrimaryWeapon",
+        "Durability": 0.6
+      }
+    ],
+    "Armor": {
+      "BodyArmorItemID": "Armor_PACA",
+      "HelmetItemID": "",
+      "RigItemID": "Rig_Scav_Vest",
+      "FaceCoverItemID": "",
+      "EyewearItemID": "",
+      "HeadsetItemID": "",
+      "BodyArmorDurability": 0.5,
+      "HelmetDurability": 1.0
+    },
+    "BackpackItemID": "",
+    "RigContents": [
+      { "ItemID": "Consumable_Bandage", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 2, "SpawnChance": 0.8 },
+      { "ItemID": "Consumable_AI2_Medkit", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.4 }
+    ],
+    "BackpackContents": [],
+    "PocketContents": [],
+    "Currency": [
+      { "ItemID": "Currency_Roubles", "Quantity": 1, "MinQuantity": 2000, "MaxQuantity": 8000, "SpawnChance": 0.7 }
+    ],
+    "QuestItems": [],
+    "Keys": []
+  },
+  {
+    "Name": "Loadout_Raider_Standard",
+    "Comment": "Standard raider with AK-74M and full kit",
+    "Weapons": [
+      {
+        "WeaponItemID": "Weapon_AK74M",
+        "AttachmentItemIDs": ["Optic_EKP_Cobra", "Grip_RK1"],
+        "Magazines": [
+          {
+            "MagazineItemID": "Mag_AK74_30rnd",
+            "AmmoItemID": "Ammo_545x39_BT",
+            "LoadedAmmoCount": 30,
+            "Location": "InWeapon"
+          },
+          {
+            "MagazineItemID": "Mag_AK74_30rnd",
+            "AmmoItemID": "Ammo_545x39_BT",
+            "LoadedAmmoCount": 30,
+            "Location": "InRig"
+          },
+          {
+            "MagazineItemID": "Mag_AK74_30rnd",
+            "AmmoItemID": "Ammo_545x39_BT",
+            "LoadedAmmoCount": 30,
+            "Location": "InRig"
+          },
+          {
+            "MagazineItemID": "Mag_AK74_30rnd",
+            "AmmoItemID": "Ammo_545x39_BT",
+            "LoadedAmmoCount": 30,
+            "Location": "InRig"
+          }
+        ],
+        "LooseAmmo": {
+          "AmmoItemID": "",
+          "MinCount": 0,
+          "MaxCount": 0,
+          "SpawnChance": 0.0
+        },
+        "EquipSlot": "PrimaryWeapon",
+        "Durability": 0.85
+      },
+      {
+        "WeaponItemID": "Weapon_Glock17",
+        "AttachmentItemIDs": [],
+        "Magazines": [
+          {
+            "MagazineItemID": "Mag_Glock_17rnd",
+            "AmmoItemID": "Ammo_9x19_PST",
+            "LoadedAmmoCount": 17,
+            "Location": "InWeapon"
+          }
+        ],
+        "LooseAmmo": {
+          "AmmoItemID": "",
+          "MinCount": 0,
+          "MaxCount": 0,
+          "SpawnChance": 0.0
+        },
+        "EquipSlot": "SecondaryWeapon",
+        "Durability": 0.9
+      }
+    ],
+    "Armor": {
+      "BodyArmorItemID": "Armor_6B13",
+      "HelmetItemID": "Helmet_LZSh",
+      "RigItemID": "Rig_Triton",
+      "FaceCoverItemID": "",
+      "EyewearItemID": "",
+      "HeadsetItemID": "Headset_Comtac2",
+      "BodyArmorDurability": 0.75,
+      "HelmetDurability": 0.85
+    },
+    "BackpackItemID": "Backpack_Berkut",
+    "RigContents": [
+      { "ItemID": "Grenade_F1", "Quantity": 2, "MinQuantity": 1, "MaxQuantity": 2, "SpawnChance": 1.0 },
+      { "ItemID": "Medical_IFAK", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 1.0 }
+    ],
+    "BackpackContents": [
+      { "ItemID": "Medical_Salewa", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.7 },
+      { "ItemID": "Food_MRE", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.5 },
+      { "ItemID": "Ammo_545x39_BT", "Quantity": 60, "MinQuantity": 30, "MaxQuantity": 90, "SpawnChance": 0.8 }
+    ],
+    "PocketContents": [
+      { "ItemID": "Medical_Morphine", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.4 }
+    ],
+    "Currency": [
+      { "ItemID": "Currency_Dollars", "Quantity": 1, "MinQuantity": 50, "MaxQuantity": 200, "SpawnChance": 0.6 }
+    ],
+    "QuestItems": [],
+    "Keys": [
+      { "ItemID": "Key_Factory_Exit", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 0.05 }
+    ]
+  },
+  {
+    "Name": "Loadout_Boss_Killa",
+    "Comment": "Interchange boss - fully kitted with RPK",
+    "Weapons": [
+      {
+        "WeaponItemID": "Weapon_RPK16",
+        "AttachmentItemIDs": ["Optic_Valday_PS320", "Grip_RK2", "Muzzle_DTK1"],
+        "Magazines": [
+          {
+            "MagazineItemID": "Mag_RPK_95rnd",
+            "AmmoItemID": "Ammo_545x39_PPBS",
+            "LoadedAmmoCount": 95,
+            "Location": "InWeapon"
+          },
+          {
+            "MagazineItemID": "Mag_RPK_95rnd",
+            "AmmoItemID": "Ammo_545x39_PPBS",
+            "LoadedAmmoCount": 95,
+            "Location": "InRig"
+          },
+          {
+            "MagazineItemID": "Mag_RPK_95rnd",
+            "AmmoItemID": "Ammo_545x39_PPBS",
+            "LoadedAmmoCount": 95,
+            "Location": "InRig"
+          }
+        ],
+        "LooseAmmo": {
+          "AmmoItemID": "",
+          "MinCount": 0,
+          "MaxCount": 0,
+          "SpawnChance": 0.0
+        },
+        "EquipSlot": "PrimaryWeapon",
+        "Durability": 0.95
+      }
+    ],
+    "Armor": {
+      "BodyArmorItemID": "Armor_6B13_Killa",
+      "HelmetItemID": "Helmet_Maska_Killa",
+      "RigItemID": "Rig_Blackrock",
+      "FaceCoverItemID": "",
+      "EyewearItemID": "",
+      "HeadsetItemID": "",
+      "BodyArmorDurability": 1.0,
+      "HelmetDurability": 1.0
+    },
+    "BackpackItemID": "",
+    "RigContents": [
+      { "ItemID": "Grenade_F1", "Quantity": 4, "MinQuantity": 4, "MaxQuantity": 4, "SpawnChance": 1.0 },
+      { "ItemID": "Medical_IFAK", "Quantity": 2, "MinQuantity": 2, "MaxQuantity": 2, "SpawnChance": 1.0 },
+      { "ItemID": "Stimulant_SJ6", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 1.0 }
+    ],
+    "BackpackContents": [],
+    "PocketContents": [
+      { "ItemID": "Medical_Morphine", "Quantity": 2, "MinQuantity": 2, "MaxQuantity": 2, "SpawnChance": 1.0 }
+    ],
+    "Currency": [
+      { "ItemID": "Currency_Roubles", "Quantity": 1, "MinQuantity": 50000, "MaxQuantity": 150000, "SpawnChance": 1.0 },
+      { "ItemID": "Currency_Dollars", "Quantity": 1, "MinQuantity": 500, "MaxQuantity": 1500, "SpawnChance": 0.8 }
+    ],
+    "QuestItems": [],
+    "Keys": [
+      { "ItemID": "Key_Killa_Armband", "Quantity": 1, "MinQuantity": 1, "MaxQuantity": 1, "SpawnChance": 1.0 }
+    ]
+  }
+]

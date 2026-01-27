@@ -50,6 +50,9 @@ public:
     bool IsAlive() const;
     float GetHealthPercent() const;
 
+    /** Apply MovementSpeed attribute to CharacterMovementComponent */
+    void ApplyMovementSpeedToCharacter();
+
 protected:
     UFUNCTION()
     void OnRep_Health(const FGameplayAttributeData& OldValue);

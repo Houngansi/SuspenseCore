@@ -9,6 +9,7 @@
 #include "GameplayTagContainer.h"
 #include "GameplayEffect.h"
 #include "Abilities/GameplayAbility.h"
+#include "SuspenseCore/Types/SuspenseCoreEnemyLoadoutTypes.h"
 #include "SuspenseCoreEnemyTypes.generated.h"
 
 class USuspenseCoreEnemyStateBase;
@@ -333,20 +334,36 @@ struct ENEMYSYSTEM_API FSuspenseCoreEnemyPresetRow : public FTableRowBase
 	FGameplayTagContainer GrantedTags;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// EQUIPMENT
+	// EQUIPMENT (Legacy - GameplayTag references)
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Default weapon preset tag (references equipment system) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment")
+	/** Default weapon preset tag (references equipment system) - LEGACY */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Legacy")
 	FGameplayTag DefaultWeaponPreset;
 
-	/** Alternative weapon presets (random selection) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment")
+	/** Alternative weapon presets (random selection) - LEGACY */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Legacy")
 	TArray<FGameplayTag> AlternativeWeaponPresets;
 
-	/** Armor preset tag */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment")
+	/** Armor preset tag - LEGACY */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Legacy")
 	FGameplayTag ArmorPreset;
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// LOADOUT (Tarkov-Style - Real Inventory)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Full loadout preset with actual items, magazines, and ammo.
+	 * This is the primary way to define enemy equipment (Tarkov-style).
+	 * When set, this takes precedence over legacy weapon/armor presets.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Loadout")
+	FEnemyLoadoutPreset LoadoutPreset;
+
+	/** Use LoadoutPreset instead of legacy weapon/armor tags */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Loadout")
+	bool bUseTarkovStyleLoadout = false;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// LOOT

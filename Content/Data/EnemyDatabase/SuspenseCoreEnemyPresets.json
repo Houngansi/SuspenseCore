@@ -1,0 +1,653 @@
+[
+  {
+    "Name": "Scav_Grunt",
+    "PresetID": "Scav_Grunt",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"Scav_Grunt\", \"Scav Grunt\")",
+    "Description": "Basic scavenger enemy. Low threat, often found in groups.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.Scav\")",
+    "Archetype": "Grunt",
+    "CombatStyle": "Balanced",
+    "BaseAttributes": {
+      "MaxHealth": 100.0,
+      "HealthRegen": 0.0,
+      "Armor": 0.0,
+      "AttackPower": 15.0,
+      "AttackSpeed": 1.0,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 200.0,
+      "RunSpeed": 400.0,
+      "PatrolSpeed": 150.0,
+      "RotationRate": 360.0,
+      "bCanJump": true,
+      "JumpHeight": 400.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 1500.0,
+      "SightLoseRange": 2000.0,
+      "PeripheralVisionAngle": 60.0,
+      "HearingRange": 1000.0,
+      "TargetMemoryDuration": 5.0,
+      "AutoDetectRange": 200.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 600.0,
+      "MinCombatRange": 150.0,
+      "MaxCombatRange": 1200.0,
+      "MeleeAttackRange": 150.0,
+      "AttackCooldown": 2.0,
+      "AggressionLevel": 0.4,
+      "Accuracy": 0.5
+    },
+    "BaseLevel": 1,
+    "HealthPerLevel": 10.0,
+    "ArmorPerLevel": 0.0,
+    "AttackPowerPerLevel": 1.0,
+    "ExperiencePerLevelMultiplier": 1.1,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.Scav\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.ScavPistol\")",
+    "AlternativeWeaponPresets": [
+      "(TagName=\"Equipment.Weapon.Preset.ScavShotgun\")"
+    ],
+    "ArmorPreset": "()",
+    "LootConfig": {
+      "BaseExperience": 50,
+      "BaseCurrency": 100,
+      "LootTableRowName": "LT_Scav_Basic",
+      "DropChanceMultiplier": 1.0
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "Scav_Scout",
+    "PresetID": "Scav_Scout",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"Scav_Scout\", \"Scav Scout\")",
+    "Description": "Fast-moving scavenger. Quick but fragile.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.Scav\")",
+    "Archetype": "Scout",
+    "CombatStyle": "Flanking",
+    "BaseAttributes": {
+      "MaxHealth": 70.0,
+      "HealthRegen": 0.0,
+      "Armor": 0.0,
+      "AttackPower": 12.0,
+      "AttackSpeed": 1.3,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 250.0,
+      "RunSpeed": 550.0,
+      "PatrolSpeed": 200.0,
+      "RotationRate": 450.0,
+      "bCanJump": true,
+      "JumpHeight": 500.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 2000.0,
+      "SightLoseRange": 2500.0,
+      "PeripheralVisionAngle": 75.0,
+      "HearingRange": 1500.0,
+      "TargetMemoryDuration": 8.0,
+      "AutoDetectRange": 250.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 500.0,
+      "MinCombatRange": 100.0,
+      "MaxCombatRange": 1000.0,
+      "MeleeAttackRange": 120.0,
+      "AttackCooldown": 1.5,
+      "AggressionLevel": 0.6,
+      "Accuracy": 0.45
+    },
+    "BaseLevel": 1,
+    "HealthPerLevel": 7.0,
+    "ArmorPerLevel": 0.0,
+    "AttackPowerPerLevel": 1.0,
+    "ExperiencePerLevelMultiplier": 1.15,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.Scav\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.ScavSMG\")",
+    "AlternativeWeaponPresets": [],
+    "ArmorPreset": "()",
+    "LootConfig": {
+      "BaseExperience": 65,
+      "BaseCurrency": 120,
+      "LootTableRowName": "LT_Scav_Basic",
+      "DropChanceMultiplier": 1.1
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "Scav_Heavy",
+    "PresetID": "Scav_Heavy",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"Scav_Heavy\", \"Scav Heavy\")",
+    "Description": "Armored scavenger. Slow but tough to kill.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.Scav\")",
+    "Archetype": "Heavy",
+    "CombatStyle": "Defensive",
+    "BaseAttributes": {
+      "MaxHealth": 250.0,
+      "HealthRegen": 0.0,
+      "Armor": 40.0,
+      "AttackPower": 25.0,
+      "AttackSpeed": 0.8,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 150.0,
+      "RunSpeed": 300.0,
+      "PatrolSpeed": 120.0,
+      "RotationRate": 270.0,
+      "bCanJump": false,
+      "JumpHeight": 0.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 1200.0,
+      "SightLoseRange": 1500.0,
+      "PeripheralVisionAngle": 50.0,
+      "HearingRange": 800.0,
+      "TargetMemoryDuration": 4.0,
+      "AutoDetectRange": 300.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 400.0,
+      "MinCombatRange": 200.0,
+      "MaxCombatRange": 800.0,
+      "MeleeAttackRange": 180.0,
+      "AttackCooldown": 2.5,
+      "AggressionLevel": 0.3,
+      "Accuracy": 0.6
+    },
+    "BaseLevel": 3,
+    "HealthPerLevel": 25.0,
+    "ArmorPerLevel": 5.0,
+    "AttackPowerPerLevel": 3.0,
+    "ExperiencePerLevelMultiplier": 1.2,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.Scav\"),(TagName=\"Enemy.Trait.Armored\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.ScavLMG\")",
+    "AlternativeWeaponPresets": [
+      "(TagName=\"Equipment.Weapon.Preset.ScavShotgun\")"
+    ],
+    "ArmorPreset": "(TagName=\"Equipment.Armor.Preset.Heavy\")",
+    "LootConfig": {
+      "BaseExperience": 150,
+      "BaseCurrency": 300,
+      "LootTableRowName": "LT_Scav_Heavy",
+      "DropChanceMultiplier": 1.3
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "Scav_Sniper",
+    "PresetID": "Scav_Sniper",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"Scav_Sniper\", \"Scav Sniper\")",
+    "Description": "Long-range scavenger. Deadly accurate but weak up close.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.Scav\")",
+    "Archetype": "Sniper",
+    "CombatStyle": "Ranged",
+    "BaseAttributes": {
+      "MaxHealth": 80.0,
+      "HealthRegen": 0.0,
+      "Armor": 0.0,
+      "AttackPower": 45.0,
+      "AttackSpeed": 0.6,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 180.0,
+      "RunSpeed": 350.0,
+      "PatrolSpeed": 100.0,
+      "RotationRate": 300.0,
+      "bCanJump": true,
+      "JumpHeight": 400.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 3000.0,
+      "SightLoseRange": 3500.0,
+      "PeripheralVisionAngle": 40.0,
+      "HearingRange": 600.0,
+      "TargetMemoryDuration": 10.0,
+      "AutoDetectRange": 150.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 1500.0,
+      "MinCombatRange": 800.0,
+      "MaxCombatRange": 2500.0,
+      "MeleeAttackRange": 100.0,
+      "AttackCooldown": 3.0,
+      "AggressionLevel": 0.2,
+      "Accuracy": 0.85
+    },
+    "BaseLevel": 2,
+    "HealthPerLevel": 8.0,
+    "ArmorPerLevel": 0.0,
+    "AttackPowerPerLevel": 5.0,
+    "ExperiencePerLevelMultiplier": 1.25,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.Scav\"),(TagName=\"Enemy.Role.Sniper\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.ScavSniper\")",
+    "AlternativeWeaponPresets": [],
+    "ArmorPreset": "()",
+    "LootConfig": {
+      "BaseExperience": 100,
+      "BaseCurrency": 200,
+      "LootTableRowName": "LT_Scav_Sniper",
+      "DropChanceMultiplier": 1.2
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "Raider_Standard",
+    "PresetID": "Raider_Standard",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"Raider_Standard\", \"Raider\")",
+    "Description": "Well-trained PMC raider. Dangerous in groups.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.Raider\")",
+    "Archetype": "Grunt",
+    "CombatStyle": "Aggressive",
+    "BaseAttributes": {
+      "MaxHealth": 150.0,
+      "HealthRegen": 0.0,
+      "Armor": 20.0,
+      "AttackPower": 25.0,
+      "AttackSpeed": 1.0,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 220.0,
+      "RunSpeed": 480.0,
+      "PatrolSpeed": 180.0,
+      "RotationRate": 400.0,
+      "bCanJump": true,
+      "JumpHeight": 450.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 2000.0,
+      "SightLoseRange": 2500.0,
+      "PeripheralVisionAngle": 70.0,
+      "HearingRange": 1200.0,
+      "TargetMemoryDuration": 8.0,
+      "AutoDetectRange": 250.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 500.0,
+      "MinCombatRange": 150.0,
+      "MaxCombatRange": 1000.0,
+      "MeleeAttackRange": 150.0,
+      "AttackCooldown": 1.5,
+      "AggressionLevel": 0.7,
+      "Accuracy": 0.7
+    },
+    "BaseLevel": 5,
+    "HealthPerLevel": 15.0,
+    "ArmorPerLevel": 2.0,
+    "AttackPowerPerLevel": 2.5,
+    "ExperiencePerLevelMultiplier": 1.15,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.Raider\"),(TagName=\"Enemy.Trait.Tactical\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.RaiderRifle\")",
+    "AlternativeWeaponPresets": [
+      "(TagName=\"Equipment.Weapon.Preset.RaiderSMG\")",
+      "(TagName=\"Equipment.Weapon.Preset.RaiderShotgun\")"
+    ],
+    "ArmorPreset": "(TagName=\"Equipment.Armor.Preset.Medium\")",
+    "LootConfig": {
+      "BaseExperience": 200,
+      "BaseCurrency": 500,
+      "LootTableRowName": "LT_Raider_Standard",
+      "DropChanceMultiplier": 1.5
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "Raider_Elite",
+    "PresetID": "Raider_Elite",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"Raider_Elite\", \"Elite Raider\")",
+    "Description": "Elite PMC operative. Heavily armed and armored.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.Raider\")",
+    "Archetype": "Elite",
+    "CombatStyle": "Aggressive",
+    "BaseAttributes": {
+      "MaxHealth": 300.0,
+      "HealthRegen": 1.0,
+      "Armor": 50.0,
+      "AttackPower": 35.0,
+      "AttackSpeed": 1.1,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 200.0,
+      "RunSpeed": 450.0,
+      "PatrolSpeed": 160.0,
+      "RotationRate": 380.0,
+      "bCanJump": true,
+      "JumpHeight": 450.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 2500.0,
+      "SightLoseRange": 3000.0,
+      "PeripheralVisionAngle": 80.0,
+      "HearingRange": 1500.0,
+      "TargetMemoryDuration": 12.0,
+      "AutoDetectRange": 350.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 450.0,
+      "MinCombatRange": 100.0,
+      "MaxCombatRange": 900.0,
+      "MeleeAttackRange": 160.0,
+      "AttackCooldown": 1.2,
+      "AggressionLevel": 0.8,
+      "Accuracy": 0.8
+    },
+    "BaseLevel": 10,
+    "HealthPerLevel": 30.0,
+    "ArmorPerLevel": 5.0,
+    "AttackPowerPerLevel": 3.5,
+    "ExperiencePerLevelMultiplier": 1.2,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.Raider\"),(TagName=\"Enemy.Trait.Elite\"),(TagName=\"Enemy.Trait.Tactical\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.EliteRifle\")",
+    "AlternativeWeaponPresets": [],
+    "ArmorPreset": "(TagName=\"Equipment.Armor.Preset.Heavy\")",
+    "LootConfig": {
+      "BaseExperience": 500,
+      "BaseCurrency": 1500,
+      "LootTableRowName": "LT_Raider_Elite",
+      "DropChanceMultiplier": 2.0
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "Boss_Killa",
+    "PresetID": "Boss_Killa",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"Boss_Killa\", \"Killa\")",
+    "Description": "Interchange boss. Extremely dangerous, heavily armored with RPK.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.Boss\")",
+    "Archetype": "Boss",
+    "CombatStyle": "Aggressive",
+    "BaseAttributes": {
+      "MaxHealth": 1000.0,
+      "HealthRegen": 2.0,
+      "Armor": 80.0,
+      "AttackPower": 50.0,
+      "AttackSpeed": 1.2,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 180.0,
+      "RunSpeed": 500.0,
+      "PatrolSpeed": 150.0,
+      "RotationRate": 400.0,
+      "bCanJump": true,
+      "JumpHeight": 400.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 3000.0,
+      "SightLoseRange": 4000.0,
+      "PeripheralVisionAngle": 90.0,
+      "HearingRange": 2000.0,
+      "TargetMemoryDuration": 30.0,
+      "AutoDetectRange": 500.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 300.0,
+      "MinCombatRange": 50.0,
+      "MaxCombatRange": 600.0,
+      "MeleeAttackRange": 200.0,
+      "AttackCooldown": 0.8,
+      "AggressionLevel": 1.0,
+      "Accuracy": 0.9
+    },
+    "BaseLevel": 20,
+    "HealthPerLevel": 50.0,
+    "ArmorPerLevel": 5.0,
+    "AttackPowerPerLevel": 5.0,
+    "ExperiencePerLevelMultiplier": 1.3,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.Boss\"),(TagName=\"Enemy.Trait.Boss\"),(TagName=\"Enemy.Trait.Armored\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.BossLMG\")",
+    "AlternativeWeaponPresets": [],
+    "ArmorPreset": "(TagName=\"Equipment.Armor.Preset.Boss\")",
+    "LootConfig": {
+      "BaseExperience": 5000,
+      "BaseCurrency": 10000,
+      "LootTableRowName": "LT_Boss_Killa",
+      "DropChanceMultiplier": 3.0
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "PMC_USEC",
+    "PresetID": "PMC_USEC",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"PMC_USEC\", \"USEC Operative\")",
+    "Description": "USEC PMC faction enemy. Well-trained and equipped.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.PMC\")",
+    "Archetype": "Grunt",
+    "CombatStyle": "Balanced",
+    "BaseAttributes": {
+      "MaxHealth": 120.0,
+      "HealthRegen": 0.0,
+      "Armor": 25.0,
+      "AttackPower": 22.0,
+      "AttackSpeed": 1.0,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 210.0,
+      "RunSpeed": 460.0,
+      "PatrolSpeed": 170.0,
+      "RotationRate": 390.0,
+      "bCanJump": true,
+      "JumpHeight": 450.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 2200.0,
+      "SightLoseRange": 2700.0,
+      "PeripheralVisionAngle": 65.0,
+      "HearingRange": 1300.0,
+      "TargetMemoryDuration": 7.0,
+      "AutoDetectRange": 280.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 550.0,
+      "MinCombatRange": 150.0,
+      "MaxCombatRange": 1100.0,
+      "MeleeAttackRange": 150.0,
+      "AttackCooldown": 1.8,
+      "AggressionLevel": 0.55,
+      "Accuracy": 0.68
+    },
+    "BaseLevel": 4,
+    "HealthPerLevel": 12.0,
+    "ArmorPerLevel": 2.5,
+    "AttackPowerPerLevel": 2.0,
+    "ExperiencePerLevelMultiplier": 1.12,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.USEC\"),(TagName=\"Enemy.Trait.Tactical\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.USEC_Rifle\")",
+    "AlternativeWeaponPresets": [
+      "(TagName=\"Equipment.Weapon.Preset.USEC_SMG\")"
+    ],
+    "ArmorPreset": "(TagName=\"Equipment.Armor.Preset.Medium\")",
+    "LootConfig": {
+      "BaseExperience": 180,
+      "BaseCurrency": 450,
+      "LootTableRowName": "LT_PMC_Standard",
+      "DropChanceMultiplier": 1.4
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "PMC_BEAR",
+    "PresetID": "PMC_BEAR",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"PMC_BEAR\", \"BEAR Operative\")",
+    "Description": "BEAR PMC faction enemy. Aggressive and well-armed.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.PMC\")",
+    "Archetype": "Grunt",
+    "CombatStyle": "Aggressive",
+    "BaseAttributes": {
+      "MaxHealth": 130.0,
+      "HealthRegen": 0.0,
+      "Armor": 20.0,
+      "AttackPower": 25.0,
+      "AttackSpeed": 1.05,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 215.0,
+      "RunSpeed": 470.0,
+      "PatrolSpeed": 175.0,
+      "RotationRate": 395.0,
+      "bCanJump": true,
+      "JumpHeight": 450.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 2100.0,
+      "SightLoseRange": 2600.0,
+      "PeripheralVisionAngle": 68.0,
+      "HearingRange": 1250.0,
+      "TargetMemoryDuration": 6.5,
+      "AutoDetectRange": 270.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 500.0,
+      "MinCombatRange": 120.0,
+      "MaxCombatRange": 1000.0,
+      "MeleeAttackRange": 155.0,
+      "AttackCooldown": 1.6,
+      "AggressionLevel": 0.65,
+      "Accuracy": 0.65
+    },
+    "BaseLevel": 4,
+    "HealthPerLevel": 13.0,
+    "ArmorPerLevel": 2.0,
+    "AttackPowerPerLevel": 2.2,
+    "ExperiencePerLevelMultiplier": 1.12,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.BEAR\"),(TagName=\"Enemy.Trait.Tactical\")))",
+    "DefaultWeaponPreset": "(TagName=\"Equipment.Weapon.Preset.BEAR_Rifle\")",
+    "AlternativeWeaponPresets": [
+      "(TagName=\"Equipment.Weapon.Preset.BEAR_Shotgun\")"
+    ],
+    "ArmorPreset": "(TagName=\"Equipment.Armor.Preset.Medium\")",
+    "LootConfig": {
+      "BaseExperience": 185,
+      "BaseCurrency": 460,
+      "LootTableRowName": "LT_PMC_Standard",
+      "DropChanceMultiplier": 1.4
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  },
+  {
+    "Name": "Zombie_Basic",
+    "PresetID": "Zombie_Basic",
+    "DisplayName": "NSLOCTEXT(\"Enemies\", \"Zombie_Basic\", \"Infected\")",
+    "Description": "Basic infected enemy. Slow but relentless melee attacker.",
+    "EnemyTypeTag": "(TagName=\"Type.Enemy.Zombie\")",
+    "Archetype": "Berserker",
+    "CombatStyle": "Melee",
+    "BaseAttributes": {
+      "MaxHealth": 80.0,
+      "HealthRegen": 0.0,
+      "Armor": 0.0,
+      "AttackPower": 20.0,
+      "AttackSpeed": 0.9,
+      "DamageMultiplier": 1.0
+    },
+    "MovementAttributes": {
+      "WalkSpeed": 100.0,
+      "RunSpeed": 350.0,
+      "PatrolSpeed": 80.0,
+      "RotationRate": 200.0,
+      "bCanJump": false,
+      "JumpHeight": 0.0,
+      "bCanFly": false
+    },
+    "PerceptionAttributes": {
+      "SightRange": 800.0,
+      "SightLoseRange": 1200.0,
+      "PeripheralVisionAngle": 120.0,
+      "HearingRange": 2000.0,
+      "TargetMemoryDuration": 20.0,
+      "AutoDetectRange": 100.0
+    },
+    "CombatAttributes": {
+      "PreferredCombatRange": 50.0,
+      "MinCombatRange": 0.0,
+      "MaxCombatRange": 200.0,
+      "MeleeAttackRange": 150.0,
+      "AttackCooldown": 1.5,
+      "AggressionLevel": 1.0,
+      "Accuracy": 0.0
+    },
+    "BaseLevel": 1,
+    "HealthPerLevel": 8.0,
+    "ArmorPerLevel": 0.0,
+    "AttackPowerPerLevel": 2.0,
+    "ExperiencePerLevelMultiplier": 1.05,
+    "StartupAbilities": [],
+    "StartupEffects": [],
+    "PassiveEffects": [],
+    "GrantedTags": "(GameplayTags=((TagName=\"Enemy.Faction.Infected\"),(TagName=\"Enemy.Trait.Melee\")))",
+    "DefaultWeaponPreset": "()",
+    "AlternativeWeaponPresets": [],
+    "ArmorPreset": "()",
+    "LootConfig": {
+      "BaseExperience": 25,
+      "BaseCurrency": 0,
+      "LootTableRowName": "LT_Infected_Basic",
+      "DropChanceMultiplier": 0.5
+    },
+    "OverrideMesh": "",
+    "OverrideAnimBlueprint": "",
+    "MaterialOverrides": {}
+  }
+]

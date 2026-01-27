@@ -252,6 +252,35 @@ public:
 	bool bValidateAttributesOnStartup = true;
 
 	//========================================================================
+	// Enemy System Configuration
+	//========================================================================
+
+	/**
+	 * DataTable containing enemy preset definitions
+	 * Row Structure: FSuspenseCoreEnemyPresetRow
+	 *
+	 * JSON SOURCE: Content/Data/EnemyDatabase/SuspenseCoreEnemyPresets.json
+	 * SSOT for all enemy configurations - stats, perception, combat behavior.
+	 *
+	 * Referenced by SuspenseCoreEnemyBehaviorData via PresetRowName.
+	 *
+	 * @see SuspenseCoreEnemyTypes.h
+	 * @see SuspenseCoreEnemyBehaviorData
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Enemy System",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Enemy presets DataTable. Row Structure: FSuspenseCoreEnemyPresetRow"))
+	TSoftObjectPtr<UDataTable> EnemyPresetsDataTable;
+
+	/** Validate enemy presets on startup */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Enemy System")
+	bool bValidateEnemyPresetsOnStartup = true;
+
+	/** Enable verbose enemy AI logging */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Enemy System")
+	bool bLogEnemyAIOperations = false;
+
+	//========================================================================
 	// Magazine System Configuration (Tarkov-Style)
 	//========================================================================
 

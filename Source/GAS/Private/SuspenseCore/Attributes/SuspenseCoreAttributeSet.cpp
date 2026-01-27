@@ -142,6 +142,10 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 		const float StaminaDelta = Data.EvaluatedData.Magnitude;
 		float CurrentStamina = GetStamina();
 
+		// CRITICAL: Save the cached value BEFORE SetNumericAttributeBase!
+		// SetNumericAttributeBase triggers PreAttributeChange which would overwrite CachedPreChangeStamina
+		const float OldStamina = CachedPreChangeStamina;
+
 		// For positive changes (regen), flatten base value to prevent accumulation
 		// This is CRITICAL: periodic effects add to BASE value, which can exceed max
 		// We must reset base to clamped value to prevent base from growing unbounded
@@ -155,8 +159,8 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 			CurrentStamina = ClampedValue;
 		}
 
-		// Use cached pre-change value for accurate broadcast (set in PreAttributeChange)
-		BroadcastAttributeChange(GetStaminaAttribute(), CachedPreChangeStamina, CurrentStamina);
+		// Use the saved old value for accurate broadcast
+		BroadcastAttributeChange(GetStaminaAttribute(), OldStamina, CurrentStamina);
 	}
 	// Process MaxStamina change
 	else if (Data.EvaluatedData.Attribute == GetMaxStaminaAttribute())

@@ -19,19 +19,6 @@ ASuspenseCoreEnemyCharacter::ASuspenseCoreEnemyCharacter()
 
     EnemyTypeTag = SuspenseCoreEnemyTags::Type::Scav;
 
-    // Configure movement for AI locomotion
-    if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
-    {
-        // AI characters should rotate towards movement direction
-        MovementComp->bOrientRotationToMovement = true;
-        MovementComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
-
-        // Use acceleration for smoother movement
-        MovementComp->bUseControllerDesiredRotation = false;
-        MovementComp->MaxAcceleration = 2048.0f;
-        MovementComp->BrakingDecelerationWalking = 2048.0f;
-    }
-
     // Don't use controller rotation - let movement component handle it
     bUseControllerRotationPitch = false;
     bUseControllerRotationYaw = false;
@@ -41,6 +28,29 @@ ASuspenseCoreEnemyCharacter::ASuspenseCoreEnemyCharacter()
 void ASuspenseCoreEnemyCharacter::BeginPlay()
 {
     Super::BeginPlay();
+
+    // CRITICAL: Configure movement in BeginPlay, not constructor
+    // This must happen before InitializeEnemy
+    if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+    {
+        // Base movement settings
+        MovementComp->MaxWalkSpeed = 450.0f;
+        MovementComp->MinAnalogWalkSpeed = 20.0f;
+        MovementComp->MaxAcceleration = 2048.0f;
+        MovementComp->BrakingDecelerationWalking = 2048.0f;
+        MovementComp->GroundFriction = 8.0f;
+
+        // AI rotation settings - rotate towards movement
+        MovementComp->bOrientRotationToMovement = true;
+        MovementComp->bUseControllerDesiredRotation = false;
+        MovementComp->RotationRate = FRotator(0.0f, 360.0f, 0.0f);
+
+        // CRITICAL: Set movement mode to Walking
+        MovementComp->SetMovementMode(MOVE_Walking);
+
+        UE_LOG(LogEnemySystem, Log, TEXT("[%s] BeginPlay: Movement configured - MaxWalkSpeed=%.1f, Mode=Walking"),
+            *GetName(), MovementComp->MaxWalkSpeed);
+    }
 
     if (DefaultBehaviorData)
     {

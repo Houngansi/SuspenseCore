@@ -2781,6 +2781,81 @@ USuspenseCoreEnemyBehaviorData::USuspenseCoreEnemyBehaviorData()
 
 ---
 
+## Настройка уровня (Level Setup)
+
+### ОБЯЗАТЕЛЬНО: NavMesh (Navigation Mesh)
+
+**Без NavMesh AI не сможет двигаться!** AI Controller использует `MoveToLocation()`, который требует навигационную сетку.
+
+#### Добавление NavMesh:
+
+1. **Откройте уровень** в Unreal Editor
+2. **Place Actors Panel** → поиск `NavMeshBoundsVolume`
+3. **Перетащите** NavMeshBoundsVolume на уровень
+4. **Масштабируйте** его чтобы покрыть всю игровую зону (включая высоту)
+5. **Build Navigation:**
+   - `Build` → `Build Paths`
+   - Или нажмите `P` для просмотра NavMesh (зелёная область = проходимая)
+6. **Проверьте** что враги находятся внутри NavMesh области
+
+#### Диагностика NavMesh проблем:
+
+```
+LogEnemySystem: Warning: [BP_Enemy] ChaseState: MoveToLocation FAILED! Check NavMesh!
+```
+
+Это означает:
+- NavMesh отсутствует
+- NavMesh не покрывает позицию врага
+- NavMesh не покрывает позицию цели
+- Есть препятствия блокирующие путь
+
+#### Project Settings для NavMesh:
+
+```
+Project Settings → Navigation System:
+- Agent Radius: ~35.0 (размер капсулы персонажа)
+- Agent Height: ~192.0 (высота персонажа)
+- Agent Max Step Height: ~45.0
+```
+
+### ОБЯЗАТЕЛЬНО: Animation Blueprint для Locomotion
+
+**Без правильного AnimBP враг будет двигаться но анимация останется в Idle!**
+
+#### Требования к AnimBP:
+
+1. **Создайте AnimBlueprint** для скелета врага
+2. **В Event Graph** получите скорость персонажа:
+   ```
+   Try Get Pawn Owner → Get Velocity → Vector Length → "Speed" variable
+   ```
+3. **Создайте State Machine** с состояниями:
+   - `Idle` (когда Speed < 10)
+   - `Walk` (когда Speed 10-200)
+   - `Run` (когда Speed > 200)
+4. **Или используйте Blend Space 1D:**
+   - Axis: Speed (0 → 600)
+   - Анимации: Idle (0), Walk (150), Run (500)
+
+#### Быстрая проверка AnimBP:
+
+В AnimBP Blueprint добавьте Print String с текущей скоростью:
+```
+Get Velocity → Vector Length → Print String
+```
+
+Если скорость = 0 при движении → проблема в коде (CharacterMovementComponent)
+Если скорость > 0 но анимация Idle → проблема в AnimBP (пороги или State Machine)
+
+#### Назначение AnimBP в Blueprint:
+
+1. Откройте `BP_Enemy_*`
+2. Выберите `Mesh` компонент
+3. В Details: `Animation → Anim Class` → выберите ваш AnimBP
+
+---
+
 ## Верификация
 
 ### Checklist перед компиляцией
@@ -2803,8 +2878,10 @@ UnrealBuildTool.exe -Project="YourProject.uproject" -Target="YourProjectEditor" 
 1. Создать Blueprint `BP_TestEnemy` на базе `ASuspenseCoreEnemy`
 2. Создать DataAsset `DA_TestBehavior` на базе `USuspenseCoreEnemyBehaviorData`
 3. Назначить `DA_TestBehavior` в `DefaultBehaviorData`
-4. Разместить `BP_TestEnemy` на уровне
-5. Запустить PIE и проверить:
+4. **ОБЯЗАТЕЛЬНО:** Добавить `NavMeshBoundsVolume` на уровень и выполнить Build Paths
+5. Назначить AnimBlueprint с поддержкой locomotion в Mesh компоненте
+6. Разместить `BP_TestEnemy` на уровне (внутри NavMesh области!)
+7. Запустить PIE и проверить:
    - Enemy переходит в Idle → Patrol
    - При обнаружении игрока → Chase → Attack
    - При потере игрока → Idle

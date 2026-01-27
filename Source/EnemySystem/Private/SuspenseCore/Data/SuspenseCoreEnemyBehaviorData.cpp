@@ -5,6 +5,7 @@
 #include "SuspenseCore/Data/SuspenseCoreEnemyBehaviorData.h"
 #include "SuspenseCore/Types/SuspenseCoreEnemyTypes.h"
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
+#include "SuspenseCore/Settings/SuspenseCoreSettings.h"
 #include "SuspenseCore/FSM/States/SuspenseCoreEnemyIdleState.h"
 #include "SuspenseCore/FSM/States/SuspenseCoreEnemyPatrolState.h"
 #include "SuspenseCore/FSM/States/SuspenseCoreEnemyChaseState.h"
@@ -108,7 +109,7 @@ bool USuspenseCoreEnemyBehaviorData::GetPresetRow(FSuspenseCoreEnemyPresetRow& O
 		return false;
 	}
 
-	// Try to load from directly referenced DataTable
+	// Try to load from directly referenced DataTable first
 	UDataTable* DataTable = nullptr;
 
 	if (!EnemyPresetsDataTable.IsNull())
@@ -116,10 +117,21 @@ bool USuspenseCoreEnemyBehaviorData::GetPresetRow(FSuspenseCoreEnemyPresetRow& O
 		DataTable = EnemyPresetsDataTable.LoadSynchronous();
 	}
 
+	// Fallback to Project Settings DataTable (SSOT)
+	if (!DataTable)
+	{
+		const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+		if (Settings && !Settings->EnemyPresetsDataTable.IsNull())
+		{
+			DataTable = Settings->EnemyPresetsDataTable.LoadSynchronous();
+		}
+	}
+
 	if (!DataTable)
 	{
 		UE_LOG(LogEnemyBehaviorData, Warning,
-			TEXT("BehaviorData '%s': No DataTable set for preset lookup (PresetRowName='%s')"),
+			TEXT("BehaviorData '%s': No DataTable found for preset lookup (PresetRowName='%s'). "
+				 "Set EnemyPresetsDataTable in this asset or in Project Settings → Game → SuspenseCore."),
 			*BehaviorID.ToString(), *PresetRowName.ToString());
 		return false;
 	}

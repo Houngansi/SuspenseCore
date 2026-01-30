@@ -155,6 +155,9 @@ protected:
     UPROPERTY(Transient)
     TWeakObjectPtr<UCharacterMovementComponent> CachedMovementComponent;
 
+    /** Cached yaw for lean calculation (per-instance, not static!) */
+    float LastYawForLean = 0.0f;
+
     void UpdateMovementData(float DeltaSeconds);
     void UpdateVelocityData(float DeltaSeconds);
     void UpdateAimData(float DeltaSeconds);

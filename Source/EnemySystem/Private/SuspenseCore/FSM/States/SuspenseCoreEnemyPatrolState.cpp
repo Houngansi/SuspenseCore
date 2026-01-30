@@ -3,6 +3,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreEnemyTags.h"
 #include "AIController.h"
 #include "NavigationSystem.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "EnemySystem.h"
 
 USuspenseCoreEnemyPatrolState::USuspenseCoreEnemyPatrolState()
@@ -32,6 +33,9 @@ void USuspenseCoreEnemyPatrolState::OnEnterState(ASuspenseCoreEnemyCharacter* En
         CachedController = AIController;
         AIController->ReceiveMoveCompleted.AddDynamic(this, &USuspenseCoreEnemyPatrolState::OnMoveCompleted);
     }
+
+    // Configure movement component for patrol (CRITICAL for animation!)
+    ConfigureMovement(Enemy);
 
     if (PatrolPoints.Num() == 0)
     {
@@ -157,4 +161,44 @@ void USuspenseCoreEnemyPatrolState::OnMoveCompleted(FAIRequestID RequestID, EPat
         ASuspenseCoreEnemyCharacter* Enemy = Cast<ASuspenseCoreEnemyCharacter>(CachedController.IsValid() ? CachedController->GetPawn() : nullptr);
         OnReachedPatrolPoint(Enemy);
     }
+}
+
+void USuspenseCoreEnemyPatrolState::ConfigureMovement(ASuspenseCoreEnemyCharacter* Enemy)
+{
+    if (!Enemy)
+    {
+        return;
+    }
+
+    UCharacterMovementComponent* MovementComp = Enemy->GetCharacterMovement();
+    if (!MovementComp)
+    {
+        UE_LOG(LogEnemySystem, Warning, TEXT("[%s] PatrolState: No CharacterMovementComponent!"), *GetNameSafe(Enemy));
+        return;
+    }
+
+    // Enable movement component tick
+    MovementComp->SetComponentTickEnabled(true);
+
+    // Set walking mode
+    MovementComp->SetMovementMode(MOVE_Walking);
+
+    // Set patrol speed
+    MovementComp->MaxWalkSpeed = PatrolSpeed;
+
+    // CRITICAL: Enable orientation to movement direction for walk animation
+    MovementComp->bOrientRotationToMovement = true;
+    MovementComp->RotationRate = FRotator(0.0f, 300.0f, 0.0f);
+
+    // Disable controller rotation (let movement component handle it)
+    Enemy->bUseControllerRotationYaw = false;
+
+    // Movement physics
+    MovementComp->MaxAcceleration = 1024.0f;
+    MovementComp->BrakingDecelerationWalking = 1024.0f;
+    MovementComp->GroundFriction = 8.0f;
+    MovementComp->bRequestedMoveUseAcceleration = true;
+
+    UE_LOG(LogEnemySystem, Log, TEXT("[%s] PatrolState: Movement configured - Speed=%.1f, OrientToMovement=true"),
+        *GetNameSafe(Enemy), PatrolSpeed);
 }

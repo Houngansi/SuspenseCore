@@ -40,6 +40,7 @@ protected:
     void GeneratePatrolPoints(ASuspenseCoreEnemyCharacter* Enemy);
     void MoveToNextPoint(ASuspenseCoreEnemyCharacter* Enemy);
     void OnReachedPatrolPoint(ASuspenseCoreEnemyCharacter* Enemy);
+    void ConfigureMovement(ASuspenseCoreEnemyCharacter* Enemy);
 
     UFUNCTION()
     void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result);

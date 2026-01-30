@@ -41,4 +41,5 @@ protected:
 
     void UpdateChase(ASuspenseCoreEnemyCharacter* Enemy, float DeltaTime);
     void MoveToTarget(ASuspenseCoreEnemyCharacter* Enemy, const FVector& TargetLocation);
+    void ConfigureMovement(ASuspenseCoreEnemyCharacter* Enemy);
 };

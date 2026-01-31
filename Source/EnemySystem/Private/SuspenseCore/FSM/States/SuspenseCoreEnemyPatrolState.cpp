@@ -177,12 +177,6 @@ void USuspenseCoreEnemyPatrolState::ConfigureMovement(ASuspenseCoreEnemyCharacte
         return;
     }
 
-    // Enable movement component tick
-    MovementComp->SetComponentTickEnabled(true);
-
-    // Set walking mode
-    MovementComp->SetMovementMode(MOVE_Walking);
-
     // Set patrol speed
     MovementComp->MaxWalkSpeed = PatrolSpeed;
 
@@ -192,12 +186,6 @@ void USuspenseCoreEnemyPatrolState::ConfigureMovement(ASuspenseCoreEnemyCharacte
 
     // Disable controller rotation (let movement component handle it)
     Enemy->bUseControllerRotationYaw = false;
-
-    // Movement physics
-    MovementComp->MaxAcceleration = 1024.0f;
-    MovementComp->BrakingDecelerationWalking = 1024.0f;
-    MovementComp->GroundFriction = 8.0f;
-    MovementComp->bRequestedMoveUseAcceleration = true;
 
     UE_LOG(LogEnemySystem, Log, TEXT("[%s] PatrolState: Movement configured - Speed=%.1f, OrientToMovement=true"),
         *GetNameSafe(Enemy), PatrolSpeed);

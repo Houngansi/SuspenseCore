@@ -188,13 +188,7 @@ void USuspenseCoreEnemyChaseState::ConfigureMovement(ASuspenseCoreEnemyCharacter
         return;
     }
 
-    // Enable movement component tick
-    MovementComp->SetComponentTickEnabled(true);
-
-    // Set walking mode (MOVE_Walking works with MoveToLocation pathfinding)
-    MovementComp->SetMovementMode(MOVE_Walking);
-
-    // Set chase speed
+    // Set chase speed (this was the original code that worked)
     MovementComp->MaxWalkSpeed = ChaseSpeed;
 
     // CRITICAL: Enable orientation to movement direction for walk/run animation
@@ -203,12 +197,6 @@ void USuspenseCoreEnemyChaseState::ConfigureMovement(ASuspenseCoreEnemyCharacter
 
     // Disable controller rotation (let movement component handle it)
     Enemy->bUseControllerRotationYaw = false;
-
-    // Movement physics for chase (faster acceleration)
-    MovementComp->MaxAcceleration = 2048.0f;
-    MovementComp->BrakingDecelerationWalking = 1024.0f;
-    MovementComp->GroundFriction = 8.0f;
-    MovementComp->bRequestedMoveUseAcceleration = true;
 
     UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: Movement configured - Speed=%.1f, OrientToMovement=true"),
         *GetNameSafe(Enemy), ChaseSpeed);

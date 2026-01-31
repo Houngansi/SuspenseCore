@@ -191,8 +191,8 @@ void USuspenseCoreEnemyChaseState::ConfigureMovement(ASuspenseCoreEnemyCharacter
     // Enable movement component tick
     MovementComp->SetComponentTickEnabled(true);
 
-    // Set walking mode (NavWalking for better pathfinding)
-    MovementComp->SetMovementMode(MOVE_NavWalking);
+    // Set walking mode (MOVE_Walking works with MoveToLocation pathfinding)
+    MovementComp->SetMovementMode(MOVE_Walking);
 
     // Set chase speed
     MovementComp->MaxWalkSpeed = ChaseSpeed;

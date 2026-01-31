@@ -34,13 +34,8 @@ void USuspenseCoreEnemyChaseState::OnEnterState(ASuspenseCoreEnemyCharacter* Ene
         CachedController = AIController;
     }
 
-    // Apply chase speed to movement component
-    if (UCharacterMovementComponent* MovementComp = Enemy->GetCharacterMovement())
-    {
-        MovementComp->MaxWalkSpeed = ChaseSpeed;
-        UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: Entered - Setting MaxWalkSpeed=%.1f"),
-            *GetNameSafe(Enemy), ChaseSpeed);
-    }
+    // Configure movement component for chase (CRITICAL for animation!)
+    ConfigureMovement(Enemy);
 
     TimeSinceTargetSeen = 0.0f;
     TimeSinceLastPathUpdate = PathUpdateInterval;
@@ -177,4 +172,44 @@ void USuspenseCoreEnemyChaseState::MoveToTarget(ASuspenseCoreEnemyCharacter* Ene
     {
         UE_LOG(LogEnemySystem, Verbose, TEXT("[%s] ChaseState: Already at goal"), *GetNameSafe(Enemy));
     }
+}
+
+void USuspenseCoreEnemyChaseState::ConfigureMovement(ASuspenseCoreEnemyCharacter* Enemy)
+{
+    if (!Enemy)
+    {
+        return;
+    }
+
+    UCharacterMovementComponent* MovementComp = Enemy->GetCharacterMovement();
+    if (!MovementComp)
+    {
+        UE_LOG(LogEnemySystem, Warning, TEXT("[%s] ChaseState: No CharacterMovementComponent!"), *GetNameSafe(Enemy));
+        return;
+    }
+
+    // Enable movement component tick
+    MovementComp->SetComponentTickEnabled(true);
+
+    // Set walking mode (NavWalking for better pathfinding)
+    MovementComp->SetMovementMode(MOVE_NavWalking);
+
+    // Set chase speed
+    MovementComp->MaxWalkSpeed = ChaseSpeed;
+
+    // CRITICAL: Enable orientation to movement direction for walk/run animation
+    MovementComp->bOrientRotationToMovement = true;
+    MovementComp->RotationRate = FRotator(0.0f, 360.0f, 0.0f);
+
+    // Disable controller rotation (let movement component handle it)
+    Enemy->bUseControllerRotationYaw = false;
+
+    // Movement physics for chase (faster acceleration)
+    MovementComp->MaxAcceleration = 2048.0f;
+    MovementComp->BrakingDecelerationWalking = 1024.0f;
+    MovementComp->GroundFriction = 8.0f;
+    MovementComp->bRequestedMoveUseAcceleration = true;
+
+    UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: Movement configured - Speed=%.1f, OrientToMovement=true"),
+        *GetNameSafe(Enemy), ChaseSpeed);
 }

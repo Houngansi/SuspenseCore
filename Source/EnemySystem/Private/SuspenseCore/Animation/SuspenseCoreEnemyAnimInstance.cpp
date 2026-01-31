@@ -176,9 +176,8 @@ void USuspenseCoreEnemyAnimInstance::UpdateAimData(float DeltaSeconds)
 
     // Calculate lean based on movement direction change
     // Simple implementation - lean into turns
-    static float LastYaw = 0.0f;
-    const float YawDelta = ActorRotation.Yaw - LastYaw;
-    LastYaw = ActorRotation.Yaw;
+    const float YawDelta = ActorRotation.Yaw - LastYawForLean;
+    LastYawForLean = ActorRotation.Yaw;
 
     const float TargetLean = FMath::Clamp(YawDelta * 0.5f, -15.0f, 15.0f);
     Lean = FMath::FInterpTo(Lean, TargetLean, DeltaSeconds, 5.0f);

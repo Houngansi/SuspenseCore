@@ -143,34 +143,44 @@ void USuspenseCoreEnemyChaseState::MoveToTarget(ASuspenseCoreEnemyCharacter* Ene
         return;
     }
 
-    // Debug: Log movement attempt with velocity
+    // Debug: Log movement attempt with full diagnostics
     if (UCharacterMovementComponent* MovementComp = Enemy ? Enemy->GetCharacterMovement() : nullptr)
     {
+        const FVector EnemyPos = Enemy->GetActorLocation();
         const FVector Velocity = Enemy->GetVelocity();
-        UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: MoveToTarget - MaxWalkSpeed=%.1f, CurrentVelocity=%.1f, Target=%s"),
+
+        UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: MoveToTarget - EnemyPos=%s, Target=%s, MovementMode=%d, MaxWalkSpeed=%.1f, Velocity=%.1f"),
             *GetNameSafe(Enemy),
+            *EnemyPos.ToString(),
+            *TargetLocation.ToString(),
+            (int32)MovementComp->MovementMode,
             MovementComp->MaxWalkSpeed,
-            Velocity.Size(),
-            *TargetLocation.ToString());
+            Velocity.Size());
     }
 
-    // Use pathfinding with projection to NavMesh (5th param = true)
+    // Use pathfinding with projection to NavMesh
     EPathFollowingRequestResult::Type Result = AIController->MoveToLocation(
         TargetLocation,
         AttackRange * 0.8f,  // AcceptanceRadius
         true,                // bStopOnOverlap
         true,                // bUsePathfinding
-        true,                // bProjectDestinationToNavigation - CRITICAL!
-        true                 // bCanStrafe
+        true,                // bProjectDestinationToNavigation
+        false                // bCanStrafe - was true, try false like legacy
     );
 
     if (Result == EPathFollowingRequestResult::Failed)
     {
-        UE_LOG(LogEnemySystem, Warning, TEXT("[%s] ChaseState: MoveToLocation FAILED! Check NavMesh!"), *GetNameSafe(Enemy));
+        UE_LOG(LogEnemySystem, Warning, TEXT("[%s] ChaseState: MoveToLocation FAILED! Result=%d"),
+            *GetNameSafe(Enemy), (int32)Result);
     }
     else if (Result == EPathFollowingRequestResult::AlreadyAtGoal)
     {
         UE_LOG(LogEnemySystem, Verbose, TEXT("[%s] ChaseState: Already at goal"), *GetNameSafe(Enemy));
+    }
+    else
+    {
+        UE_LOG(LogEnemySystem, Log, TEXT("[%s] ChaseState: MoveToLocation SUCCESS - Result=%d"),
+            *GetNameSafe(Enemy), (int32)Result);
     }
 }
 

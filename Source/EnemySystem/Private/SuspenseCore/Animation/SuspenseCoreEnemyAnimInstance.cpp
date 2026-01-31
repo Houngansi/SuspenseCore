@@ -1,6 +1,7 @@
 #include "SuspenseCore/Animation/SuspenseCoreEnemyAnimInstance.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "EnemySystem.h"
 
 USuspenseCoreEnemyAnimInstance::USuspenseCoreEnemyAnimInstance()
 {
@@ -115,6 +116,16 @@ void USuspenseCoreEnemyAnimInstance::UpdateVelocityData(float DeltaSeconds)
     Speed = Velocity.Size();
     GroundSpeed = FVector(Velocity.X, Velocity.Y, 0.0f).Size();
     VerticalVelocity = Velocity.Z;
+
+    // DEBUG: Log every second to verify AnimInstance is updating
+    static float DebugTimer = 0.0f;
+    DebugTimer += DeltaSeconds;
+    if (DebugTimer >= 1.0f)
+    {
+        DebugTimer = 0.0f;
+        UE_LOG(LogEnemySystem, Log, TEXT("[AnimInstance] %s - GroundSpeed=%.1f, bHasMovementInput=%s"),
+            *GetNameSafe(OwnerPawn), GroundSpeed, bHasMovementInput ? TEXT("true") : TEXT("false"));
+    }
 
     // Calculate normalized speed (0-2 range)
     if (MaxWalkSpeed > 0.0f)

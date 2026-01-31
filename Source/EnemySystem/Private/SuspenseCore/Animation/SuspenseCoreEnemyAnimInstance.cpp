@@ -40,8 +40,10 @@ void USuspenseCoreEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
         }
     }
 
-    UpdateMovementData(DeltaSeconds);
+    // CRITICAL: UpdateVelocityData MUST be called FIRST!
+    // It calculates GroundSpeed which is used by UpdateMovementData
     UpdateVelocityData(DeltaSeconds);
+    UpdateMovementData(DeltaSeconds);
     UpdateAimData(DeltaSeconds);
 }
 
